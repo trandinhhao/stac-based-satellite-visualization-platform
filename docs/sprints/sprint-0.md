@@ -35,11 +35,11 @@ Xác nhận stack GIS hoạt động trước khi đầu tư thời gian vào vi
 
 ### Checklist
 
-* [ ] PostgreSQL + PostGIS chạy
-* [ ] PgSTAC chạy
-* [ ] STAC FastAPI chạy
-* [ ] TiTiler chạy
-* [ ] Query được dữ liệu STAC
+* [x] PostgreSQL + PostGIS chạy
+* [x] PgSTAC chạy
+* [x] STAC FastAPI chạy
+* [x] TiTiler chạy
+* [x] Query được dữ liệu STAC
 
 ### Test
 
