@@ -1,0 +1,51 @@
+version: '3.8'
+
+services:
+  # 1: PostgreSQL wth PostGIS and pgSTAC configuration
+  postgis:
+    image: ghcr.io/stac-utils/pgstac:latest
+    container_name: postgis
+    environment:
+      - POSTGRES_DB=postgis
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgis"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # 2: stac-fastapi for backend
+  stac-fastapi:
+    image: ghcr.io/stac-utils/stac-fastapi-pgstac:latest
+    container_name: stac-fastapi
+    depends_on:
+      postgis:
+        condition: service_healthy
+    environment:
+      - PGHOST=postgis
+      - PGPORT=5432
+      - PGUSER=postgres
+      - PGPASSWORD=postgres
+      - PGDATABASE=postgis
+      - APP_HOST=0.0.0.0
+      - APP_PORT=8080
+    ports:
+      - "8080:8080"
+
+  # 3: titiler for rendering
+  titiler:
+    image: developmentseed/titiler:latest
+    container_name: titiler
+    environment:
+      - PORT=8002
+      - HOST=0.0.0.0
+    ports:
+      - "8002:8002"
+
+volumes:
+  postgres-data:
