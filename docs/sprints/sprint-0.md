@@ -27,11 +27,11 @@ Toàn bộ hệ thống hoạt động:
 
 ---
 
-# Task 0.0 - Proof Of Concept (Ưu tiên cao nhất)
+# Task 0.0 - Spike: Thử nghiệm nhanh GIS Stack (Proof Of Concept)
 
 ## Mục tiêu
 
-Xác nhận stack GIS hoạt động trước khi đầu tư thời gian vào việc xây dựng toàn bộ hệ thống và code business logic.
+Xác nhận khả năng chạy và liên thông độc lập của các service GIS (Postgres/PgSTAC, stac-fastapi, TiTiler) ở môi trường cô lập trước khi tích hợp chính thức vào hệ thống Docker Compose và codebase của dự án.
 
 ### Checklist
 
@@ -49,7 +49,7 @@ GET /collections
 
 ### Deliverable
 
-* [ ] STAC Stack hoạt động hoàn chỉnh
+* [x] STAC Stack hoạt động hoàn chỉnh
 
 ---
 
@@ -124,8 +124,8 @@ test:
 
 ### Checklist
 
-* [ ] Tạo project bằng Vite
-* [ ] Sử dụng React + TypeScript
+* [x] Tạo project bằng Vite
+* [x] Sử dụng React + TypeScript
 
 ```bash
 npm create vite@latest frontend
@@ -137,13 +137,13 @@ npm create vite@latest frontend
 
 ### Checklist
 
-* [ ] React Router
-* [ ] Axios
-* [ ] Zustand
-* [ ] TanStack Query
-* [ ] TailwindCSS
-* [ ] Material UI
-* [ ] Lucide Icons
+* [x] React Router
+* [x] Axios
+* [x] Zustand
+* [x] TanStack Query
+* [x] TailwindCSS
+* [x] Material UI
+* [x] Lucide Icons
 
 ```bash
 npm install react-router-dom
@@ -160,8 +160,8 @@ npm install lucide-react
 
 ### Checklist
 
-* [ ] Cài đặt MapLibre
-* [ ] Render bản đồ đầu tiên
+* [x] Cài đặt MapLibre
+* [x] Render bản đồ đầu tiên
 
 ```bash
 npm install maplibre-gl
@@ -173,7 +173,7 @@ npm install maplibre-gl
 
 ### Checklist
 
-* [ ] Tạo cấu trúc thư mục chuẩn
+* [x] Tạo cấu trúc thư mục chuẩn
 
 ```text
 src/
@@ -192,7 +192,7 @@ src/
 
 ## Deliverable
 
-* [ ] `npm run dev` chạy thành công
+* [x] `npm run dev` chạy thành công
 
 ---
 
@@ -202,8 +202,8 @@ src/
 
 ### Checklist
 
-* [ ] Tạo project backend
-* [ ] Thiết lập virtual environment
+* [x] Tạo project backend
+* [x] Thiết lập virtual environment
 
 ```bash
 python -m venv .venv
@@ -215,14 +215,14 @@ python -m venv .venv
 
 ### Checklist
 
-* [ ] FastAPI
-* [ ] Uvicorn
-* [ ] SQLAlchemy
-* [ ] Alembic
-* [ ] Pydantic Settings
-* [ ] Redis Client
-* [ ] Celery
-* [ ] RabbitMQ Client
+* [x] FastAPI
+* [x] Uvicorn
+* [x] SQLAlchemy
+* [x] Alembic
+* [x] Pydantic Settings
+* [x] Redis Client
+* [x] Celery
+* [x] RabbitMQ Client
 
 ```bash
 pip install fastapi
@@ -242,7 +242,7 @@ pip install aio-pika
 
 ### Checklist
 
-* [ ] Tạo App Structure
+* [x] Tạo App Structure
 
 ```text
 app/
@@ -262,7 +262,7 @@ app/
 
 ### Checklist
 
-* [ ] Tạo API Health Check
+* [x] Tạo API Health Check
 
 ```http
 GET /health
@@ -280,22 +280,24 @@ Expected Response:
 
 ## Deliverable
 
-* [ ] Swagger hoạt động tại `/docs`
-* [ ] Health API hoạt động
+* [x] Swagger hoạt động tại `/docs`
+* [x] Health API hoạt động
 
 ---
 
-# Epic 4 - PostgreSQL + PostGIS
+# Epic 4 - PostgreSQL + PostGIS (Cấu hình & Khởi tạo CSDL Dự án)
+
+> **Mục tiêu:** Thiết lập cấu hình CSDL chính thức của dự án, bao gồm cấu hình volume persistent `postgres-data`, khai báo database `postgis` chứa cả schema nghiệp vụ `public` và schema `pgstac`, và phân quyền kết nối an toàn cho Backend.
 
 ## Task 4.1 - Docker PostgreSQL
 
 ### Checklist
 
-* [ ] Tạo PostgreSQL Container
-* [ ] Sử dụng PostGIS Image
+* [x] Tạo PostGIS Container (service name `postgis`)
+* [x] Sử dụng PgSTAC Image (chứa sẵn PostgreSQL + PostGIS + PgSTAC)
 
 ```text
-postgis/postgis
+ghcr.io/stac-utils/pgstac:latest
 ```
 
 ---
@@ -304,8 +306,8 @@ postgis/postgis
 
 ### Checklist
 
-* [ ] Tạo database satellite_db
-* [ ] Thiết lập user/password
+* [x] Tạo database `postgis`
+* [x] Thiết lập user/password (`postgres` / `postgres`)
 
 ---
 
@@ -313,8 +315,8 @@ postgis/postgis
 
 ### Checklist
 
-* [ ] Kết nối database
-* [ ] Verify PostGIS
+* [x] Kết nối database
+* [x] Verify PostGIS
 
 ```sql
 SELECT PostGIS_Version();
@@ -324,8 +326,8 @@ SELECT PostGIS_Version();
 
 ## Deliverable
 
-* [ ] PostgreSQL hoạt động
-* [ ] PostGIS hoạt động
+* [x] PostgreSQL hoạt động
+* [x] PostGIS hoạt động
 
 ---
 
@@ -335,7 +337,7 @@ SELECT PostGIS_Version();
 
 ### Checklist
 
-* [ ] Deploy Redis
+* [x] Deploy Redis
 
 ```text
 redis:7
@@ -347,7 +349,7 @@ redis:7
 
 ### Checklist
 
-* [ ] Backend kết nối Redis
+* [x] Backend kết nối Redis
 
 ```python
 redis.ping()
@@ -357,7 +359,7 @@ redis.ping()
 
 ## Deliverable
 
-* [ ] Redis hoạt động
+* [x] Redis hoạt động
 
 ---
 
@@ -367,7 +369,7 @@ redis.ping()
 
 ### Checklist
 
-* [ ] Deploy RabbitMQ
+* [x] Deploy RabbitMQ
 
 ```text
 rabbitmq:3-management
@@ -379,7 +381,7 @@ rabbitmq:3-management
 
 ### Checklist
 
-* [ ] Truy cập Management UI
+* [x] Truy cập Management UI
 
 ```text
 http://localhost:15672
@@ -389,20 +391,22 @@ http://localhost:15672
 
 ## Deliverable
 
-* [ ] RabbitMQ hoạt động
+* [x] RabbitMQ hoạt động
 
 ---
 
-# Epic 7 - STAC Stack
+# Epic 7 - STAC API & PgSTAC (Tích hợp & Liên thông hệ thống)
+
+> **Mục tiêu:** Đóng gói stac-fastapi và PgSTAC vào mạng lưới Docker Compose chung của dự án, đồng bộ hóa các biến môi trường để kết nối thông suốt với dịch vụ PostgreSQL chính thức.
 
 ## Task 7.1 - Nghiên cứu STAC
 
 ### Checklist
 
-* [ ] Hiểu Catalog
-* [ ] Hiểu Collection
-* [ ] Hiểu Item
-* [ ] Hiểu Asset
+* [x] Hiểu Catalog
+* [x] Hiểu Collection
+* [x] Hiểu Item
+* [x] Hiểu Asset
 
 ---
 
@@ -410,8 +414,8 @@ http://localhost:15672
 
 ### Checklist
 
-* [ ] Tạo PgSTAC Container
-* [ ] Kết nối PostgreSQL
+* [x] Tạo PgSTAC Container
+* [x] Kết nối PostgreSQL
 
 ---
 
@@ -419,8 +423,8 @@ http://localhost:15672
 
 ### Checklist
 
-* [ ] Deploy STAC API
-* [ ] Kết nối PgSTAC
+* [x] Deploy STAC API
+* [x] Kết nối PgSTAC
 
 ---
 
@@ -428,7 +432,7 @@ http://localhost:15672
 
 ### Checklist
 
-* [ ] Test endpoint collections
+* [x] Test endpoint collections
 
 ```http
 GET /collections
@@ -438,17 +442,19 @@ GET /collections
 
 ## Deliverable
 
-* [ ] STAC API hoạt động
+* [x] STAC API hoạt động
 
 ---
 
-# Epic 8 - TiTiler
+# Epic 8 - TiTiler Server (Cấu hình & Tích hợp)
+
+> **Mục tiêu:** Đưa TiTiler vào Docker Compose chung của hệ thống và chuẩn bị các tham số cấu hình cho render map tiles từ datasets.
 
 ## Task 8.1 - Deploy TiTiler
 
 ### Checklist
 
-* [ ] Tạo TiTiler Container
+* [x] Tạo TiTiler Container
 
 ```text
 developmentseed/titiler
@@ -460,7 +466,7 @@ developmentseed/titiler
 
 ### Checklist
 
-* [ ] Kiểm tra Health Endpoint
+* [x] Kiểm tra Health Endpoint
 
 ```http
 GET /healthz
@@ -470,7 +476,7 @@ GET /healthz
 
 ## Deliverable
 
-* [ ] TiTiler hoạt động
+* [x] TiTiler hoạt động
 
 ---
 
@@ -478,16 +484,16 @@ GET /healthz
 
 ## Task 9.1 - Compose Configuration
 
-### Checklist
+### Checklist 
 
-* [ ] Frontend Service
-* [ ] Backend Service
-* [ ] PostgreSQL Service
-* [ ] Redis Service
-* [ ] RabbitMQ Service
-* [ ] PgSTAC Service
-* [ ] STAC FastAPI Service
-* [ ] TiTiler Service
+* [x] Frontend Service
+* [x] Backend Service
+* [x] PostgreSQL Service
+* [x] Redis Service
+* [x] RabbitMQ Service
+* [x] PgSTAC Service
+* [x] STAC FastAPI Service
+* [x] TiTiler Service
 
 ---
 
@@ -495,7 +501,7 @@ GET /healthz
 
 ### Checklist
 
-* [ ] Tạo network chung
+* [x] Tạo network chung
 
 ```text
 satellite-network
@@ -507,14 +513,14 @@ satellite-network
 
 ### Checklist
 
-* [ ] postgres-data
-* [ ] redis-data
+* [x] postgres-data
+* [x] redis-data
 
 ---
 
 ## Deliverable
 
-* [ ] `docker compose up -d` chạy thành công
+* [x] `docker compose up -d` chạy thành công
 
 ---
 
@@ -524,7 +530,7 @@ satellite-network
 
 ### Checklist
 
-* [ ] Backend Health
+* [x] Backend Health
 
 ```http
 GET /health
@@ -536,7 +542,7 @@ GET /health
 
 ### Checklist
 
-* [ ] Database Health
+* [x] Database Health
 
 ```http
 GET /health/db
@@ -548,7 +554,7 @@ GET /health/db
 
 ### Checklist
 
-* [ ] Redis Health
+* [x] Redis Health
 
 ```http
 GET /health/redis
@@ -560,7 +566,7 @@ GET /health/redis
 
 ### Checklist
 
-* [ ] RabbitMQ Health
+* [x] RabbitMQ Health
 
 ```http
 GET /health/rabbitmq
@@ -570,7 +576,7 @@ GET /health/rabbitmq
 
 ## Deliverable
 
-* [ ] Tất cả health check pass
+* [x] Tất cả health check pass
 
 ---
 
@@ -580,10 +586,10 @@ GET /health/rabbitmq
 
 ### Checklist
 
-* [ ] Project Overview
-* [ ] Tech Stack
-* [ ] Setup Guide
-* [ ] Run Guide
+* [x] Project Overview
+* [x] Tech Stack
+* [x] Setup Guide
+* [x] Run Guide
 
 ---
 
@@ -591,7 +597,7 @@ GET /health/rabbitmq
 
 ### Checklist
 
-* [ ] Tạo .env.example
+* [x] Tạo .env.example
 
 ---
 
@@ -599,7 +605,7 @@ GET /health/rabbitmq
 
 ### Checklist
 
-* [ ] Sơ đồ tổng thể hệ thống
+* [x] Sơ đồ tổng thể hệ thống
 
 ---
 
@@ -607,33 +613,33 @@ GET /health/rabbitmq
 
 ## Infrastructure
 
-* [ ] Frontend chạy được
-* [ ] Backend chạy được
-* [ ] PostgreSQL chạy được
-* [ ] PostGIS chạy được
-* [ ] Redis chạy được
-* [ ] RabbitMQ chạy được
+* [x] Frontend chạy được
+* [x] Backend chạy được
+* [x] PostgreSQL chạy được
+* [x] PostGIS chạy được
+* [x] Redis chạy được
+* [x] RabbitMQ chạy được
 
 ## GIS Stack
 
-* [ ] PgSTAC chạy được
-* [ ] STAC FastAPI chạy được
-* [ ] TiTiler chạy được
+* [x] PgSTAC chạy được
+* [x] STAC FastAPI chạy được
+* [x] TiTiler chạy được
 
 ## Deployment
 
-* [ ] Docker Compose chạy thành công
-* [ ] Toàn bộ service cùng network
+* [x] Docker Compose chạy thành công
+* [x] Toàn bộ service cùng network
 
 ## API
 
-* [ ] Swagger hoạt động
-* [ ] Health Checks hoạt động
+* [x] Swagger hoạt động
+* [x] Health Checks hoạt động
 
 ## Documentation
 
-* [ ] README hoàn chỉnh
-* [ ] .env.example hoàn chỉnh
+* [x] README hoàn chỉnh
+* [x] .env.example hoàn chỉnh
 
 ---
 
