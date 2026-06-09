@@ -50,6 +50,8 @@ services:
       - HOST=${TITILER_HOST}
     ports:
       - "${TITILER_PORT}:${TITILER_PORT}"
+    volumes:
+      - ./datasets:/data
     networks:
       - satellite-network
 
