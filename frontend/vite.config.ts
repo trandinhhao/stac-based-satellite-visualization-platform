@@ -10,6 +10,15 @@ export default defineConfig({
       '/cog': {
         target: 'http://titiler:8002',
         changeOrigin: true,
+      },
+      '/api': {
+        target: 'http://backend:8000',
+        changeOrigin: true,
+      },
+      '/stac': {
+        target: 'http://stac-fastapi:8080',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/stac/, ''),
       }
     }
   }

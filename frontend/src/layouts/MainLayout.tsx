@@ -1,5 +1,6 @@
 import { Globe, Compass, Layers, Info, Check, Eye } from 'lucide-react';
 import MapViewer from '../components/MapViewer';
+import SearchLocation from '../components/SearchLocation';
 import { useMapStore } from '../store/useMapStore';
 
 const LAYER_CATEGORIES = [
@@ -78,14 +79,12 @@ export default function MainLayout() {
 
         {/* Sidebar Content */}
         <div className="p-4 space-y-5 overflow-y-auto">
-          {/* Section 1: Search Placeholder */}
-          <div className="p-3.5 bg-slate-950/40 border border-slate-800/60 rounded-xl">
-            <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+          {/* Section 1: Search Location (Epic 5) */}
+          <div className="p-3.5 bg-slate-950/40 border border-slate-800/60 rounded-xl space-y-2">
+            <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider px-1">
               Tìm kiếm địa điểm (Epic 5)
             </h3>
-            <div className="h-10 bg-slate-800/30 border border-slate-700/30 rounded-lg flex items-center justify-center text-slate-500 text-xs italic">
-              Đang chờ tích hợp ở Epic 5...
-            </div>
+            <SearchLocation />
           </div>
 
           {/* Section 2: Layers Switcher (Epic 3 & 4) */}
