@@ -34,13 +34,13 @@ Sau Sprint 1, người dùng có thể:
 
 ### Checklist
 
-* [ ] Tạo Map Component
-* [ ] Render MapLibre
-* [ ] Hiển thị bản đồ toàn màn hình
+* [x] Tạo Map Component
+* [x] Render MapLibre
+* [x] Hiển thị bản đồ toàn màn hình
 
 ### Deliverable
 
-* [ ] Hiển thị được OpenStreetMap
+* [x] Hiển thị được OpenStreetMap
 
 ---
 
@@ -48,10 +48,10 @@ Sau Sprint 1, người dùng có thể:
 
 ### Checklist
 
-* [ ] Default Center
-* [ ] Default Zoom
-* [ ] Max Zoom
-* [ ] Min Zoom
+* [x] Default Center
+* [x] Default Zoom
+* [x] Max Zoom
+* [x] Min Zoom
 
 ### Config
 
@@ -66,15 +66,15 @@ Zoom: 6
 
 ### Checklist
 
-* [ ] Desktop Layout
-* [ ] Tablet Layout
-* [ ] Fullscreen Map
+* [x] Desktop Layout
+* [x] Tablet Layout
+* [x] Fullscreen Map
 
 ---
 
 ## Deliverable
 
-* [ ] Map hiển thị ổn định trên trình duyệt
+* [x] Map hiển thị ổn định trên trình duyệt
 
 ---
 
@@ -84,8 +84,8 @@ Zoom: 6
 
 ### Checklist
 
-* [ ] Zoom In
-* [ ] Zoom Out
+* [x] Zoom In
+* [x] Zoom Out
 
 ---
 
@@ -93,8 +93,8 @@ Zoom: 6
 
 ### Checklist
 
-* [ ] Rotate Map
-* [ ] Reset Rotation
+* [x] Rotate Map
+* [x] Reset Rotation
 
 ---
 
@@ -102,13 +102,13 @@ Zoom: 6
 
 ### Checklist
 
-* [ ] Hiển thị tỷ lệ bản đồ
+* [x] Hiển thị tỷ lệ bản đồ
 
 ---
 
 ## Deliverable
 
-* [ ] Bộ điều hướng hoạt động đầy đủ
+* [x] Bộ điều hướng hoạt động đầy đủ
 
 ---
 
@@ -118,7 +118,7 @@ Zoom: 6
 
 ### Checklist
 
-* [ ] Thêm OSM Layer
+* [x] Thêm OSM Layer
 
 ---
 
@@ -126,7 +126,7 @@ Zoom: 6
 
 ### Checklist
 
-* [ ] Thêm OpenFreeMap Layer
+* [x] Thêm OpenFreeMap Layer
 
 ---
 
@@ -134,13 +134,13 @@ Zoom: 6
 
 ### Checklist
 
-* [ ] Thêm Satellite Basemap
+* [x] Thêm Satellite Basemap
 
 ---
 
 ## Deliverable
 
-* [ ] Có tối thiểu 3 layer
+* [x] Có tối thiểu 3 layer
 
 ---
 
@@ -150,8 +150,8 @@ Zoom: 6
 
 ### Checklist
 
-* [ ] Tạo Sidebar Layer Panel
-* [ ] Danh sách Layer
+* [x] Tạo Sidebar Layer Panel
+* [x] Danh sách Layer
 
 ---
 
@@ -159,8 +159,8 @@ Zoom: 6
 
 ### Checklist
 
-* [ ] Bật Layer
-* [ ] Tắt Layer
+* [x] Bật Layer
+* [x] Tắt Layer
 
 ---
 
@@ -168,13 +168,13 @@ Zoom: 6
 
 ### Checklist
 
-* [ ] Chỉ định Layer mặc định
+* [x] Chỉ định Layer mặc định
 
 ---
 
 ## Deliverable
 
-* [ ] Chuyển đổi layer thành công
+* [x] Chuyển đổi layer thành công
 
 ---
 
