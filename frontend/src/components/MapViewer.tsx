@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
+import { Home } from 'lucide-react';
 import { useMapStore } from '../store/useMapStore';
 
 // Base style definitions for standard base layers
@@ -157,6 +158,7 @@ export default function MapViewer() {
         zoom: zoom,
         minZoom: 3,
         maxZoom: 18,
+        attributionControl: false,
       });
 
       // Add navigation controls (Zoom + Compass)
@@ -173,6 +175,14 @@ export default function MapViewer() {
         new maplibregl.ScaleControl({
           maxWidth: 100,
           unit: 'metric',
+        }),
+        'bottom-left'
+      );
+
+      // Add compact attribution control to bottom-left
+      map.current.addControl(
+        new maplibregl.AttributionControl({
+          compact: true,
         }),
         'bottom-left'
       );
@@ -252,9 +262,25 @@ export default function MapViewer() {
     }
   }, [center, zoom]);
 
+  const handleHomeClick = () => {
+    setCenter([105.83416, 21.02776]);
+    setZoom(6);
+  };
+
   return (
     <div className="w-full h-full relative overflow-hidden">
       <div ref={mapContainer} className="w-full h-full absolute inset-0 z-0" />
+      
+      {/* Floating Home Button (Epic 7 - Reset View) */}
+      <div className="absolute top-[120px] right-[10px] z-10">
+        <button
+          onClick={handleHomeClick}
+          title="Reset View (Về vị trí mặc định)"
+          className="flex items-center justify-center w-[29px] h-[29px] bg-slate-900/90 hover:bg-slate-800 border border-slate-800/80 rounded-md text-slate-300 hover:text-white shadow-lg cursor-pointer transition-all duration-150 hover:scale-105 active:scale-95"
+        >
+          <Home className="w-4 h-4" />
+        </button>
+      </div>
     </div>
   );
 }

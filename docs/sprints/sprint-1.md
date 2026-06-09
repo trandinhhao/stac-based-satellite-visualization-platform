@@ -184,8 +184,8 @@ Zoom: 6
 
 ### Checklist
 
-* [ ] Nghiên cứu Nominatim API
-* [ ] Tạo Search Service
+* [x] Nghiên cứu Nominatim API
+* [x] Tạo Search Service
 
 ---
 
@@ -193,9 +193,9 @@ Zoom: 6
 
 ### Checklist
 
-* [ ] Search Input
-* [ ] Search Button
-* [ ] Result List
+* [x] Search Input
+* [x] Search Button
+* [x] Result List
 
 ---
 
@@ -203,8 +203,8 @@ Zoom: 6
 
 ### Checklist
 
-* [ ] Chọn địa điểm
-* [ ] Fly To Position
+* [x] Chọn địa điểm
+* [x] Fly To Position
 
 ---
 
@@ -228,7 +228,7 @@ Bản đồ di chuyển tới vị trí tương ứng.
 
 ## Deliverable
 
-* [ ] Search hoạt động
+* [x] Search hoạt động
 
 ---
 
@@ -238,8 +238,8 @@ Bản đồ di chuyển tới vị trí tương ứng.
 
 ### Checklist
 
-* [ ] Hiển thị Latitude
-* [ ] Hiển thị Longitude
+* [x] Hiển thị Latitude
+* [x] Hiển thị Longitude
 
 ---
 
@@ -247,8 +247,8 @@ Bản đồ di chuyển tới vị trí tương ứng.
 
 ### Checklist
 
-* [ ] Current Zoom
-* [ ] Current Coordinates
+* [x] Current Zoom
+* [x] Current Coordinates
 
 ---
 
@@ -264,7 +264,7 @@ Zoom: 12
 
 ## Deliverable
 
-* [ ] Hiển thị tọa độ realtime
+* [x] Hiển thị tọa độ realtime
 
 ---
 
@@ -274,7 +274,7 @@ Zoom: 12
 
 ### Checklist
 
-* [ ] Tạo Home Button
+* [x] Tạo Home Button
 
 ---
 
@@ -282,14 +282,14 @@ Zoom: 12
 
 ### Checklist
 
-* [ ] Reset Center
-* [ ] Reset Zoom
+* [x] Reset Center
+* [x] Reset Zoom
 
 ---
 
 ## Deliverable
 
-* [ ] Reset hoạt động
+* [x] Reset hoạt động
 
 ---
 
@@ -299,7 +299,7 @@ Zoom: 12
 
 ### Checklist
 
-* [ ] Zustand Store
+* [x] Zustand Store
 
 ---
 
@@ -322,8 +322,8 @@ searchResults
 
 ### Checklist
 
-* [ ] Axios Instance
-* [ ] Base URL
+* [x] Axios Instance
+* [x] Base URL
 
 ---
 
@@ -331,14 +331,14 @@ searchResults
 
 ### Checklist
 
-* [ ] Query Client
-* [ ] Search Cache
+* [x] Query Client
+* [x] Search Cache
 
 ---
 
 ## Deliverable
 
-* [ ] Frontend Structure hoàn chỉnh
+* [x] Frontend Structure hoàn chỉnh
 
 ---
 
@@ -348,8 +348,8 @@ searchResults
 
 ### Checklist
 
-* [ ] Logo
-* [ ] Project Name
+* [x] Logo
+* [x] Project Name
 
 ---
 
@@ -357,8 +357,8 @@ searchResults
 
 ### Checklist
 
-* [ ] Search Panel
-* [ ] Layer Panel
+* [x] Search Panel
+* [x] Layer Panel
 
 ---
 
@@ -366,14 +366,14 @@ searchResults
 
 ### Checklist
 
-* [ ] Zoom
-* [ ] Coordinates
+* [x] Zoom
+* [x] Coordinates
 
 ---
 
 ## Deliverable
 
-* [ ] Layout giống WebGIS thực tế
+* [x] Layout giống WebGIS thực tế
 
 ---
 
@@ -383,9 +383,9 @@ searchResults
 
 ### Checklist
 
-* [ ] Chrome
-* [ ] Edge
-* [ ] Firefox
+* [x] Chrome
+* [x] Edge
+* [x] Firefox
 
 ---
 
@@ -393,15 +393,15 @@ searchResults
 
 ### Checklist
 
-* [ ] Pan mượt
-* [ ] Zoom mượt
+* [x] Pan mượt
+* [x] Zoom mượt
 
 ---
 
 ## KPI
 
-* [ ] Initial Load < 3s
-* [ ] Zoom Response < 500ms
+* [x] Initial Load < 3s
+* [x] Zoom Response < 500ms
 
 ---
 
@@ -459,31 +459,31 @@ Reset về vị trí mặc định
 
 ## Mapping
 
-* [ ] MapLibre hoạt động
-* [ ] OSM hoạt động
-* [ ] Satellite Layer hoạt động
+* [x] MapLibre hoạt động
+* [x] OSM hoạt động
+* [x] Satellite Layer hoạt động
 
 ## Navigation
 
-* [ ] Zoom hoạt động
-* [ ] Pan hoạt động
-* [ ] Reset hoạt động
+* [x] Zoom hoạt động
+* [x] Pan hoạt động
+* [x] Reset hoạt động
 
 ## Search
 
-* [ ] Geocoding hoạt động
-* [ ] Fly To hoạt động
+* [x] Geocoding hoạt động
+* [x] Fly To hoạt động
 
 ## UI
 
-* [ ] Header hoàn chỉnh
-* [ ] Sidebar hoàn chỉnh
-* [ ] Status Bar hoàn chỉnh
+* [x] Header hoàn chỉnh
+* [x] Sidebar hoàn chỉnh
+* [x] Status Bar hoàn chỉnh
 
 ## Performance
 
-* [ ] Load dưới 3 giây
-* [ ] Không có lỗi nghiêm trọng
+* [x] Load dưới 3 giây
+* [x] Không có lỗi nghiêm trọng
 
 ---
 
