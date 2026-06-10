@@ -36,10 +36,10 @@ Sau Sprint 2, người dùng có thể:
 
 ### Checklist
 
-* [ ] Hiểu Catalog
-* [ ] Hiểu Collection
-* [ ] Hiểu Item
-* [ ] Hiểu Asset
+* [x] Hiểu Catalog
+* [x] Hiểu Collection
+* [x] Hiểu Item
+* [x] Hiểu Asset
 
 ---
 
@@ -47,16 +47,16 @@ Sau Sprint 2, người dùng có thể:
 
 ### Checklist
 
-* [ ] Tile Structure
-* [ ] Acquisition Date
-* [ ] Cloud Cover
-* [ ] Spectral Bands
+* [x] Tile Structure
+* [x] Acquisition Date
+* [x] Cloud Cover
+* [x] Spectral Bands
 
 ---
 
 ## Deliverable
 
-* [ ] Team hiểu mô hình dữ liệu STAC
+* [x] Team hiểu mô hình dữ liệu STAC
 
 ---
 
@@ -66,9 +66,9 @@ Sau Sprint 2, người dùng có thể:
 
 ### Checklist
 
-* [ ] STAC Client
-* [ ] Search Function
-* [ ] Collection Function
+* [x] STAC Client
+* [x] Search Function
+* [x] Collection Function
 
 ---
 
@@ -87,7 +87,7 @@ app/
 
 ## Deliverable
 
-* [ ] Backend gọi được STAC API
+* [x] Backend gọi được STAC API
 
 ---
 
@@ -97,7 +97,7 @@ app/
 
 ### Checklist
 
-* [ ] API lấy danh sách Collection
+* [x] API lấy danh sách Collection
 
 ---
 
@@ -124,7 +124,7 @@ GET /api/stac/collections
 
 ## Deliverable
 
-* [ ] Trả danh sách Collection thành công
+* [x] Trả danh sách Collection thành công
 
 ---
 
@@ -134,8 +134,8 @@ GET /api/stac/collections
 
 ### Checklist
 
-* [ ] Search theo thời gian
-* [ ] Search theo BBOX
+* [x] Search theo thời gian
+* [x] Search theo BBOX
 
 ---
 
@@ -170,14 +170,14 @@ POST /api/stac/search
 
 ### Checklist
 
-* [ ] Validate Date
-* [ ] Validate BBOX
+* [x] Validate Date
+* [x] Validate BBOX
 
 ---
 
 ## Deliverable
 
-* [ ] Search trả dữ liệu đúng
+* [x] Search trả dữ liệu đúng
 
 ---
 
@@ -187,10 +187,10 @@ POST /api/stac/search
 
 ### Checklist
 
-* [ ] Collection Dropdown
-* [ ] Start Date
-* [ ] End Date
-* [ ] Search Button
+* [x] Collection Dropdown
+* [x] Start Date
+* [x] End Date
+* [x] Search Button
 
 ---
 
@@ -217,7 +217,7 @@ POST /api/stac/search
 
 ## Deliverable
 
-* [ ] Search Panel hoạt động
+* [x] Search Panel hoạt động
 
 ---
 
@@ -227,9 +227,9 @@ POST /api/stac/search
 
 ### Checklist
 
-* [ ] Danh sách ảnh
-* [ ] Ngày chụp
-* [ ] Cloud Cover
+* [x] Danh sách ảnh
+* [x] Ngày chụp
+* [x] Cloud Cover
 
 ---
 
@@ -251,14 +251,14 @@ Cloud:
 
 ### Checklist
 
-* [ ] Load More
-* [ ] Infinite Scroll (Optional)
+* [x] Load More
+* [x] Infinite Scroll (Optional)
 
 ---
 
 ## Deliverable
 
-* [ ] Hiển thị kết quả tìm kiếm
+* [x] Hiển thị kết quả tìm kiếm
 
 ---
 
@@ -268,10 +268,10 @@ Cloud:
 
 ### Checklist
 
-* [ ] ID
-* [ ] Datetime
-* [ ] Collection
-* [ ] Assets
+* [x] ID
+* [x] Datetime
+* [x] Collection
+* [x] Assets
 
 ---
 
@@ -292,7 +292,7 @@ Cloud Cover:
 
 ## Deliverable
 
-* [ ] Metadata hiển thị đầy đủ
+* [x] Metadata hiển thị đầy đủ
 
 ---
 
@@ -302,8 +302,8 @@ Cloud Cover:
 
 ### Checklist
 
-* [ ] Kết nối TiTiler
-* [ ] Tạo Tile URL
+* [x] Kết nối TiTiler
+* [x] Tạo Tile URL
 
 ---
 
@@ -319,14 +319,14 @@ Cloud Cover:
 
 ### Checklist
 
-* [ ] Overlay Satellite Layer
-* [ ] Remove Layer
+* [x] Overlay Satellite Layer
+* [x] Remove Layer
 
 ---
 
 ## Deliverable
 
-* [ ] Ảnh vệ tinh hiển thị trên bản đồ
+* [x] Ảnh vệ tinh hiển thị trên bản đồ
 
 ---
 
@@ -336,8 +336,8 @@ Cloud Cover:
 
 ### Checklist
 
-* [ ] Thumbnail Viewer
-* [ ] Open Preview
+* [x] Thumbnail Viewer
+* [x] Open Preview
 
 ---
 
@@ -356,7 +356,7 @@ Cloud Cover:
 
 ## Deliverable
 
-* [ ] Xem preview ảnh
+* [x] Xem preview ảnh
 
 ---
 
@@ -366,8 +366,8 @@ Cloud Cover:
 
 ### Checklist
 
-* [ ] Lấy Bounding Box hiện tại
-* [ ] Search theo Viewport
+* [x] Lấy Bounding Box hiện tại
+* [x] Search theo Viewport
 
 ---
 
@@ -389,7 +389,7 @@ Chỉ lấy ảnh trong viewport hiện tại
 
 ## Deliverable
 
-* [ ] Search theo viewport
+* [x] Search theo viewport
 
 ---
 
@@ -399,7 +399,7 @@ Chỉ lấy ảnh trong viewport hiện tại
 
 ### Checklist
 
-* [ ] Cho phép truyền Polygon
+* [x] Cho phép truyền Polygon
 
 ---
 
@@ -417,7 +417,7 @@ Chỉ lấy ảnh trong viewport hiện tại
 
 ## Deliverable
 
-* [ ] Hỗ trợ Search theo Polygon
+* [x] Hỗ trợ Search theo Polygon
 
 ---
 
@@ -427,9 +427,9 @@ Chỉ lấy ảnh trong viewport hiện tại
 
 ### Checklist
 
-* [ ] Collections
-* [ ] Search Result
-* [ ] Selected Item
+* [x] Collections
+* [x] Search Result
+* [x] Selected Item
 
 ---
 
@@ -447,7 +447,7 @@ interface StacState {
 
 ## Deliverable
 
-* [ ] State hoạt động
+* [x] State hoạt động
 
 ---
 
@@ -457,7 +457,7 @@ interface StacState {
 
 ### Checklist
 
-* [ ] Redis Cache
+* [x] Redis Cache
 
 TTL:
 
@@ -471,13 +471,13 @@ TTL:
 
 ### Checklist
 
-* [ ] Cache phổ biến query
+* [x] Cache phổ biến query
 
 ---
 
 ## Deliverable
 
-* [ ] Redis cache hoạt động
+* [x] Redis cache hoạt động
 
 ---
 
@@ -487,8 +487,8 @@ TTL:
 
 ### Checklist
 
-* [ ] Collections API
-* [ ] Search API
+* [x] Collections API
+* [x] Search API
 
 ---
 
@@ -496,15 +496,15 @@ TTL:
 
 ### Checklist
 
-* [ ] Search Flow
-* [ ] Render Flow
+* [x] Search Flow
+* [x] Render Flow
 
 ---
 
 ## KPI
 
-* [ ] Search < 3s
-* [ ] Collection Load < 1s
+* [x] Search < 3s
+* [x] Collection Load < 1s
 
 ---
 
@@ -581,29 +581,29 @@ Metadata hiển thị
 
 ## Backend
 
-* [ ] Collections API hoạt động
-* [ ] Search API hoạt động
+* [x] Collections API hoạt động
+* [x] Search API hoạt động
 
 ## Frontend
 
-* [ ] Search Panel hoàn chỉnh
-* [ ] Result List hoàn chỉnh
-* [ ] Metadata Viewer hoàn chỉnh
+* [x] Search Panel hoàn chỉnh
+* [x] Result List hoàn chỉnh
+* [x] Metadata Viewer hoàn chỉnh
 
 ## STAC
 
-* [ ] Query Collection thành công
-* [ ] Query Sentinel-2 thành công
+* [x] Query Collection thành công
+* [x] Query Sentinel-2 thành công
 
 ## Rendering
 
-* [ ] Hiển thị ảnh vệ tinh
-* [ ] Hiển thị thumbnail
+* [x] Hiển thị ảnh vệ tinh
+* [x] Hiển thị thumbnail
 
 ## Performance
 
-* [ ] Search dưới 3 giây
-* [ ] Collection Load dưới 1 giây
+* [x] Search dưới 3 giây
+* [x] Collection Load dưới 1 giây
 
 ---
 

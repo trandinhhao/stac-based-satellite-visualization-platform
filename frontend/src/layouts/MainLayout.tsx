@@ -1,6 +1,7 @@
 import { Globe, Compass, Layers, Info, Check, Eye } from 'lucide-react';
 import MapViewer from '../components/MapViewer';
 import SearchLocation from '../components/SearchLocation';
+import STACSearchPanel from '../components/STACSearchPanel';
 import { useMapStore } from '../store/useMapStore';
 
 const LAYER_CATEGORIES = [
@@ -26,7 +27,6 @@ const LAYER_CATEGORIES = [
       { id: 'sentinel-2', name: 'Sentinel-2 (Optical)', desc: 'Ảnh quang học độ phân giải 10m từ ESA' },
       { id: 'sentinel-1', name: 'Sentinel-1 (SAR Radar)', desc: 'Ảnh chụp Radar xuyên mây' },
       { id: 'landsat-8', name: 'Landsat-8 (Multispectral)', desc: 'Ảnh đa phổ NASA/USGS' },
-      { id: 'planet-scope', name: 'PlanetScope (High-Res)', desc: 'Ảnh độ phân giải cao 3m' },
     ],
   },
 ];
@@ -34,7 +34,6 @@ const LAYER_CATEGORIES = [
 const SAMPLE_LOCATIONS = [
   { name: 'California (Sentinel-1)', center: [-117.635, 33.897] as [number, number], zoom: 14, layerId: 'sentinel-1' },
   { name: 'California (Landsat-8)', center: [-117.635, 33.897] as [number, number], zoom: 14, layerId: 'landsat-8' },
-  { name: 'Rio de Janeiro (PlanetScope)', center: [-44.7545, -23.0183] as [number, number], zoom: 11, layerId: 'planet-scope' },
 ];
 
 export default function MainLayout() {
@@ -73,7 +72,7 @@ export default function MainLayout() {
             <h2 className="text-sm font-semibold text-slate-200">Bảng điều khiển</h2>
           </div>
           <span className="text-[10px] px-2 py-0.5 bg-slate-800 text-slate-400 border border-slate-700/50 rounded-full font-mono font-semibold">
-            Sprint 1
+            Sprint 2
           </span>
         </div>
 
@@ -87,7 +86,15 @@ export default function MainLayout() {
             <SearchLocation />
           </div>
 
-          {/* Section 2: Layers Switcher (Epic 3 & 4) */}
+          {/* Section 2: STAC Search Panel */}
+          <div className="p-3.5 bg-slate-950/40 border border-slate-800/60 rounded-xl space-y-2">
+            <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider px-1">
+              Tìm kiếm ảnh vệ tinh (STAC)
+            </h3>
+            <STACSearchPanel />
+          </div>
+
+          {/* Section 3: Layers Switcher (Epic 3 & 4) */}
           <div className="space-y-4">
             <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider px-1">
               Lớp bản đồ nền & Vệ tinh
@@ -136,7 +143,7 @@ export default function MainLayout() {
             </div>
           </div>
 
-          {/* Section 3: Quick Bookmarks for Offline Samples */}
+          {/* Section 4: Quick Bookmarks for Offline Samples */}
           <div className="p-3.5 bg-slate-950/40 border border-slate-800/60 rounded-xl space-y-2">
             <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider px-1">
               Phạm vi ảnh cục bộ (Offline Samples)
