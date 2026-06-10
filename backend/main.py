@@ -4,7 +4,11 @@ from sqlalchemy import create_engine, text
 import redis
 import aio_pika
 
+from api.stac import router as stac_router
+
 app = FastAPI(title="STAC Satellite Platform Backend API")
+
+app.include_router(stac_router, prefix="/api")
 
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@postgis:5432/postgis")
 REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379/0")
