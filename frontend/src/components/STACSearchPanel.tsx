@@ -1,8 +1,9 @@
-
+import { useEffect, useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { Search, Calendar, Image as ImageIcon, Info, Cloud, Cpu, ArrowRight, Eye, RefreshCw } from 'lucide-react';
 import { useSTACStore } from '../store/useSTACStore';
 import type { STACCollection, STACItem } from '../store/useSTACStore';
+import { useAOIStore } from '../store/useAOIStore';
 import { api } from '../services/api';
 
 export default function STACSearchPanel() {
@@ -17,6 +18,21 @@ export default function STACSearchPanel() {
     setSelectedItem,
     setFilters,
   } = useSTACStore();
+
+  const selectedAOIId = useAOIStore((state) => state.selectedAOIId);
+  const aois = useAOIStore((state) => state.aois);
+  const selectedAOI = aois.find((aoi) => selectedAOIId ? String(aoi.id).toLowerCase().trim() === String(selectedAOIId).toLowerCase().trim() : false);
+
+  const [spatialScope, setSpatialScope] = useState<'viewport' | 'aoi' | 'global'>('viewport');
+
+  // Sync spatial scope selection when selected AOI updates
+  useEffect(() => {
+    if (selectedAOI) {
+      setSpatialScope('aoi');
+    } else if (spatialScope === 'aoi') {
+      setSpatialScope('viewport');
+    }
+  }, [selectedAOIId]);
 
   // 1. Query Collections List
   const { isLoading: isLoadingCollections } = useQuery<STACCollection[]>({
@@ -41,17 +57,17 @@ export default function STACSearchPanel() {
   });
 
   const handleSearch = () => {
-    if (filters.searchInViewport && !bbox) {
-      return;
-    }
-
     const payload: any = {
       collections: [filters.selectedCollection],
       datetime: `${filters.startDate}/${filters.endDate}`,
     };
 
-    if (filters.searchInViewport && bbox) {
+    if (spatialScope === 'viewport') {
+      if (!bbox) return;
       payload.bbox = bbox;
+    } else if (spatialScope === 'aoi') {
+      if (!selectedAOI) return;
+      payload.intersects = selectedAOI.geometry;
     }
 
     searchMutation.mutate(payload);
@@ -138,21 +154,57 @@ export default function STACSearchPanel() {
           </div>
         </div>
 
-        {/* Viewport Checkbox */}
-        <div className="flex items-center space-x-2.5 py-1 px-0.5">
-          <input
-            id="viewport-search-checkbox"
-            type="checkbox"
-            checked={filters.searchInViewport}
-            onChange={(e) => setFilters({ searchInViewport: e.target.checked })}
-            className="w-4 h-4 rounded border-slate-800 text-sky-500 focus:ring-0 cursor-pointer bg-slate-950/50"
-          />
-          <label
-            htmlFor="viewport-search-checkbox"
-            className="text-[11px] text-slate-400 font-semibold cursor-pointer select-none hover:text-slate-300 transition-colors"
-          >
-            Chỉ tìm kiếm trong khung hình bản đồ hiện tại
+        {/* Spatial Scope Selector */}
+        <div className="space-y-1.5 py-1 px-0.5">
+          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+            Phạm vi không gian (Spatial Scope)
           </label>
+          <div className="grid grid-cols-3 gap-1.5">
+            <button
+              type="button"
+              onClick={() => setSpatialScope('viewport')}
+              className={`h-8 px-2 rounded-lg text-[10px] font-bold transition-all border cursor-pointer ${
+                spatialScope === 'viewport'
+                  ? 'bg-sky-500/20 border-sky-500/50 text-sky-400'
+                  : 'bg-slate-950/40 border-slate-800/80 hover:bg-slate-800/40 text-slate-400'
+              }`}
+            >
+              Khung nhìn
+            </button>
+            <button
+              type="button"
+              disabled={!selectedAOI}
+              onClick={() => setSpatialScope('aoi')}
+              className={`h-8 px-2 rounded-lg text-[10px] font-bold transition-all border cursor-pointer flex items-center justify-center space-x-1 ${
+                spatialScope === 'aoi'
+                  ? 'bg-sky-500/20 border-sky-500/50 text-sky-400'
+                  : !selectedAOI
+                  ? 'bg-slate-950/20 border-slate-900/20 text-slate-600 cursor-not-allowed opacity-40'
+                  : 'bg-slate-950/40 border-slate-800/80 hover:bg-slate-800/40 text-slate-400'
+              }`}
+              title={!selectedAOI ? "Chọn một AOI trong Quản lý AOI để kích hoạt" : `Vùng AOI: ${selectedAOI.name}`}
+            >
+              <span>Vùng AOI</span>
+              {selectedAOI && <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />}
+            </button>
+            <button
+              type="button"
+              onClick={() => setSpatialScope('global')}
+              className={`h-8 px-2 rounded-lg text-[10px] font-bold transition-all border cursor-pointer ${
+                spatialScope === 'global'
+                  ? 'bg-sky-500/20 border-sky-500/50 text-sky-400'
+                  : 'bg-slate-950/40 border-slate-800/80 hover:bg-slate-800/40 text-slate-400'
+              }`}
+            >
+              Toàn cầu
+            </button>
+          </div>
+          {spatialScope === 'aoi' && selectedAOI && (
+            <div className="text-[10px] text-emerald-400 px-0.5 mt-1.5 flex items-center space-x-1 animate-in fade-in duration-200">
+              <span>✓ Đang áp dụng AOI:</span>
+              <span className="font-bold underline">{selectedAOI.name}</span>
+            </div>
+          )}
         </div>
 
         {/* Search Action Button */}
