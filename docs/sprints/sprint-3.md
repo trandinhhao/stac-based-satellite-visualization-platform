@@ -36,9 +36,9 @@ Sau Sprint 3, người dùng có thể:
 
 ### Checklist
 
-* [ ] Thiết kế Database Schema
-* [ ] Thiết kế API Schema
-* [ ] Thiết kế DTO
+* [x] Thiết kế Database Schema
+* [x] Thiết kế API Schema
+* [x] Thiết kế DTO
 
 ---
 
@@ -77,7 +77,7 @@ CREATE TABLE aois (
 
 ## Deliverable
 
-* [ ] AOI Model hoàn chỉnh
+* [x] AOI Model hoàn chỉnh
 
 ---
 
@@ -87,8 +87,8 @@ CREATE TABLE aois (
 
 ### Checklist
 
-* [ ] Geometry Column
-* [ ] Spatial Index
+* [x] Geometry Column
+* [x] Spatial Index
 
 ---
 
@@ -106,15 +106,15 @@ USING GIST (geometry);
 
 ### Checklist
 
-* [ ] Migration Script
-* [ ] Upgrade Test
-* [ ] Rollback Test
+* [x] Migration Script
+* [x] Upgrade Test
+* [x] Rollback Test
 
 ---
 
 ## Deliverable
 
-* [ ] AOI Table được tạo thành công
+* [x] AOI Table được tạo thành công
 
 ---
 
@@ -124,7 +124,7 @@ USING GIST (geometry);
 
 ### Checklist
 
-* [ ] API Create AOI
+* [x] API Create AOI
 
 ---
 
@@ -160,7 +160,7 @@ POST /api/aois
 
 ## Deliverable
 
-* [ ] Tạo AOI thành công
+* [x] Tạo AOI thành công
 
 ---
 
@@ -168,7 +168,7 @@ POST /api/aois
 
 ### Checklist
 
-* [ ] Lấy danh sách AOI
+* [x] Lấy danh sách AOI
 
 ---
 
@@ -182,7 +182,7 @@ GET /api/aois
 
 ## Deliverable
 
-* [ ] Danh sách AOI hiển thị
+* [x] Danh sách AOI hiển thị
 
 ---
 
@@ -190,8 +190,8 @@ GET /api/aois
 
 ### Checklist
 
-* [ ] Cập nhật tên
-* [ ] Cập nhật geometry
+* [x] Cập nhật tên
+* [x] Cập nhật geometry
 
 ---
 
@@ -205,7 +205,7 @@ PUT /api/aois/{id}
 
 ## Deliverable
 
-* [ ] Chỉnh sửa AOI thành công
+* [x] Chỉnh sửa AOI thành công
 
 ---
 
@@ -213,7 +213,7 @@ PUT /api/aois/{id}
 
 ### Checklist
 
-* [ ] Soft Delete hoặc Hard Delete
+* [x] Soft Delete hoặc Hard Delete
 
 ---
 
@@ -227,7 +227,7 @@ DELETE /api/aois/{id}
 
 ## Deliverable
 
-* [ ] Xóa AOI thành công
+* [x] Xóa AOI thành công
 
 ---
 
@@ -237,9 +237,9 @@ DELETE /api/aois/{id}
 
 ### Checklist
 
-* [ ] Draw Polygon
-* [ ] Complete Polygon
-* [ ] Cancel Drawing
+* [x] Draw Polygon
+* [x] Complete Polygon
+* [x] Cancel Drawing
 
 ---
 
@@ -265,7 +265,7 @@ Polygon được tạo
 
 ## Deliverable
 
-* [ ] Draw Polygon hoạt động
+* [x] Draw Polygon hoạt động
 
 ---
 
@@ -273,14 +273,14 @@ Polygon được tạo
 
 ### Checklist
 
-* [ ] Draw Rectangle
-* [ ] Resize Rectangle
+* [x] Draw Rectangle
+* [x] Resize Rectangle
 
 ---
 
 ## Deliverable
 
-* [ ] Draw Rectangle hoạt động
+* [x] Draw Rectangle hoạt động
 
 ---
 
@@ -290,15 +290,15 @@ Polygon được tạo
 
 ### Checklist
 
-* [ ] Kéo thả Vertex
-* [ ] Thêm Vertex
-* [ ] Xóa Vertex
+* [x] Kéo thả Vertex
+* [x] Thêm Vertex
+* [x] Xóa Vertex
 
 ---
 
 ## Deliverable
 
-* [ ] Polygon chỉnh sửa được
+* [x] Polygon chỉnh sửa được
 
 ---
 
@@ -306,14 +306,14 @@ Polygon được tạo
 
 ### Checklist
 
-* [ ] Drag Polygon
-* [ ] Update Geometry
+* [x] Drag Polygon
+* [x] Update Geometry
 
 ---
 
 ## Deliverable
 
-* [ ] AOI di chuyển được
+* [x] AOI di chuyển được
 
 ---
 
@@ -323,8 +323,8 @@ Polygon được tạo
 
 ### Checklist
 
-* [ ] Danh sách AOI
-* [ ] Tìm kiếm AOI
+* [x] Danh sách AOI
+* [x] Tìm kiếm AOI
 
 ---
 
@@ -344,7 +344,7 @@ Polygon được tạo
 
 ## Deliverable
 
-* [ ] Danh sách AOI hiển thị
+* [x] Danh sách AOI hiển thị
 
 ---
 
@@ -352,15 +352,15 @@ Polygon được tạo
 
 ### Checklist
 
-* [ ] Zoom To AOI
-* [ ] Edit AOI
-* [ ] Delete AOI
+* [x] Zoom To AOI
+* [x] Edit AOI
+* [x] Delete AOI
 
 ---
 
 ## Deliverable
 
-* [ ] AOI Actions hoạt động
+* [x] AOI Actions hoạt động
 
 ---
 
@@ -370,9 +370,9 @@ Polygon được tạo
 
 ### Checklist
 
-* [ ] Border Color
-* [ ] Fill Color
-* [ ] Hover Effect
+* [x] Border Color
+* [x] Fill Color
+* [x] Hover Effect
 
 ---
 
@@ -390,7 +390,7 @@ Transparent Blue
 
 ## Deliverable
 
-* [ ] AOI hiển thị rõ ràng
+* [x] AOI hiển thị rõ ràng
 
 ---
 
@@ -400,7 +400,7 @@ Transparent Blue
 
 ### Checklist
 
-* [ ] Chuyển Polygon → STAC intersects
+* [x] Chuyển Polygon → STAC intersects
 
 ---
 
@@ -418,7 +418,7 @@ Transparent Blue
 
 ## Deliverable
 
-* [ ] STAC Search theo AOI
+* [x] STAC Search theo AOI
 
 ---
 
@@ -426,7 +426,7 @@ Transparent Blue
 
 ### Checklist
 
-* [ ] Nút Search Current AOI
+* [x] Nút Search Current AOI
 
 ---
 
@@ -452,7 +452,7 @@ Kết quả ảnh
 
 ## Deliverable
 
-* [ ] Search theo AOI hoạt động
+* [x] Search theo AOI hoạt động
 
 ---
 
@@ -462,7 +462,7 @@ Kết quả ảnh
 
 ### Checklist
 
-* [ ] Export GeoJSON
+* [x] Export GeoJSON
 
 ---
 
@@ -476,7 +476,7 @@ GET /api/aois/{id}/export
 
 ## Deliverable
 
-* [ ] Export GeoJSON
+* [x] Export GeoJSON
 
 ---
 
@@ -484,7 +484,7 @@ GET /api/aois/{id}/export
 
 ### Checklist
 
-* [ ] Upload GeoJSON
+* [x] Upload GeoJSON
 
 ---
 
@@ -498,7 +498,7 @@ POST /api/aois/import
 
 ## Deliverable
 
-* [ ] Import GeoJSON
+* [x] Import GeoJSON
 
 ---
 
@@ -508,9 +508,9 @@ POST /api/aois/import
 
 ### Checklist
 
-* [ ] Current AOI
-* [ ] AOI List
-* [ ] Selected AOI
+* [x] Current AOI
+* [x] AOI List
+* [x] Selected AOI
 
 ---
 
@@ -527,7 +527,7 @@ interface AOIState {
 
 ## Deliverable
 
-* [ ] State hoạt động
+* [x] State hoạt động
 
 ---
 
@@ -537,10 +537,10 @@ interface AOIState {
 
 ### Checklist
 
-* [ ] Create
-* [ ] Read
-* [ ] Update
-* [ ] Delete
+* [x] Create
+* [x] Read
+* [x] Update
+* [x] Delete
 
 ---
 
@@ -548,8 +548,8 @@ interface AOIState {
 
 ### Checklist
 
-* [ ] Polygon hợp lệ
-* [ ] Polygon không tự cắt
+* [x] Polygon hợp lệ
+* [x] Polygon không tự cắt
 
 ---
 
@@ -557,15 +557,15 @@ interface AOIState {
 
 ### Checklist
 
-* [ ] AOI → STAC Search
+* [x] AOI → STAC Search
 
 ---
 
 ## KPI
 
-* [ ] AOI Save < 1s
-* [ ] AOI Load < 1s
-* [ ] Search By AOI < 3s
+* [x] AOI Save < 1s
+* [x] AOI Load < 1s
+* [x] Search By AOI < 3s
 
 ---
 
@@ -648,31 +648,226 @@ Export AOI thành GeoJSON
 
 ## Backend
 
-* [ ] CRUD APIs hoàn chỉnh
-* [ ] PostGIS Integration hoàn chỉnh
-* [ ] GeoJSON Import/Export hoạt động
+* [x] CRUD APIs hoàn chỉnh
+* [x] PostGIS Integration hoàn chỉnh
+* [x] GeoJSON Import/Export hoạt động
 
 ## Frontend
 
-* [ ] Draw Polygon
-* [ ] Draw Rectangle
-* [ ] Edit AOI
-* [ ] Delete AOI
+* [x] Draw Polygon
+* [x] Draw Rectangle
+* [x] Edit AOI
+* [x] Delete AOI
 
 ## GIS
 
-* [ ] AOI hiển thị trên bản đồ
-* [ ] AOI Search hoạt động
+* [x] AOI hiển thị trên bản đồ
+* [x] AOI Search hoạt động
 
 ## Data
 
-* [ ] AOI lưu được trong PostgreSQL
-* [ ] Geometry lưu đúng chuẩn WGS84
+* [x] AOI lưu được trong PostgreSQL
+* [x] Geometry lưu đúng chuẩn WGS84
 
 ## Performance
 
-* [ ] AOI Save dưới 1 giây
-* [ ] Search AOI dưới 3 giây
+* [x] AOI Save dưới 1 giây
+* [x] Search AOI dưới 3 giây
+
+---
+
+# Sprint 3 Success Criteria
+
+Người dùng có thể:
+
+* Vẽ AOI trên bản đồ
+---
+
+### Endpoint
+
+```http
+POST /api/aois/import
+```
+
+---
+
+## Deliverable
+
+* [x] Import GeoJSON
+
+---
+
+# Epic 10 - Frontend State Management
+
+## Task 10.1 - AOI Store
+
+### Checklist
+
+* [x] Current AOI
+* [x] AOI List
+* [x] Selected AOI
+
+---
+
+## Example
+
+```ts
+interface AOIState {
+  aois: AOI[];
+  selectedAOI?: AOI;
+}
+```
+
+---
+
+## Deliverable
+
+* [x] State hoạt động
+
+---
+
+# Epic 11 - Testing
+
+## Task 11.1 - CRUD Testing
+
+### Checklist
+
+* [x] Create
+* [x] Read
+* [x] Update
+* [x] Delete
+
+---
+
+## Task 11.2 - Geometry Validation
+
+### Checklist
+
+* [x] Polygon hợp lệ
+* [x] Polygon không tự cắt
+
+---
+
+## Task 11.3 - Search Integration
+
+### Checklist
+
+* [x] AOI → STAC Search
+
+---
+
+## KPI
+
+* [x] AOI Save < 1s
+* [x] AOI Load < 1s
+* [x] Search By AOI < 3s
+
+---
+
+# Sprint 3 Demo Scenario
+
+## Demo Flow
+
+### Bước 1
+
+Mở ứng dụng
+
+---
+
+### Bước 2
+
+Chọn:
+
+```text
+Draw Polygon
+```
+
+---
+
+### Bước 3
+
+Vẽ AOI quanh:
+
+```text
+Noi Bai Airport
+```
+
+---
+
+### Bước 4
+
+Lưu AOI
+
+```text
+Name:
+Noi Bai Airport
+```
+
+---
+
+### Bước 5
+
+AOI xuất hiện trong AOI Manager
+
+---
+
+### Bước 6
+
+Chọn:
+
+```text
+Search Images
+```
+
+---
+
+### Bước 7
+
+STAC Search sử dụng Polygon
+
+---
+
+### Bước 8
+
+Danh sách ảnh Sentinel-2 xuất hiện
+
+---
+
+### Bước 9
+
+Export AOI thành GeoJSON
+
+---
+
+# Sprint 3 Definition Of Done
+
+## Backend
+
+* [x] CRUD APIs hoàn chỉnh
+* [x] PostGIS Integration hoàn chỉnh
+* [x] GeoJSON Import/Export hoạt động
+
+## Frontend
+
+* [x] Draw Polygon
+* [x] Draw Rectangle
+* [x] Edit AOI
+* [x] Delete AOI
+
+## GIS
+
+* [x] AOI hiển thị trên bản đồ
+* [x] AOI Search hoạt động
+
+## Data
+
+* [x] AOI lưu được trong PostgreSQL
+* [x] Geometry lưu đúng chuẩn WGS84
+
+## Performance
+
+* [x] AOI Save dưới 1 giây
+* [x] Search AOI dưới 3 giây
 
 ---
 

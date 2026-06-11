@@ -1,8 +1,10 @@
-import { Globe, Compass, Layers, Info, Check, Eye } from 'lucide-react';
+import { Globe, Compass, Layers, Info, Check, Eye, Search, Hexagon } from 'lucide-react';
 import MapViewer from '../components/MapViewer';
 import SearchLocation from '../components/SearchLocation';
 import STACSearchPanel from '../components/STACSearchPanel';
+import AOIManagerPanel from '../components/AOIManagerPanel';
 import { useMapStore } from '../store/useMapStore';
+import { useAOIStore } from '../store/useAOIStore';
 
 const LAYER_CATEGORIES = [
   {
@@ -38,6 +40,7 @@ const SAMPLE_LOCATIONS = [
 
 export default function MainLayout() {
   const { center, zoom, selectedLayer, setSelectedLayer, setCenter, setZoom } = useMapStore();
+  const { activeTab, setActiveTab } = useAOIStore();
 
   return (
     <div className="relative w-screen h-screen overflow-hidden bg-slate-950 text-slate-100 font-sans select-none">
@@ -72,27 +75,65 @@ export default function MainLayout() {
             <h2 className="text-sm font-semibold text-slate-200">Bảng điều khiển</h2>
           </div>
           <span className="text-[10px] px-2 py-0.5 bg-slate-800 text-slate-400 border border-slate-700/50 rounded-full font-mono font-semibold">
-            Sprint 2
+            Sprint 3
           </span>
         </div>
 
         {/* Sidebar Content */}
-        <div className="p-4 space-y-5 overflow-y-auto">
-          {/* Section 1: Search Location (Epic 5) */}
-          <div className="p-3.5 bg-slate-950/40 border border-slate-800/60 rounded-xl space-y-2">
-            <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider px-1">
-              Tìm kiếm địa điểm (Epic 5)
-            </h3>
-            <SearchLocation />
+        <div className="p-4 space-y-4 overflow-y-auto">
+          {/* Tab Switching Navigation */}
+          <div className="flex bg-slate-950/60 p-1 border border-slate-800/80 rounded-xl">
+            <button
+              onClick={() => setActiveTab('search')}
+              className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center justify-center space-x-1.5 ${
+                activeTab === 'search'
+                  ? 'bg-sky-500/10 text-sky-400 font-bold border border-sky-500/20 shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200 border border-transparent'
+              }`}
+            >
+              <Search className="w-3.5 h-3.5" />
+              <span>Tìm kiếm STAC</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('aoi')}
+              className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center justify-center space-x-1.5 ${
+                activeTab === 'aoi'
+                  ? 'bg-sky-500/10 text-sky-400 font-bold border border-sky-500/20 shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200 border border-transparent'
+              }`}
+            >
+              <Hexagon className="w-3.5 h-3.5" />
+              <span>Quản lý AOI</span>
+            </button>
           </div>
 
-          {/* Section 2: STAC Search Panel */}
-          <div className="p-3.5 bg-slate-950/40 border border-slate-800/60 rounded-xl space-y-2">
-            <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider px-1">
-              Tìm kiếm ảnh vệ tinh (STAC)
-            </h3>
-            <STACSearchPanel />
-          </div>
+          {activeTab === 'search' ? (
+            <>
+              {/* Section 1: Search Location */}
+              <div className="p-3.5 bg-slate-950/40 border border-slate-800/60 rounded-xl space-y-2">
+                <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider px-1">
+                  Tìm kiếm địa điểm
+                </h3>
+                <SearchLocation />
+              </div>
+
+              {/* Section 2: STAC Search Panel */}
+              <div className="p-3.5 bg-slate-950/40 border border-slate-800/60 rounded-xl space-y-2">
+                <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider px-1">
+                  Tìm kiếm ảnh vệ tinh (STAC)
+                </h3>
+                <STACSearchPanel />
+              </div>
+            </>
+          ) : (
+            /* Section 2: AOI Manager Panel */
+            <div className="p-3.5 bg-slate-950/40 border border-slate-800/60 rounded-xl space-y-2">
+              <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider px-1">
+                Quản lý Vùng quan tâm (AOI)
+              </h3>
+              <AOIManagerPanel />
+            </div>
+          )}
 
           {/* Section 3: Layers Switcher (Epic 3 & 4) */}
           <div className="space-y-4">
