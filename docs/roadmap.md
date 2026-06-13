@@ -258,7 +258,7 @@ Measurement Tools.
 
 ### KPI
 
-- Sai số < 5%
+- Sai số < 2%
 
 ---
 

@@ -4,9 +4,12 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import { Home } from 'lucide-react';
 import MapboxDraw from '@mapbox/mapbox-gl-draw';
 import '@mapbox/mapbox-gl-draw/dist/mapbox-gl-draw.css';
+import * as turf from '@turf/turf';
 import { useMapStore } from '../store/useMapStore';
 import { useSTACStore } from '../store/useSTACStore';
 import { useAOIStore } from '../store/useAOIStore';
+import { useMeasurementStore } from '../store/useMeasurementStore';
+import { api } from '../services/api';
 
 // Custom Rectangle Mode for MapboxDraw
 const RectangleMode: any = {
@@ -432,6 +435,255 @@ export default function MapViewer() {
   const isDrawing = useAOIStore((state) => state.isDrawing);
   const drawType = useAOIStore((state) => state.drawType);
   const editingAOIId = useAOIStore((state) => state.editingAOIId);
+  const activeTab = useAOIStore((state) => state.activeTab);
+
+  // Measurement State & Refs
+  const { isMeasuring, measureType, history, stopMeasuring } = useMeasurementStore();
+  const measurementMarkers = useRef<maplibregl.Marker[]>([]);
+
+  const clearMeasurementMarkers = () => {
+    measurementMarkers.current.forEach((m) => m.remove());
+    measurementMarkers.current = [];
+  };
+
+  const ensureMeasurementProperties = () => {
+    if (!drawRef.current || !useMeasurementStore.getState().isMeasuring) return;
+    const all = drawRef.current.getAll();
+    all.features.forEach((f) => {
+      if (f.id && f.properties?.isMeasurement !== 'true') {
+        drawRef.current?.setFeatureProperty(String(f.id), 'isMeasurement', 'true');
+      }
+    });
+  };
+
+  const renderMeasurementLabels = (feature: any, cursorLngLat?: [number, number]) => {
+    clearMeasurementMarkers();
+    if (!map.current || !drawRef.current) return;
+
+    const mode = drawRef.current.getMode();
+
+    if (feature.geometry.type === 'LineString') {
+      let coords = [...feature.geometry.coordinates];
+      if (mode === 'draw_line_string' && cursorLngLat) {
+        coords.push(cursorLngLat);
+      }
+
+      if (coords.length < 2) return;
+
+      // Draw segment markers
+      for (let i = 0; i < coords.length - 1; i++) {
+        const pt1 = coords[i];
+        const pt2 = coords[i + 1];
+        const distance = turf.distance(pt1, pt2, { units: 'meters' });
+        const mid = turf.midpoint(pt1, pt2).geometry.coordinates as [number, number];
+
+        const el = document.createElement('div');
+        el.className = 'px-1.5 py-0.5 bg-slate-900/90 text-[10px] font-bold text-emerald-400 border border-emerald-500/30 rounded shadow-md pointer-events-none backdrop-blur-sm';
+        el.innerText = distance >= 1000 ? `${(distance / 1000).toFixed(2)} km` : `${distance.toFixed(0)} m`;
+
+        const marker = new maplibregl.Marker({ element: el })
+          .setLngLat(mid)
+          .addTo(map.current);
+        measurementMarkers.current.push(marker);
+      }
+
+      // Draw cumulative distance marker at the last vertex
+      const totalLen = turf.length(turf.lineString(coords), { units: 'meters' });
+      const lastPt = coords[coords.length - 1] as [number, number];
+      const el = document.createElement('div');
+      el.className = 'px-2 py-1 bg-emerald-500 text-[11px] font-black text-slate-950 border border-white/40 rounded-md shadow-lg pointer-events-none flex items-center space-x-1';
+      el.innerHTML = `<span>🚩</span> <span>${totalLen >= 1000 ? `${(totalLen / 1000).toFixed(2)} km` : `${totalLen.toFixed(0)} m`}</span>`;
+
+      const marker = new maplibregl.Marker({ element: el })
+        .setLngLat(lastPt)
+        .addTo(map.current);
+      measurementMarkers.current.push(marker);
+
+    } else if (feature.geometry.type === 'Polygon') {
+      let coords = [...feature.geometry.coordinates[0]];
+      if (mode === 'draw_polygon' && cursorLngLat && coords.length >= 2) {
+        coords[coords.length - 1] = cursorLngLat;
+        coords.push(coords[0]);
+      }
+
+      if (coords.length < 4) return;
+
+      const poly = turf.polygon([coords]);
+      const area = turf.area(poly);
+      const perimeter = turf.length(turf.lineString(coords), { units: 'meters' });
+      let center: [number, number];
+      try {
+        center = turf.centroid(poly).geometry.coordinates as [number, number];
+      } catch {
+        center = coords[0] as [number, number];
+      }
+
+      const el = document.createElement('div');
+      el.className = 'px-2 py-1.5 bg-slate-900/90 border border-emerald-500/40 rounded-lg shadow-xl pointer-events-none text-center backdrop-blur-sm min-w-[90px] flex flex-col space-y-0.5';
+      const formattedArea = area >= 1000000 
+        ? `${(area / 1000000).toFixed(2)} km²` 
+        : area >= 10000 
+          ? `${(area / 10000).toFixed(2)} ha` 
+          : `${area.toFixed(0)} m²`;
+      const formattedPerim = perimeter >= 1000 ? `${(perimeter / 1000).toFixed(2)} km` : `${perimeter.toFixed(0)} m`;
+      el.innerHTML = `
+        <div class="text-[11px] font-black text-emerald-400">${formattedArea}</div>
+        <div class="text-[9px] font-semibold text-slate-400 border-t border-slate-800/80 pt-0.5">CV: ${formattedPerim}</div>
+      `;
+
+      const marker = new maplibregl.Marker({ element: el })
+        .setLngLat(center)
+        .addTo(map.current);
+      measurementMarkers.current.push(marker);
+    }
+  };
+
+  const updateMeasurementCalculations = (cursorLngLat?: [number, number]) => {
+    if (!drawRef.current || !map.current) return;
+    const isMeasuring = useMeasurementStore.getState().isMeasuring;
+    const measureType = useMeasurementStore.getState().measureType;
+    if (!isMeasuring || measureType === 'none') {
+      clearMeasurementMarkers();
+      return;
+    }
+
+    const all = drawRef.current.getAll();
+    const measurementFeature = all.features.find(
+      (f) => f.properties?.isMeasurement === 'true' || f.properties?.user_isMeasurement === 'true'
+    );
+
+    if (!measurementFeature) {
+      clearMeasurementMarkers();
+      return;
+    }
+
+    const mode = drawRef.current.getMode();
+
+    if (measurementFeature.geometry.type === 'LineString') {
+      let coords = [...measurementFeature.geometry.coordinates];
+      if (mode === 'draw_line_string' && cursorLngLat) {
+        coords.push(cursorLngLat);
+      }
+
+      if (coords.length < 2) {
+        clearMeasurementMarkers();
+        return;
+      }
+
+      const totalLen = turf.length(turf.lineString(coords), { units: 'meters' });
+      const current = useMeasurementStore.getState().currentMeasurement;
+      
+      useMeasurementStore.getState().setCurrentMeasurement({
+        id: (measurementFeature.id as string) || current?.id || Math.random().toString(36).substring(7),
+        name: current?.name || '',
+        type: 'distance',
+        value: totalLen,
+        geometry: {
+          type: 'LineString',
+          coordinates: coords
+        },
+        created_at: current?.created_at || new Date().toISOString()
+      });
+
+      renderMeasurementLabels(measurementFeature, cursorLngLat);
+
+    } else if (measurementFeature.geometry.type === 'Polygon') {
+      let coords = [...measurementFeature.geometry.coordinates[0]];
+      if (mode === 'draw_polygon' && cursorLngLat && coords.length >= 2) {
+        coords[coords.length - 1] = cursorLngLat;
+        coords.push(coords[0]);
+      }
+
+      if (coords.length < 4) {
+        clearMeasurementMarkers();
+        return;
+      }
+
+      const poly = turf.polygon([coords]);
+      const area = turf.area(poly);
+      const perimeter = turf.length(turf.lineString(coords), { units: 'meters' });
+      const current = useMeasurementStore.getState().currentMeasurement;
+
+      useMeasurementStore.getState().setCurrentMeasurement({
+        id: (measurementFeature.id as string) || current?.id || Math.random().toString(36).substring(7),
+        name: current?.name || '',
+        type: 'area',
+        value: area,
+        perimeter: perimeter,
+        geometry: {
+          type: 'Polygon',
+          coordinates: [coords]
+        },
+        created_at: current?.created_at || new Date().toISOString()
+      });
+
+      renderMeasurementLabels(measurementFeature, cursorLngLat);
+    }
+  };
+
+  const updateMeasurementsLayer = (mapInstance: maplibregl.Map) => {
+    if (!mapInstance.isStyleLoaded()) {
+      mapInstance.once('style.load', () => updateMeasurementsLayer(mapInstance));
+      return;
+    }
+
+    try {
+      const sourceId = 'measurements-history-source';
+      const fillLayerId = 'measurements-history-fill';
+      const outlineLayerId = 'measurements-history-outline';
+      
+      const history = useMeasurementStore.getState().history;
+
+      const features = history.map((item) => ({
+        type: 'Feature',
+        id: item.id,
+        geometry: item.geometry,
+        properties: {
+          id: item.id,
+          name: item.name,
+          type: item.type,
+        },
+      }));
+
+      const geojson: any = {
+        type: 'FeatureCollection',
+        features,
+      };
+
+      const source = mapInstance.getSource(sourceId) as maplibregl.GeoJSONSource;
+      if (!source) {
+        mapInstance.addSource(sourceId, {
+          type: 'geojson',
+          data: geojson,
+        });
+
+        mapInstance.addLayer({
+          id: fillLayerId,
+          type: 'fill',
+          source: sourceId,
+          filter: ['==', ['geometry-type'], 'Polygon'],
+          paint: {
+            'fill-color': '#10b981',
+            'fill-opacity': 0.08,
+          },
+        });
+
+        mapInstance.addLayer({
+          id: outlineLayerId,
+          type: 'line',
+          source: sourceId,
+          paint: {
+            'line-color': '#10b981',
+            'line-width': 3,
+          },
+        });
+      } else {
+        source.setData(geojson);
+      }
+    } catch (err) {
+      console.error('Lỗi khi cập nhật lớp lịch sử đo đạc:', err);
+    }
+  };
 
   // Helper to dynamically render STAC image overlay
   const updateStacOverlay = () => {
@@ -655,7 +907,9 @@ export default function MapViewer() {
           // If the user is currently drawing or editing, do NOT allow selecting an AOI from the map!
           const isDrawing = useAOIStore.getState().isDrawing;
           const editingAOIId = useAOIStore.getState().editingAOIId;
-          if (isDrawing || editingAOIId) return;
+          const isMeasuring = useMeasurementStore.getState().isMeasuring;
+          const activeTab = useAOIStore.getState().activeTab;
+          if (isDrawing || editingAOIId || isMeasuring || activeTab === 'measure') return;
 
           if (e.features && e.features.length > 0) {
             const clickedId = e.features[0].properties?.id;
@@ -734,6 +988,7 @@ export default function MapViewer() {
       // Initialize Mapbox Draw
       const draw = new MapboxDraw({
         displayControlsDefault: false,
+        userProperties: true,
         modes: {
           ...MapboxDraw.modes,
           draw_rectangle: RectangleMode,
@@ -746,7 +1001,7 @@ export default function MapViewer() {
           {
             'id': 'gl-draw-polygon-fill-active',
             'type': 'fill',
-            'filter': ['==', '$type', 'Polygon'],
+            'filter': ['all', ['==', '$type', 'Polygon'], ['!=', 'user_isMeasurement', 'true']],
             'paint': {
               'fill-color': '#f59e0b',
               'fill-opacity': 0.12
@@ -756,7 +1011,7 @@ export default function MapViewer() {
           {
             'id': 'gl-draw-polygon-stroke-drawing-polygon',
             'type': 'line',
-            'filter': ['all', ['==', '$type', 'Polygon'], ['==', 'mode', 'draw_polygon']],
+            'filter': ['all', ['==', '$type', 'Polygon'], ['==', 'mode', 'draw_polygon'], ['!=', 'user_isMeasurement', 'true']],
             'layout': {
               'line-cap': 'round',
               'line-join': 'round'
@@ -771,7 +1026,7 @@ export default function MapViewer() {
           {
             'id': 'gl-draw-line-stroke-drawing-polygon',
             'type': 'line',
-            'filter': ['all', ['==', '$type', 'LineString'], ['==', 'mode', 'draw_polygon']],
+            'filter': ['all', ['==', '$type', 'LineString'], ['==', 'mode', 'draw_polygon'], ['!=', 'user_isMeasurement', 'true']],
             'layout': {
               'line-cap': 'round',
               'line-join': 'round'
@@ -786,7 +1041,7 @@ export default function MapViewer() {
           {
             'id': 'gl-draw-polygon-stroke-drawing-rectangle',
             'type': 'line',
-            'filter': ['all', ['==', '$type', 'Polygon'], ['==', 'mode', 'draw_rectangle']],
+            'filter': ['all', ['==', '$type', 'Polygon'], ['==', 'mode', 'draw_rectangle'], ['!=', 'user_isMeasurement', 'true']],
             'layout': {
               'line-cap': 'round',
               'line-join': 'round'
@@ -801,7 +1056,7 @@ export default function MapViewer() {
           {
             'id': 'gl-draw-polygon-stroke-drawing-circle',
             'type': 'line',
-            'filter': ['all', ['==', '$type', 'Polygon'], ['==', 'mode', 'draw_circle']],
+            'filter': ['all', ['==', '$type', 'Polygon'], ['==', 'mode', 'draw_circle'], ['!=', 'user_isMeasurement', 'true']],
             'layout': {
               'line-cap': 'round',
               'line-join': 'round'
@@ -816,7 +1071,7 @@ export default function MapViewer() {
           {
             'id': 'gl-draw-polygon-stroke-selecting',
             'type': 'line',
-            'filter': ['all', ['==', '$type', 'Polygon'], ['==', 'mode', 'simple_select']],
+            'filter': ['all', ['==', '$type', 'Polygon'], ['==', 'mode', 'simple_select'], ['!=', 'user_isMeasurement', 'true']],
             'layout': {
               'line-cap': 'round',
               'line-join': 'round'
@@ -830,7 +1085,7 @@ export default function MapViewer() {
           {
             'id': 'gl-draw-polygon-stroke-editing',
             'type': 'line',
-            'filter': ['all', ['==', '$type', 'Polygon'], ['==', 'mode', 'direct_select']],
+            'filter': ['all', ['==', '$type', 'Polygon'], ['==', 'mode', 'direct_select'], ['!=', 'user_isMeasurement', 'true']],
             'layout': {
               'line-cap': 'round',
               'line-join': 'round'
@@ -844,7 +1099,7 @@ export default function MapViewer() {
           {
             'id': 'gl-draw-polygon-and-line-vertex-active',
             'type': 'circle',
-            'filter': ['all', ['==', 'meta', 'vertex'], ['==', '$type', 'Point']],
+            'filter': ['all', ['==', 'meta', 'vertex'], ['==', '$type', 'Point'], ['!=', 'user_isMeasurement', 'true']],
             'paint': {
               'circle-radius': 7,
               'circle-color': '#f59e0b',
@@ -856,7 +1111,7 @@ export default function MapViewer() {
           {
             'id': 'gl-draw-polygon-and-line-vertex-stroke-active',
             'type': 'circle',
-            'filter': ['all', ['==', 'meta', 'vertex'], ['==', '$type', 'Point']],
+            'filter': ['all', ['==', 'meta', 'vertex'], ['==', '$type', 'Point'], ['!=', 'user_isMeasurement', 'true']],
             'paint': {
               'circle-radius': 9,
               'circle-color': '#ffffff',
@@ -867,7 +1122,7 @@ export default function MapViewer() {
           {
             'id': 'gl-draw-polygon-and-line-vertex-midpoint-active',
             'type': 'circle',
-            'filter': ['all', ['==', 'meta', 'midpoint'], ['==', '$type', 'Point']],
+            'filter': ['all', ['==', 'meta', 'midpoint'], ['==', '$type', 'Point'], ['!=', 'user_isMeasurement', 'true']],
             'paint': {
               'circle-radius': 5,
               'circle-color': '#3b82f6',
@@ -886,16 +1141,166 @@ export default function MapViewer() {
               'circle-stroke-width': 2,
               'circle-stroke-color': '#ffffff'
             }
+          },
+          // --- MEASUREMENT STYLES (Emerald Green #10b981) ---
+          {
+            'id': 'gl-draw-polygon-fill-measurement-active',
+            'type': 'fill',
+            'filter': ['all', ['==', '$type', 'Polygon'], ['==', 'user_isMeasurement', 'true']],
+            'paint': {
+              'fill-color': '#10b981',
+              'fill-opacity': 0.12
+            }
+          },
+          {
+            'id': 'gl-draw-polygon-stroke-measurement-selecting',
+            'type': 'line',
+            'filter': ['all', ['==', '$type', 'Polygon'], ['==', 'user_isMeasurement', 'true'], ['==', 'mode', 'simple_select']],
+            'layout': {
+              'line-cap': 'round',
+              'line-join': 'round'
+            },
+            'paint': {
+              'line-color': '#10b981',
+              'line-width': 4.5
+            }
+          },
+          {
+            'id': 'gl-draw-polygon-stroke-measurement-editing',
+            'type': 'line',
+            'filter': ['all', ['==', '$type', 'Polygon'], ['==', 'user_isMeasurement', 'true'], ['==', 'mode', 'direct_select']],
+            'layout': {
+              'line-cap': 'round',
+              'line-join': 'round'
+            },
+            'paint': {
+              'line-color': '#10b981',
+              'line-width': 4.5
+            }
+          },
+          {
+            'id': 'gl-draw-polygon-stroke-measurement-drawing',
+            'type': 'line',
+            'filter': ['all', ['==', '$type', 'Polygon'], ['==', 'user_isMeasurement', 'true'], ['==', 'mode', 'draw_polygon']],
+            'layout': {
+              'line-cap': 'round',
+              'line-join': 'round'
+            },
+            'paint': {
+              'line-color': '#10b981',
+              'line-width': 4.5,
+              'line-dasharray': [2, 2]
+            }
+          },
+          {
+            'id': 'gl-draw-line-measurement-selecting',
+            'type': 'line',
+            'filter': ['all', ['==', '$type', 'LineString'], ['==', 'user_isMeasurement', 'true'], ['==', 'mode', 'simple_select']],
+            'layout': {
+              'line-cap': 'round',
+              'line-join': 'round'
+            },
+            'paint': {
+              'line-color': '#10b981',
+              'line-width': 4.5
+            }
+          },
+          {
+            'id': 'gl-draw-line-measurement-editing',
+            'type': 'line',
+            'filter': ['all', ['==', '$type', 'LineString'], ['==', 'user_isMeasurement', 'true'], ['==', 'mode', 'direct_select']],
+            'layout': {
+              'line-cap': 'round',
+              'line-join': 'round'
+            },
+            'paint': {
+              'line-color': '#10b981',
+              'line-width': 4.5
+            }
+          },
+          {
+            'id': 'gl-draw-line-measurement-drawing',
+            'type': 'line',
+            'filter': ['all', ['==', '$type', 'LineString'], ['==', 'user_isMeasurement', 'true'], ['==', 'mode', 'draw_line_string']],
+            'layout': {
+              'line-cap': 'round',
+              'line-join': 'round'
+            },
+            'paint': {
+              'line-color': '#10b981',
+              'line-width': 4.5,
+              'line-dasharray': [2, 2]
+            }
+          },
+          {
+            'id': 'gl-draw-vertex-measurement-active',
+            'type': 'circle',
+            'filter': ['all', ['==', 'meta', 'vertex'], ['==', '$type', 'Point'], ['==', 'user_isMeasurement', 'true']],
+            'paint': {
+              'circle-radius': 7,
+              'circle-color': '#10b981',
+              'circle-stroke-width': 2,
+              'circle-stroke-color': '#ffffff'
+            }
+          },
+          {
+            'id': 'gl-draw-vertex-stroke-measurement-active',
+            'type': 'circle',
+            'filter': ['all', ['==', 'meta', 'vertex'], ['==', '$type', 'Point'], ['==', 'user_isMeasurement', 'true']],
+            'paint': {
+              'circle-radius': 9,
+              'circle-color': '#ffffff',
+              'circle-opacity': 0.4
+            }
+          },
+          {
+            'id': 'gl-draw-vertex-midpoint-measurement-active',
+            'type': 'circle',
+            'filter': ['all', ['==', 'meta', 'midpoint'], ['==', '$type', 'Point'], ['==', 'user_isMeasurement', 'true']],
+            'paint': {
+              'circle-radius': 5,
+              'circle-color': '#3b82f6',
+              'circle-stroke-width': 1.5,
+              'circle-stroke-color': '#ffffff'
+            }
           }
         ]
       });
       map.current.addControl(draw as any, 'top-right');
       drawRef.current = draw;
 
-      const handleDrawCreate = (e: any) => {
+      const handleDrawCreate = async (e: any) => {
         if (e.features && e.features.length > 0) {
           const feature = e.features[0];
-          if (feature.geometry.type === 'Polygon') {
+          const isMeasuring = useMeasurementStore.getState().isMeasuring;
+
+          if (isMeasuring) {
+            // Set the feature property
+            if (drawRef.current) {
+              drawRef.current.setFeatureProperty(String(feature.id), 'isMeasurement', 'true');
+            }
+
+            try {
+              const response = await api.post('/measure', { geometry: feature.geometry });
+              const data = response.data;
+
+              const current = useMeasurementStore.getState().currentMeasurement;
+              useMeasurementStore.getState().setCurrentMeasurement({
+                id: (feature.id as string) || Math.random().toString(36).substring(7),
+                name: current?.name || '',
+                type: data.type === 'distance' ? 'distance' : 'area',
+                value: data.type === 'distance' ? data.distance : data.area,
+                perimeter: data.type === 'area' ? data.perimeter : undefined,
+                geometry: feature.geometry,
+                created_at: new Date().toISOString()
+              });
+
+              renderMeasurementLabels(feature);
+            } catch (err) {
+              console.error('Error fetching backend measurement:', err);
+              updateMeasurementCalculations();
+            }
+          } else if (feature.geometry.type === 'Polygon') {
             const editingId = useAOIStore.getState().editingAOIId;
             if (!editingId) {
               // We are drawing a new AOI. Set tempGeometry. Do NOT delete, keep it on the map.
@@ -907,10 +1312,33 @@ export default function MapViewer() {
         }
       };
 
-      const handleDrawUpdate = (e: any) => {
+      const handleDrawUpdate = async (e: any) => {
         if (e.features && e.features.length > 0) {
           const feature = e.features[0];
-          if (feature.geometry.type === 'Polygon') {
+          const isMeasuring = useMeasurementStore.getState().isMeasuring;
+
+          if (isMeasuring) {
+            try {
+              const response = await api.post('/measure', { geometry: feature.geometry });
+              const data = response.data;
+
+              const current = useMeasurementStore.getState().currentMeasurement;
+              useMeasurementStore.getState().setCurrentMeasurement({
+                id: (feature.id as string) || current?.id || Math.random().toString(36).substring(7),
+                name: current?.name || '',
+                type: data.type === 'distance' ? 'distance' : 'area',
+                value: data.type === 'distance' ? data.distance : data.area,
+                perimeter: data.type === 'area' ? data.perimeter : undefined,
+                geometry: feature.geometry,
+                created_at: current?.created_at || new Date().toISOString()
+              });
+
+              renderMeasurementLabels(feature);
+            } catch (err) {
+              console.error('Error updating backend measurement:', err);
+              updateMeasurementCalculations();
+            }
+          } else if (feature.geometry.type === 'Polygon') {
             // Recalculate circleCenter for circle features so properties remain in sync
             const isCircle = feature.properties?.isCircle || feature.properties?.user_isCircle;
             if (isCircle && drawRef.current) {
@@ -944,13 +1372,37 @@ export default function MapViewer() {
       };
 
       const handleDrawDelete = () => {
-        // If user deletes the shape, clear temp geometry.
-        useAOIStore.getState().setTempGeometry(null);
+        const isMeasuring = useMeasurementStore.getState().isMeasuring;
+        if (isMeasuring) {
+          useMeasurementStore.getState().setCurrentMeasurement(null);
+          clearMeasurementMarkers();
+        } else {
+          // If user deletes the shape, clear temp geometry.
+          useAOIStore.getState().setTempGeometry(null);
+        }
       };
 
       map.current.on('draw.create', handleDrawCreate);
       map.current.on('draw.update', handleDrawUpdate);
       map.current.on('draw.delete', handleDrawDelete);
+
+      // Listen to mousemove for real-time measurement labels
+      map.current.on('mousemove', (e) => {
+        const isMeasuring = useMeasurementStore.getState().isMeasuring;
+        if (isMeasuring) {
+          const cursor: [number, number] = [e.lngLat.lng, e.lngLat.lat];
+          ensureMeasurementProperties();
+          updateMeasurementCalculations(cursor);
+        }
+      });
+
+      map.current.on('click', () => {
+        const isMeasuring = useMeasurementStore.getState().isMeasuring;
+        if (isMeasuring) {
+          ensureMeasurementProperties();
+          updateMeasurementCalculations();
+        }
+      });
 
       // Cancel drawing mode on Right Click (contextmenu) via Canvas Event Listener (very robust)
       const canvas = map.current.getCanvas();
@@ -961,9 +1413,16 @@ export default function MapViewer() {
             e.preventDefault();
             drawRef.current.changeMode('simple_select');
             drawRef.current.deleteAll();
-            useAOIStore.getState().setDrawing(false);
-            useAOIStore.getState().setDrawType(null);
-            useAOIStore.getState().setTempGeometry(null);
+            
+            const isMeasuring = useMeasurementStore.getState().isMeasuring;
+            if (isMeasuring) {
+              useMeasurementStore.getState().stopMeasuring();
+              clearMeasurementMarkers();
+            } else {
+              useAOIStore.getState().setDrawing(false);
+              useAOIStore.getState().setDrawType(null);
+              useAOIStore.getState().setTempGeometry(null);
+            }
             console.log('[Draw] Drawing cancelled via Canvas Right Click');
           }
         }
@@ -980,7 +1439,9 @@ export default function MapViewer() {
         // If user is drawing or editing, do NOT deselect!
         const isDrawing = useAOIStore.getState().isDrawing;
         const editingAOIId = useAOIStore.getState().editingAOIId;
-        if (isDrawing || editingAOIId) return;
+        const isMeasuring = useMeasurementStore.getState().isMeasuring;
+        const activeTab = useAOIStore.getState().activeTab;
+        if (isDrawing || editingAOIId || isMeasuring || activeTab === 'measure') return;
 
         // Query if click was on any AOI feature
         const features = map.current.queryRenderedFeatures(e.point, {
@@ -1024,6 +1485,7 @@ export default function MapViewer() {
         ]);
 
         updateAOIsLayer(map.current);
+        updateMeasurementsLayer(map.current);
       });
 
       // Load initial overlay if the initial selected layer is a remote sensing one
@@ -1031,7 +1493,10 @@ export default function MapViewer() {
         map.current.once('style.load', () => {
           updateRemoteSensingOverlay();
           updateStacOverlay();
-          if (map.current) updateAOIsLayer(map.current);
+          if (map.current) {
+            updateAOIsLayer(map.current);
+            updateMeasurementsLayer(map.current);
+          }
         });
       }
     }
@@ -1067,7 +1532,10 @@ export default function MapViewer() {
       map.current.once('style.load', () => {
         updateRemoteSensingOverlay();
         updateStacOverlay();
-        if (map.current) updateAOIsLayer(map.current);
+        if (map.current) {
+          updateAOIsLayer(map.current);
+          updateMeasurementsLayer(map.current);
+        }
       });
     } else {
       // If the base style hasn't changed, we can update the overlay immediately
@@ -1075,17 +1543,78 @@ export default function MapViewer() {
         updateRemoteSensingOverlay();
         updateStacOverlay();
         updateAOIsLayer(map.current);
+        updateMeasurementsLayer(map.current);
       } else {
         map.current.once('style.load', () => {
           updateRemoteSensingOverlay();
           updateStacOverlay();
-          if (map.current) updateAOIsLayer(map.current);
+          if (map.current) {
+            updateAOIsLayer(map.current);
+            updateMeasurementsLayer(map.current);
+          }
         });
       }
     }
   }, [selectedLayer]);
 
   const tempGeometry = useAOIStore((state) => state.tempGeometry);
+
+  // Listen to isMeasuring and measureType changes to trigger Mapbox Draw modes for measurements
+  useEffect(() => {
+    if (!drawRef.current || !map.current) return;
+    if (isMeasuring && measureType !== 'none') {
+      // Deactivate AOI drawing/editing states to avoid conflict
+      useAOIStore.getState().setDrawing(false);
+      useAOIStore.getState().setDrawType(null);
+      useAOIStore.getState().setEditingAOI(null);
+      useAOIStore.getState().selectAOI(null);
+
+      // Clear previous draw features
+      drawRef.current.deleteAll();
+
+      // Change draw mode based on measure type
+      if (measureType === 'distance') {
+        drawRef.current.changeMode('draw_line_string');
+      } else if (measureType === 'area') {
+        drawRef.current.changeMode('draw_polygon');
+      }
+
+      // Ensure any newly created features have the measurement property
+      setTimeout(() => {
+        if (!drawRef.current) return;
+        const all = drawRef.current.getAll();
+        all.features.forEach((f) => {
+          if (f.id) {
+            drawRef.current?.setFeatureProperty(String(f.id), 'isMeasurement', 'true');
+          }
+        });
+      }, 50);
+    } else if (!isMeasuring) {
+      const currentMode = drawRef.current.getMode();
+      if (currentMode !== 'simple_select' && currentMode !== 'direct_select') {
+        drawRef.current.changeMode('simple_select');
+      }
+      drawRef.current.deleteAll();
+      clearMeasurementMarkers();
+    }
+  }, [isMeasuring, measureType]);
+
+  // Clean draw features and markers when active tab changes and is not 'measure'
+  useEffect(() => {
+    if (activeTab !== 'measure' && isMeasuring) {
+      stopMeasuring();
+      if (drawRef.current) {
+        drawRef.current.deleteAll();
+      }
+      clearMeasurementMarkers();
+    }
+  }, [activeTab, isMeasuring]);
+
+  // Listen to history changes to update the map history layer
+  useEffect(() => {
+    if (!map.current) return;
+    updateMeasurementsLayer(map.current);
+  }, [history]);
 
   // Listen to isDrawing and drawType changes to trigger Mapbox Draw modes
   useEffect(() => {

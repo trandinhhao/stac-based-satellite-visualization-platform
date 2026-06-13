@@ -1,8 +1,9 @@
-import { Globe, Compass, Layers, Info, Check, Eye, Search, Hexagon } from 'lucide-react';
+import { Globe, Compass, Layers, Info, Check, Eye, Search, Hexagon, Ruler } from 'lucide-react';
 import MapViewer from '../components/MapViewer';
 import SearchLocation from '../components/SearchLocation';
 import STACSearchPanel from '../components/STACSearchPanel';
 import AOIManagerPanel from '../components/AOIManagerPanel';
+import MeasurementPanel from '../components/MeasurementPanel';
 import { useMapStore } from '../store/useMapStore';
 import { useAOIStore } from '../store/useAOIStore';
 
@@ -92,7 +93,7 @@ export default function MainLayout() {
               }`}
             >
               <Search className="w-3.5 h-3.5" />
-              <span>Tìm kiếm STAC</span>
+              <span>STAC</span>
             </button>
             <button
               onClick={() => setActiveTab('aoi')}
@@ -103,11 +104,22 @@ export default function MainLayout() {
               }`}
             >
               <Hexagon className="w-3.5 h-3.5" />
-              <span>Quản lý AOI</span>
+              <span>AOI</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('measure')}
+              className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center justify-center space-x-1.5 ${
+                activeTab === 'measure'
+                  ? 'bg-emerald-500/10 text-emerald-400 font-bold border border-emerald-500/20 shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200 border border-transparent'
+              }`}
+            >
+              <Ruler className="w-3.5 h-3.5" />
+              <span>Đo đạc</span>
             </button>
           </div>
 
-          {activeTab === 'search' ? (
+          {activeTab === 'search' && (
             <>
               {/* Section 1: Search Location */}
               <div className="p-3.5 bg-slate-950/40 border border-slate-800/60 rounded-xl space-y-2">
@@ -125,13 +137,25 @@ export default function MainLayout() {
                 <STACSearchPanel />
               </div>
             </>
-          ) : (
+          )}
+
+          {activeTab === 'aoi' && (
             /* Section 2: AOI Manager Panel */
             <div className="p-3.5 bg-slate-950/40 border border-slate-800/60 rounded-xl space-y-2">
               <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider px-1">
                 Quản lý Vùng quan tâm (AOI)
               </h3>
               <AOIManagerPanel />
+            </div>
+          )}
+
+          {activeTab === 'measure' && (
+            /* Section 2: Measurement Panel */
+            <div className="p-3.5 bg-slate-950/40 border border-slate-800/60 rounded-xl space-y-2">
+              <h3 className="text-xs font-bold text-emerald-400 uppercase tracking-wider px-1">
+                Công cụ đo đạc địa lý
+              </h3>
+              <MeasurementPanel />
             </div>
           )}
 
