@@ -34,9 +34,9 @@ Sau Sprint 4, người dùng có thể:
 
 ### Checklist
 
-* [ ] Measurement Service
-* [ ] Measurement Store
-* [ ] Measurement Layer
+* [x] Measurement Service
+* [x] Measurement Store
+* [x] Measurement Layer
 
 ---
 
@@ -56,7 +56,7 @@ frontend/
 
 ## Deliverable
 
-* [ ] Measurement Module được khởi tạo
+* [x] Measurement Module được khởi tạo
 
 ---
 
@@ -66,9 +66,9 @@ frontend/
 
 ### Checklist
 
-* [ ] Chọn Distance Tool
-* [ ] Click nhiều điểm
-* [ ] Hiển thị Polyline
+* [x] Chọn Distance Tool
+* [x] Click nhiều điểm
+* [x] Hiển thị Polyline
 
 ---
 
@@ -94,7 +94,7 @@ Hiển thị kết quả
 
 ## Deliverable
 
-* [ ] Draw Line hoạt động
+* [x] Draw Line hoạt động
 
 ---
 
@@ -102,9 +102,9 @@ Hiển thị kết quả
 
 ### Checklist
 
-* [ ] Geodesic Distance
-* [ ] Hiển thị đơn vị mét
-* [ ] Hiển thị đơn vị km
+* [x] Geodesic Distance
+* [x] Hiển thị đơn vị mét
+* [x] Hiển thị đơn vị km
 
 ---
 
@@ -120,7 +120,7 @@ Distance
 
 ## Deliverable
 
-* [ ] Tính khoảng cách chính xác
+* [x] Tính khoảng cách chính xác
 
 ---
 
@@ -128,8 +128,8 @@ Distance
 
 ### Checklist
 
-* [ ] Nhiều điểm
-* [ ] Tổng chiều dài tuyến
+* [x] Nhiều điểm
+* [x] Tổng chiều dài tuyến
 
 ---
 
@@ -146,7 +146,7 @@ Total Distance:
 
 ## Deliverable
 
-* [ ] Đo tuyến nhiều đoạn
+* [x] Đo tuyến nhiều đoạn
 
 ---
 
@@ -156,14 +156,14 @@ Total Distance:
 
 ### Checklist
 
-* [ ] Draw Polygon
-* [ ] Complete Polygon
+* [x] Draw Polygon
+* [x] Complete Polygon
 
 ---
 
 ## Deliverable
 
-* [ ] Polygon đo diện tích hoạt động
+* [x] Polygon đo diện tích hoạt động
 
 ---
 
@@ -171,9 +171,9 @@ Total Distance:
 
 ### Checklist
 
-* [ ] Tính diện tích m²
-* [ ] Tính diện tích km²
-* [ ] Tính diện tích ha
+* [x] Tính diện tích m²
+* [x] Tính diện tích km²
+* [x] Tính diện tích ha
 
 ---
 
@@ -193,7 +193,7 @@ Area
 
 ## Deliverable
 
-* [ ] Tính diện tích chính xác
+* [x] Tính diện tích chính xác
 
 ---
 
@@ -203,7 +203,7 @@ Area
 
 ### Checklist
 
-* [ ] Tính chu vi Polygon
+* [x] Tính chu vi Polygon
 
 ---
 
@@ -219,7 +219,7 @@ Perimeter
 
 ## Deliverable
 
-* [ ] Tính chu vi chính xác
+* [x] Tính chu vi chính xác
 
 ---
 
@@ -229,8 +229,8 @@ Perimeter
 
 ### Checklist
 
-* [ ] Label từng segment
-* [ ] Label tổng khoảng cách
+* [x] Label từng segment
+* [x] Label tổng khoảng cách
 
 ---
 
@@ -246,7 +246,7 @@ A ---------- B
 
 ## Deliverable
 
-* [ ] Label hiển thị trên bản đồ
+* [x] Label hiển thị trên bản đồ
 
 ---
 
@@ -254,8 +254,8 @@ A ---------- B
 
 ### Checklist
 
-* [ ] Label diện tích
-* [ ] Label chu vi
+* [x] Label diện tích
+* [x] Label chu vi
 
 ---
 
@@ -271,7 +271,7 @@ Area
 
 ## Deliverable
 
-* [ ] Label Polygon hiển thị
+* [x] Label Polygon hiển thị
 
 ---
 
@@ -281,8 +281,8 @@ Area
 
 ### Checklist
 
-* [ ] Measurement Summary
-* [ ] Measurement History
+* [x] Measurement Summary
+* [x] Measurement History
 
 ---
 
@@ -302,7 +302,7 @@ Area
 
 ## Deliverable
 
-* [ ] Result Panel hoạt động
+* [x] Result Panel hoạt động
 
 ---
 
@@ -312,8 +312,8 @@ Area
 
 ### Checklist
 
-* [ ] Lưu kết quả đo
-* [ ] Lưu geometry
+* [x] Lưu kết quả đo
+* [x] Lưu geometry
 
 ---
 
@@ -331,7 +331,7 @@ Area
 
 ## Deliverable
 
-* [ ] Measurement History hoạt động
+* [x] Measurement History hoạt động
 
 ---
 
@@ -339,14 +339,14 @@ Area
 
 ### Checklist
 
-* [ ] Hiển thị lại geometry
-* [ ] Hiển thị lại kết quả
+* [x] Hiển thị lại geometry
+* [x] Hiển thị lại kết quả
 
 ---
 
 ## Deliverable
 
-* [ ] History có thể mở lại
+* [x] History có thể mở lại
 
 ---
 
@@ -356,9 +356,9 @@ Area
 
 ### Checklist
 
-* [ ] Distance API
-* [ ] Area API
-* [ ] Perimeter API
+* [x] Distance API
+* [x] Area API
+* [x] Perimeter API
 
 ---
 
@@ -399,7 +399,7 @@ POST /api/measure/perimeter
 
 ## Deliverable
 
-* [ ] Measurement APIs hoạt động
+* [x] Measurement APIs hoạt động
 
 ---
 
@@ -409,8 +409,8 @@ POST /api/measure/perimeter
 
 ### Checklist
 
-* [ ] ST_Distance()
-* [ ] ST_Length()
+* [x] ST_Distance()
+* [x] ST_Length()
 
 ---
 
@@ -426,7 +426,7 @@ SELECT ST_Length(
 
 ## Deliverable
 
-* [ ] Tính khoảng cách bằng PostGIS
+* [x] Tính khoảng cách bằng PostGIS
 
 ---
 
@@ -434,7 +434,7 @@ SELECT ST_Length(
 
 ### Checklist
 
-* [ ] ST_Area()
+* [x] ST_Area()
 
 ---
 
@@ -450,7 +450,7 @@ SELECT ST_Area(
 
 ## Deliverable
 
-* [ ] Tính diện tích bằng PostGIS
+* [x] Tính diện tích bằng PostGIS
 
 ---
 
@@ -460,8 +460,8 @@ SELECT ST_Area(
 
 ### Checklist
 
-* [ ] Export Geometry
-* [ ] Export Metadata
+* [x] Export Geometry
+* [x] Export Metadata
 
 ---
 
@@ -480,7 +480,7 @@ SELECT ST_Area(
 
 ## Deliverable
 
-* [ ] Export GeoJSON hoạt động
+* [x] Export GeoJSON hoạt động
 
 ---
 
@@ -488,7 +488,7 @@ SELECT ST_Area(
 
 ### Checklist
 
-* [ ] CSV Export
+* [x] CSV Export
 
 ---
 
@@ -503,7 +503,7 @@ Area,125,ha
 
 ## Deliverable
 
-* [ ] Export CSV hoạt động
+* [x] Export CSV hoạt động
 
 ---
 
@@ -513,8 +513,8 @@ Area,125,ha
 
 ### Checklist
 
-* [ ] Current Measurement
-* [ ] Measurement History
+* [x] Current Measurement
+* [x] Measurement History
 
 ---
 
@@ -531,7 +531,7 @@ interface MeasurementState {
 
 ## Deliverable
 
-* [ ] State hoạt động
+* [x] State hoạt động
 
 ---
 
@@ -541,8 +541,8 @@ interface MeasurementState {
 
 ### Checklist
 
-* [ ] Khoảng cách ngắn
-* [ ] Khoảng cách dài
+* [x] Khoảng cách ngắn
+* [x] Khoảng cách dài
 
 ---
 
@@ -550,8 +550,8 @@ interface MeasurementState {
 
 ### Checklist
 
-* [ ] Polygon nhỏ
-* [ ] Polygon lớn
+* [x] Polygon nhỏ
+* [x] Polygon lớn
 
 ---
 
@@ -559,14 +559,14 @@ interface MeasurementState {
 
 ### Checklist
 
-* [ ] Sai số < 2%
+* [x] Sai số < 2%
 
 ---
 
 ## KPI
 
-* [ ] Measurement < 1s
-* [ ] Render < 500ms
+* [x] Measurement < 1s
+* [x] Render < 500ms
 
 ---
 
@@ -662,33 +662,33 @@ Export GeoJSON
 
 ## Distance Tool
 
-* [ ] Draw Line
-* [ ] Multi Segment
-* [ ] Distance Label
+* [x] Draw Line
+* [x] Multi Segment
+* [x] Distance Label
 
 ## Area Tool
 
-* [ ] Draw Polygon
-* [ ] Area Calculation
+* [x] Draw Polygon
+* [x] Area Calculation
 
 ## Perimeter Tool
 
-* [ ] Perimeter Calculation
+* [x] Perimeter Calculation
 
 ## Backend
 
-* [ ] Measurement APIs
-* [ ] PostGIS Functions
+* [x] Measurement APIs
+* [x] PostGIS Functions
 
 ## Data
 
-* [ ] Export GeoJSON
-* [ ] Export CSV
+* [x] Export GeoJSON
+* [x] Export CSV
 
 ## Performance
 
-* [ ] Tính toán dưới 1 giây
-* [ ] Sai số dưới 2%
+* [x] Tính toán dưới 1 giây
+* [x] Sai số dưới 2%
 
 ---
 
