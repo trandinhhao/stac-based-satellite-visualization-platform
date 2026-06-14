@@ -646,7 +646,20 @@ GET /statistics
 ## Endpoint
 
 ```text
-ws://localhost:8000/ws
+ws://localhost:8000/ws/jobs
+```
+
+---
+
+## Job Started Event
+
+### Server Message
+
+```json
+{
+  "event": "job_started",
+  "job_id": "uuid"
+}
 ```
 
 ---
@@ -673,6 +686,20 @@ ws://localhost:8000/ws
 {
   "event": "job_completed",
   "job_id": "uuid"
+}
+```
+
+---
+
+## Job Failed Event
+
+### Server Message
+
+```json
+{
+  "event": "job_failed",
+  "job_id": "uuid",
+  "error": "Error details"
 }
 ```
 
