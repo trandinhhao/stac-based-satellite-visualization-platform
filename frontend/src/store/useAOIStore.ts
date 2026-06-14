@@ -26,7 +26,7 @@ interface AOIState {
   editingAOIId: string | null;
   isLoading: boolean;
   error: string | null;
-  activeTab: 'search' | 'aoi' | 'measure';
+  activeTab: 'search' | 'aoi' | 'measure' | 'comparison';
   
   fetchAOIs: () => Promise<void>;
   selectAOI: (id: string | null) => void;
@@ -38,7 +38,7 @@ interface AOIState {
   setDrawType: (drawType: 'polygon' | 'rectangle' | 'circle' | null) => void;
   setTempGeometry: (geometry: AOIGeometry | null) => void;
   setEditingAOI: (id: string | null) => void;
-  setActiveTab: (tab: 'search' | 'aoi' | 'measure') => void;
+  setActiveTab: (tab: 'search' | 'aoi' | 'measure' | 'comparison') => void;
   clearError: () => void;
 }
 
