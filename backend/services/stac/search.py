@@ -152,3 +152,46 @@ def search_stac_images(query_params: dict):
     except Exception as e:
         print(f"Error performing STAC search: {e}")
         raise e
+
+def get_stac_items_by_ids(ids: list[str]) -> list[dict]:
+    """
+    Fetch STAC items across both local stac-fastapi and Microsoft Planetary Computer by their IDs.
+    """
+    features = []
+    
+    # 1. Try local stac-fastapi search first
+    try:
+        print(f"[STAC] Attempting local search for IDs: {ids}")
+        local_results = stac_client.post("/search", {"ids": ids})
+        local_features = local_results.get("features", [])
+        features.extend(local_features)
+    except Exception as e:
+        print(f"[STAC] Local search by ID failed: {e}")
+
+    # 2. Check which IDs were not found locally and query Microsoft Planetary Computer
+    found_ids = {f.get("id") for f in features}
+    remaining_ids = [i for i in ids if i not in found_ids]
+    
+    if remaining_ids:
+        try:
+            print(f"[STAC] Querying Microsoft Planetary Computer for IDs: {remaining_ids}")
+            payload = {"ids": remaining_ids}
+            req_data = json.dumps(payload).encode('utf-8')
+            req = urllib.request.Request(
+                MPC_SEARCH_URL,
+                data=req_data,
+                headers={'Content-Type': 'application/json'}
+            )
+            with urllib.request.urlopen(req) as resp:
+                mpc_results = json.loads(resp.read().decode('utf-8'))
+            
+            mpc_features = mpc_results.get("features", [])
+            if mpc_features:
+                print(f"[STAC] Signing assets for {len(mpc_features)} MPC items...")
+                with ThreadPoolExecutor(max_workers=5) as executor:
+                    signed_features = list(executor.map(sign_item_assets, mpc_features))
+                features.extend(signed_features)
+        except Exception as e:
+            print(f"[STAC] Global search by ID failed: {e}")
+            
+    return features

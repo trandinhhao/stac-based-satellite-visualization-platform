@@ -37,9 +37,9 @@ Sau Sprint 5, người dùng có thể:
 
 ### Checklist
 
-* [ ] Compare Store
-* [ ] Compare Service
-* [ ] Compare Viewer
+* [x] Compare Store
+* [x] Compare Service
+* [x] Compare Viewer
 
 ---
 
@@ -59,7 +59,7 @@ frontend/
 
 ## Deliverable
 
-* [ ] Compare Module được khởi tạo
+* [x] Compare Module được khởi tạo
 
 ---
 
@@ -69,8 +69,8 @@ frontend/
 
 ### Checklist
 
-* [ ] Search theo AOI
-* [ ] Search theo thời gian
+* [x] Search theo AOI
+* [x] Search theo thời gian
 
 ---
 
@@ -88,7 +88,7 @@ Date Range:
 
 ## Deliverable
 
-* [ ] Danh sách ảnh theo AOI
+* [x] Danh sách ảnh theo AOI
 
 ---
 
@@ -96,8 +96,8 @@ Date Range:
 
 ### Checklist
 
-* [ ] Chọn ảnh T1
-* [ ] Chọn ảnh T2
+* [x] Chọn ảnh T1
+* [x] Chọn ảnh T2
 
 ---
 
@@ -117,7 +117,7 @@ Image B
 
 ## Deliverable
 
-* [ ] Chọn được 2 ảnh để so sánh
+* [x] Chọn được 2 ảnh để so sánh
 
 ---
 
@@ -127,7 +127,7 @@ Image B
 
 ### Checklist
 
-* [ ] API Compare
+* [x] API Compare
 
 ---
 
@@ -163,7 +163,7 @@ POST /api/compare
 
 ## Deliverable
 
-* [ ] Compare API hoạt động
+* [x] Compare API hoạt động
 
 ---
 
@@ -173,8 +173,8 @@ POST /api/compare
 
 ### Checklist
 
-* [ ] Left Map
-* [ ] Right Map
+* [x] Left Map
+* [x] Right Map
 
 ---
 
@@ -192,7 +192,7 @@ POST /api/compare
 
 ## Deliverable
 
-* [ ] Hai ảnh hiển thị song song
+* [x] Hai ảnh hiển thị song song
 
 ---
 
@@ -200,8 +200,8 @@ POST /api/compare
 
 ### Checklist
 
-* [ ] Sync Zoom
-* [ ] Sync Pan
+* [x] Sync Zoom
+* [x] Sync Pan
 
 ---
 
@@ -219,7 +219,7 @@ Right Map Zoom theo
 
 ## Deliverable
 
-* [ ] Đồng bộ điều hướng
+* [x] Đồng bộ điều hướng
 
 ---
 
@@ -229,8 +229,8 @@ Right Map Zoom theo
 
 ### Checklist
 
-* [ ] Overlay 2 ảnh
-* [ ] Slider Control
+* [x] Overlay 2 ảnh
+* [x] Slider Control
 
 ---
 
@@ -248,7 +248,7 @@ Image A | Image B
 
 ## Deliverable
 
-* [ ] Swipe hoạt động
+* [x] Swipe hoạt động
 
 ---
 
@@ -256,13 +256,13 @@ Image A | Image B
 
 ### Checklist
 
-* [ ] 0% → 100%
+* [x] 0% → 100%
 
 ---
 
 ## Deliverable
 
-* [ ] Điều chỉnh độ trong suốt
+* [x] Điều chỉnh độ trong suốt
 
 ---
 
@@ -272,10 +272,10 @@ Image A | Image B
 
 ### Checklist
 
-* [ ] Acquisition Date
-* [ ] Cloud Cover
-* [ ] Satellite
-* [ ] Collection
+* [x] Acquisition Date
+* [x] Cloud Cover
+* [x] Satellite
+* [x] Collection
 
 ---
 
@@ -305,7 +305,7 @@ Cloud:
 
 ## Deliverable
 
-* [ ] Metadata hiển thị đầy đủ
+* [x] Metadata hiển thị đầy đủ
 
 ---
 
@@ -315,7 +315,7 @@ Cloud:
 
 ### Checklist
 
-* [ ] Danh sách ảnh theo thời gian
+* [x] Danh sách ảnh theo thời gian
 
 ---
 
@@ -331,7 +331,7 @@ Cloud:
 
 ## Deliverable
 
-* [ ] Timeline hoạt động
+* [x] Timeline hoạt động
 
 ---
 
@@ -339,14 +339,14 @@ Cloud:
 
 ### Checklist
 
-* [ ] Click Timeline
-* [ ] Chọn ảnh
+* [x] Click Timeline
+* [x] Chọn ảnh
 
 ---
 
 ## Deliverable
 
-* [ ] Timeline tương tác được
+* [x] Timeline tương tác được
 
 ---
 
@@ -356,8 +356,8 @@ Cloud:
 
 ### Checklist
 
-* [ ] Số ngày giữa 2 ảnh
-* [ ] Chênh lệch cloud cover
+* [x] Số ngày giữa 2 ảnh
+* [x] Chênh lệch cloud cover
 
 ---
 
@@ -377,7 +377,7 @@ Cloud Difference
 
 ## Deliverable
 
-* [ ] Thống kê cơ bản hoạt động
+* [x] Thống kê cơ bản hoạt động
 
 ---
 
@@ -385,15 +385,15 @@ Cloud Difference
 
 ### Checklist
 
-* [ ] AOI Name
-* [ ] Area
-* [ ] Image Count
+* [x] AOI Name
+* [x] Area
+* [x] Image Count
 
 ---
 
 ## Deliverable
 
-* [ ] Summary Panel hoàn chỉnh
+* [x] Summary Panel hoàn chỉnh
 
 ---
 
@@ -403,7 +403,7 @@ Cloud Difference
 
 ### Checklist
 
-* [ ] JSON Export
+* [x] JSON Export
 
 ---
 
@@ -420,7 +420,7 @@ Cloud Difference
 
 ## Deliverable
 
-* [ ] Export JSON hoạt động
+* [x] Export JSON hoạt động
 
 ---
 
@@ -428,13 +428,13 @@ Cloud Difference
 
 ### Checklist
 
-* [ ] Capture Comparison View
+* [x] Capture Comparison View
 
 ---
 
 ## Deliverable
 
-* [ ] Export PNG hoạt động
+* [x] Export PNG hoạt động
 
 ---
 
@@ -444,9 +444,9 @@ Cloud Difference
 
 ### Checklist
 
-* [ ] Image A
-* [ ] Image B
-* [ ] Comparison Mode
+* [x] Image A
+* [x] Image B
+* [x] Comparison Mode
 
 ---
 
@@ -467,7 +467,7 @@ interface ComparisonState {
 
 ## Deliverable
 
-* [ ] State hoạt động
+* [x] State hoạt động
 
 ---
 
@@ -477,8 +477,8 @@ interface ComparisonState {
 
 ### Checklist
 
-* [ ] Sync Pan
-* [ ] Sync Zoom
+* [x] Sync Pan
+* [x] Sync Zoom
 
 ---
 
@@ -486,8 +486,8 @@ interface ComparisonState {
 
 ### Checklist
 
-* [ ] Slider
-* [ ] Opacity
+* [x] Slider
+* [x] Opacity
 
 ---
 
@@ -495,15 +495,15 @@ interface ComparisonState {
 
 ### Checklist
 
-* [ ] Tile Loading
-* [ ] Memory Usage
+* [x] Tile Loading
+* [x] Memory Usage
 
 ---
 
 ## KPI
 
-* [ ] Comparison Load < 5s
-* [ ] Swipe Response < 200ms
+* [x] Comparison Load < 5s
+* [x] Swipe Response < 200ms
 
 ---
 
@@ -611,29 +611,29 @@ Export Screenshot
 
 ## Search
 
-* [ ] Search theo AOI
-* [ ] Chọn ảnh T1
-* [ ] Chọn ảnh T2
+* [x] Search theo AOI
+* [x] Chọn ảnh T1
+* [x] Chọn ảnh T2
 
 ## Comparison
 
-* [ ] Side By Side
-* [ ] Swipe Slider
+* [x] Side By Side
+* [x] Swipe Slider
 
 ## Metadata
 
-* [ ] Metadata Viewer
-* [ ] Difference Statistics
+* [x] Metadata Viewer
+* [x] Difference Statistics
 
 ## Export
 
-* [ ] JSON Export
-* [ ] Screenshot Export
+* [x] JSON Export
+* [x] Screenshot Export
 
 ## Performance
 
-* [ ] Tải ảnh dưới 5 giây
-* [ ] Swipe dưới 200ms
+* [x] Tải ảnh dưới 5 giây
+* [x] Swipe dưới 200ms
 
 ---
 

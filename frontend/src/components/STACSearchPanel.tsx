@@ -4,6 +4,7 @@ import { Search, Calendar, Image as ImageIcon, Info, Cloud, Cpu, ArrowRight, Eye
 import { useSTACStore } from '../store/useSTACStore';
 import type { STACCollection, STACItem } from '../store/useSTACStore';
 import { useAOIStore } from '../store/useAOIStore';
+import { useCompareStore } from '../features/comparison/store/useCompareStore';
 import { api } from '../services/api';
 
 export default function STACSearchPanel() {
@@ -22,6 +23,8 @@ export default function STACSearchPanel() {
   const selectedAOIId = useAOIStore((state) => state.selectedAOIId);
   const aois = useAOIStore((state) => state.aois);
   const selectedAOI = aois.find((aoi) => selectedAOIId ? String(aoi.id).toLowerCase().trim() === String(selectedAOIId).toLowerCase().trim() : false);
+  const setActiveTab = useAOIStore((state) => state.setActiveTab);
+  const { selectImageA, selectImageB } = useCompareStore();
 
   const [spatialScope, setSpatialScope] = useState<'viewport' | 'aoi' | 'global'>('viewport');
 
@@ -345,27 +348,52 @@ export default function STACSearchPanel() {
           </div>
 
           {/* Action buttons inside drawer */}
-          <div className="pt-1.5 flex items-center space-x-2">
-            <a
-              href={`/cog/preview.png?url=${selectedItem.assets.visual.href}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex-1 h-8 bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded-lg text-[10px] font-bold text-slate-300 hover:text-white flex items-center justify-center space-x-1.5 transition-all cursor-pointer"
-            >
-              <Eye className="w-3.5 h-3.5" />
-              <span>Xem Ảnh Gốc</span>
-            </a>
-            
-            {selectedItem.assets.visual.href && (
+          <div className="pt-1.5 flex flex-col space-y-2">
+            <div className="flex items-center space-x-2">
               <a
-                href={selectedItem.assets.visual.href}
-                download
-                className="px-2.5 h-8 bg-sky-500/10 hover:bg-sky-500/20 border border-sky-500/30 rounded-lg text-[10px] font-bold text-sky-400 hover:text-sky-300 flex items-center justify-center transition-all cursor-pointer"
-                title="Tải ảnh vệ tinh TIFF"
+                href={`/cog/preview.png?url=${selectedItem.assets.visual.href}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-1 h-8 bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded-lg text-[10px] font-bold text-slate-300 hover:text-white flex items-center justify-center space-x-1.5 transition-all cursor-pointer"
               >
-                Tải TIF
+                <Eye className="w-3.5 h-3.5" />
+                <span>Xem Ảnh Gốc</span>
               </a>
-            )}
+              
+              {selectedItem.assets.visual.href && (
+                <a
+                  href={selectedItem.assets.visual.href}
+                  download
+                  className="px-2.5 h-8 bg-sky-500/10 hover:bg-sky-500/20 border border-sky-500/30 rounded-lg text-[10px] font-bold text-sky-400 hover:text-sky-300 flex items-center justify-center transition-all cursor-pointer"
+                  title="Tải ảnh vệ tinh TIFF"
+                >
+                  Tải TIF
+                </a>
+              )}
+            </div>
+
+            <div className="pt-2 border-t border-slate-900 grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  selectImageA(selectedItem);
+                  setActiveTab('comparison');
+                }}
+                className="h-8 bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 rounded-lg text-[10px] font-bold text-emerald-300 hover:text-emerald-200 transition-all cursor-pointer flex items-center justify-center space-x-1"
+              >
+                <span>Chọn Ảnh A (T1)</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  selectImageB(selectedItem);
+                  setActiveTab('comparison');
+                }}
+                className="h-8 bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 rounded-lg text-[10px] font-bold text-emerald-300 hover:text-emerald-200 transition-all cursor-pointer flex items-center justify-center space-x-1"
+              >
+                <span>Chọn Ảnh B (T2)</span>
+              </button>
+            </div>
           </div>
         </div>
       )}
