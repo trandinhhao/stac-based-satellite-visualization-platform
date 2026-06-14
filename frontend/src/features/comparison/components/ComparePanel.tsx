@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { 
   Columns, 
   Layers, 
@@ -7,11 +8,14 @@ import {
   Calendar, 
   Cloud, 
   TrendingUp,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Play,
+  Loader2
 } from 'lucide-react';
 import { useCompareStore } from '../store/useCompareStore';
 import { useSTACStore } from '../../../store/useSTACStore';
 import { useAOIStore } from '../../../store/useAOIStore';
+import { useJobStore } from '../../../store/useJobStore';
 
 export default function ComparePanel() {
   const {
@@ -30,6 +34,24 @@ export default function ComparePanel() {
 
   const { searchResults } = useSTACStore();
   const { aois, selectedAOIId } = useAOIStore();
+  const createJob = useJobStore((state) => state.createJob);
+  const [isCreatingJob, setIsCreatingJob] = useState(false);
+
+  const handleCreateCompareJob = async () => {
+    if (!imageA || !imageB) return;
+    setIsCreatingJob(true);
+    try {
+      await createJob('comparison', selectedAOIId || null, {
+        imageA: imageA.id,
+        imageB: imageB.id
+      });
+      useAOIStore.getState().setActiveTab('jobs');
+    } catch (err: any) {
+      alert('Không thể tạo Job so sánh: ' + (err.response?.data?.detail || err.message));
+    } finally {
+      setIsCreatingJob(false);
+    }
+  };
 
   // Find active AOI
   const selectedAOI = aois.find((a) => selectedAOIId ? String(a.id).toLowerCase().trim() === String(selectedAOIId).toLowerCase().trim() : false);
@@ -316,33 +338,48 @@ export default function ComparePanel() {
           </div>
 
           {/* Export & Actions */}
-          <div className="pt-2 border-t border-slate-800/60 flex items-center space-x-2">
+          <div className="pt-2 border-t border-slate-800/60 flex flex-col space-y-2">
             <button
-              onClick={handleCaptureViewport}
-              disabled={compareMode === 'none'}
-              className="flex-1 h-8 bg-emerald-500 hover:bg-emerald-450 disabled:opacity-50 text-slate-950 text-[10px] font-bold rounded-lg flex items-center justify-center space-x-1.5 cursor-pointer transition-all shadow-sm"
-              title="Chụp màn hình so sánh bản đồ hiện tại"
+              onClick={handleCreateCompareJob}
+              disabled={isCreatingJob}
+              className="w-full h-8.5 bg-sky-500 hover:bg-sky-400 disabled:opacity-50 text-slate-950 text-[10px] font-black rounded-lg flex items-center justify-center space-x-1.5 cursor-pointer transition-all shadow-md"
             >
-              <Camera className="w-3.5 h-3.5" />
-              <span>Chụp ảnh màn hình</span>
+              {isCreatingJob ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Play className="w-3.5 h-3.5" />
+              )}
+              <span>TẠO PHÂN TÍCH NỀN (GENERATE ANALYSIS)</span>
             </button>
 
-            <button
-              onClick={handleExportJSON}
-              className="h-8 px-2.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded-lg text-[10px] font-bold text-slate-300 hover:text-white flex items-center justify-center space-x-1 transition-all cursor-pointer"
-              title="Tải siêu dữ liệu đối chiếu JSON"
-            >
-              <Download className="w-3.5 h-3.5 text-emerald-400" />
-              <span>JSON</span>
-            </button>
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={handleCaptureViewport}
+                disabled={compareMode === 'none'}
+                className="flex-1 h-8 bg-slate-900 hover:bg-slate-850 border border-slate-800 disabled:opacity-50 text-slate-300 text-[10px] font-bold rounded-lg flex items-center justify-center space-x-1.5 cursor-pointer transition-all shadow-sm"
+                title="Chụp màn hình so sánh bản đồ hiện tại"
+              >
+                <Camera className="w-3.5 h-3.5 text-sky-400" />
+                <span>Chụp ảnh màn hình</span>
+              </button>
 
-            <button
-              onClick={clearComparison}
-              className="h-8 px-2.5 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 rounded-lg text-[10px] font-bold text-red-400 hover:text-red-300 transition-all cursor-pointer"
-              title="Hủy đối chiếu"
-            >
-              <Trash2 className="w-3.5 h-3.5 animate-pulse" />
-            </button>
+              <button
+                onClick={handleExportJSON}
+                className="h-8 px-2.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded-lg text-[10px] font-bold text-slate-300 hover:text-white flex items-center justify-center space-x-1 transition-all cursor-pointer"
+                title="Tải siêu dữ liệu đối chiếu JSON"
+              >
+                <Download className="w-3.5 h-3.5 text-sky-400" />
+                <span>JSON</span>
+              </button>
+
+              <button
+                onClick={clearComparison}
+                className="h-8 px-2.5 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 rounded-lg text-[10px] font-bold text-red-400 hover:text-red-300 transition-all cursor-pointer"
+                title="Hủy đối chiếu"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
         </div>
       )}
