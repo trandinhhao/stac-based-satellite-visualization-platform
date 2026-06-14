@@ -8,6 +8,7 @@ from api.stac import router as stac_router
 from api.aois import router as aois_router
 from api.measure import router as measure_router
 from api.compare import router as compare_router
+from api.jobs import router as jobs_router
 
 app = FastAPI(title="STAC Satellite Platform Backend API")
 
@@ -15,6 +16,7 @@ app.include_router(stac_router, prefix="/api")
 app.include_router(aois_router, prefix="/api")
 app.include_router(measure_router, prefix="/api")
 app.include_router(compare_router, prefix="/api")
+app.include_router(jobs_router, prefix="/api/v1")
 
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@postgis:5432/postgis")
 REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379/0")

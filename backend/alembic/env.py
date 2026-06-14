@@ -12,6 +12,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from db.database import Base
 from models.aoi import AOI  # Ensure models are imported for autogenerate
+from models.job import Job
+from models.detection import Detection
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -29,6 +31,17 @@ if config.config_file_name is not None:
 # add your model's MetaData object here
 # for 'autogenerate' support
 target_metadata = Base.metadata
+
+def include_object(object, name, type_, reflected, compare_to):
+    if type_ == "table":
+        return name in ["aois", "jobs", "detections"]
+    # Protect spatial indices or other pgstac objects
+    if type_ == "index" and name == "idx_aois_geometry":
+        return True
+    if type_ == "index":
+        # Do not manage other indexes reflected from other tables
+        return False
+    return True
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
@@ -54,6 +67,7 @@ def run_migrations_offline() -> None:
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
+        include_object=include_object,
     )
 
     with context.begin_transaction():
@@ -75,7 +89,9 @@ def run_migrations_online() -> None:
 
     with connectable.connect() as connection:
         context.configure(
-            connection=connection, target_metadata=target_metadata
+            connection=connection,
+            target_metadata=target_metadata,
+            include_object=include_object,
         )
 
         with context.begin_transaction():

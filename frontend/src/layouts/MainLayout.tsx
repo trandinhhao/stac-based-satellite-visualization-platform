@@ -1,4 +1,4 @@
-import { Globe, Compass, Layers, Info, Check, Eye, Search, Hexagon, Ruler, Columns } from 'lucide-react';
+import { Globe, Compass, Layers, Info, Check, Eye, Search, Hexagon, Ruler, Columns, Clock } from 'lucide-react';
 import MapViewer from '../components/MapViewer';
 import SearchLocation from '../components/SearchLocation';
 import STACSearchPanel from '../components/STACSearchPanel';
@@ -6,6 +6,7 @@ import AOIManagerPanel from '../components/AOIManagerPanel';
 import MeasurementPanel from '../components/MeasurementPanel';
 import ComparePanel from '../features/comparison/components/ComparePanel';
 import CompareViewer from '../features/comparison/components/CompareViewer';
+import JobDashboard from '../features/jobs/components/JobDashboard';
 import { useMapStore } from '../store/useMapStore';
 import { useAOIStore } from '../store/useAOIStore';
 import { useCompareStore } from '../features/comparison/store/useCompareStore';
@@ -132,6 +133,17 @@ export default function MainLayout() {
               <Columns className="w-3.5 h-3.5 mb-0.5" />
               <span>So sánh</span>
             </button>
+            <button
+              onClick={() => setActiveTab('jobs')}
+              className={`flex-1 py-1 text-[11px] font-bold rounded-lg transition-all cursor-pointer flex flex-col items-center justify-center ${
+                activeTab === 'jobs'
+                  ? 'bg-sky-500/10 text-sky-400 font-bold border border-sky-500/20 shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200 border border-transparent'
+              }`}
+            >
+              <Clock className="w-3.5 h-3.5 mb-0.5" />
+              <span>Tác vụ</span>
+            </button>
           </div>
 
           {activeTab === 'search' && (
@@ -181,6 +193,16 @@ export default function MainLayout() {
                 Đối chiếu ảnh vệ tinh
               </h3>
               <ComparePanel />
+            </div>
+          )}
+
+          {activeTab === 'jobs' && (
+            /* Section 2: Job Dashboard Panel */
+            <div className="p-3.5 bg-slate-950/40 border border-slate-800/60 rounded-xl space-y-2">
+              <h3 className="text-xs font-bold text-sky-400 uppercase tracking-wider px-1">
+                Tiến trình Tác vụ Nền
+              </h3>
+              <JobDashboard />
             </div>
           )}
 
