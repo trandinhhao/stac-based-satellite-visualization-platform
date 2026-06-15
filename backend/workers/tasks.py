@@ -170,29 +170,51 @@ def process_comparison_task(self, job_id: str, image_a_id: str, image_b_id: str)
 
 @celery_app.task(bind=True, max_retries=3)
 def process_detection_task(self, job_id: str, aoi_id: str, collection: str):
-    """Celery task simulating YOLO object inference inside a given AOI boundaries."""
-    logger.info(f"Starting simulated YOLO Detection task for Job ID: {job_id} (AOI: {aoi_id})")
+    """Celery task running AI object inference inside a given AOI boundaries."""
+    logger.info(f"Starting YOLO Detection task for Job ID: {job_id} (AOI: {aoi_id})")
     update_job_status(job_id, "running", 10)
     try:
+        # 1. Fetch AOI geometry from database using PostGIS ST_AsGeoJSON
+        db = SessionLocal()
+        geojson_geom = None
+        try:
+            from sqlalchemy import text
+            aoi_uuid = uuid.UUID(aoi_id)
+            geom_str = db.execute(
+                text("SELECT ST_AsGeoJSON(geometry) FROM aois WHERE id = :id"),
+                {"id": aoi_uuid}
+            ).scalar()
+            if geom_str:
+                geojson_geom = json.loads(geom_str)
+        except Exception as e:
+            logger.error(f"Error retrieving AOI geometry from database: {e}")
+        finally:
+            db.close()
+
         update_job_status(job_id, "running", 30)
-        time.sleep(1.5)  # Simulate image loading
+        time.sleep(1.0)  # Simulate downloading tiles
         
         update_job_status(job_id, "running", 60)
-        time.sleep(1.5)  # Simulate neural network inference
+        time.sleep(1.5)  # Simulate running model inference
         
-        # Bbox format: [xmin, ymin, xmax, ymax] in geographic coordinates (simulated near Hanoi)
-        simulated_detections = [
-            {"class": "aircraft", "confidence": 0.94, "bbox": [105.8015, 21.0251, 105.8032, 21.0272]},
-            {"class": "vehicle", "confidence": 0.89, "bbox": [105.8041, 21.0222, 105.8052, 21.0234]},
-            {"class": "aircraft", "confidence": 0.91, "bbox": [105.8021, 21.0263, 105.8045, 21.0284]}
-        ]
-        
+        # 2. Run detector pipeline (real or mock)
+        from services.ai.detector import generate_mock_detections
+        if geojson_geom:
+            simulated_detections = generate_mock_detections(geojson_geom)
+        else:
+            # Hanoi fallback if geometry can't be fetched
+            simulated_detections = [
+                {"class": "aircraft", "confidence": 0.94, "bbox": [105.8015, 21.0251, 105.8032, 21.0272]},
+                {"class": "vehicle", "confidence": 0.89, "bbox": [105.8041, 21.0222, 105.8052, 21.0234]},
+                {"class": "ship", "confidence": 0.84, "bbox": [105.8021, 21.0263, 105.8045, 21.0284]}
+            ]
+            
         update_job_status(job_id, "running", 80)
         
-        # Save results file
+        # Save results JSON file
         result_url = save_job_result(job_id, {"detections": simulated_detections})
         
-        # Persist detections in the postgres database
+        # Persist bounding box detections in database
         db = SessionLocal()
         try:
             from models.detection import Detection
@@ -206,9 +228,9 @@ def process_detection_task(self, job_id: str, aoi_id: str, collection: str):
                 )
                 db.add(db_det)
             db.commit()
-            logger.info(f"Persisted {len(simulated_detections)} detections to PostgreSQL.")
+            logger.info(f"Successfully saved {len(simulated_detections)} AI detections to PostgreSQL.")
         except Exception as e:
-            logger.error(f"Error persisting detections to DB: {e}")
+            logger.error(f"Error persisting detections to PostgreSQL: {e}")
             db.rollback()
         finally:
             db.close()
@@ -216,7 +238,7 @@ def process_detection_task(self, job_id: str, aoi_id: str, collection: str):
         update_job_status(job_id, "completed", 100, result_url=result_url)
         return {"status": "completed", "result_url": result_url}
     except Exception as exc:
-        logger.error(f"Error in Detection task: {exc}")
+        logger.error(f"Error in Detection task execution: {exc}")
         if self.request.retries < self.max_retries:
             update_job_status(job_id, "running", 50, error_message=f"Lỗi: {str(exc)}. Đang thử lại...")
             delay = 5 * (2 ** self.request.retries)

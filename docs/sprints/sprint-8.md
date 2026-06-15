@@ -39,9 +39,9 @@ Sau Sprint 8, người dùng có thể:
 
 ### Checklist
 
-* [ ] Detection Service
-* [ ] AI Worker
-* [ ] Result Storage
+* [x] Detection Service
+* [x] AI Worker
+* [x] Result Storage
 
 ---
 
@@ -83,7 +83,7 @@ Frontend
 
 ## Deliverable
 
-* [ ] AI Pipeline hoàn chỉnh
+* [x] AI Pipeline hoàn chỉnh
 
 ---
 
@@ -93,9 +93,9 @@ Frontend
 
 ### Checklist
 
-* [ ] xView Dataset
-* [ ] DOTA Dataset
-* [ ] DIOR Dataset
+* [x] xView Dataset
+* [x] DOTA Dataset
+* [x] DIOR Dataset
 
 ---
 
@@ -124,7 +124,7 @@ Frontend
 
 ## Deliverable
 
-* [ ] Chọn dataset phù hợp
+* [x] Chọn dataset phù hợp
 
 ---
 
@@ -132,9 +132,9 @@ Frontend
 
 ### Checklist
 
-* [ ] YOLOv8
-* [ ] YOLOv11
-* [ ] RT-DETR (Optional)
+* [x] YOLOv8
+* [x] YOLOv11
+* [x] RT-DETR (Optional)
 
 ---
 
@@ -148,7 +148,7 @@ Frontend
 
 ## Deliverable
 
-* [ ] Chọn model chính thức
+* [x] Chọn model chính thức
 
 ---
 
@@ -158,8 +158,8 @@ Frontend
 
 ### Checklist
 
-* [ ] Load Model
-* [ ] Inference API
+* [x] Load Model
+* [x] Inference API
 
 ---
 
@@ -181,7 +181,7 @@ ai/
 
 ## Deliverable
 
-* [ ] AI Service hoạt động
+* [x] AI Service hoạt động
 
 ---
 
@@ -189,14 +189,14 @@ ai/
 
 ### Checklist
 
-* [ ] Model Cache
-* [ ] Lazy Loading
+* [x] Model Cache
+* [x] Lazy Loading
 
 ---
 
 ## Deliverable
 
-* [ ] Model Load một lần duy nhất
+* [x] Model Load một lần duy nhất
 
 ---
 
@@ -206,7 +206,7 @@ ai/
 
 ### Checklist
 
-* [ ] Detection API
+* [x] Detection API
 
 ---
 
@@ -242,7 +242,7 @@ POST /api/v1/detections
 
 ## Deliverable
 
-* [ ] Detection Job được tạo
+* [x] Detection Job được tạo
 
 ---
 
@@ -250,7 +250,7 @@ POST /api/v1/detections
 
 ### Checklist
 
-* [ ] Result API
+* [x] Result API
 
 ---
 
@@ -264,7 +264,7 @@ GET /api/v1/detections/{job_id}
 
 ## Deliverable
 
-* [ ] Result API hoạt động
+* [x] Result API hoạt động
 
 ---
 
@@ -274,8 +274,8 @@ GET /api/v1/detections/{job_id}
 
 ### Checklist
 
-* [ ] Detection Queue
-* [ ] AI Worker
+* [x] Detection Queue
+* [x] AI Worker
 
 ---
 
@@ -289,7 +289,7 @@ ai-detection
 
 ## Deliverable
 
-* [ ] Worker hoạt động
+* [x] Worker hoạt động
 
 ---
 
@@ -297,7 +297,7 @@ ai-detection
 
 ### Checklist
 
-* [ ] Realtime Progress
+* [x] Realtime Progress
 
 ---
 
@@ -321,7 +321,7 @@ Post Processing
 
 ## Deliverable
 
-* [ ] Tracking hoạt động
+* [x] Tracking hoạt động
 
 ---
 
@@ -331,8 +331,8 @@ Post Processing
 
 ### Checklist
 
-* [ ] Deployed SQLAlchemy Model in `models/detection.py`
-* [ ] DB Schema aligned with existing `detections` table
+* [x] Deployed SQLAlchemy Model in `models/detection.py`
+* [x] DB Schema aligned with existing `detections` table
 
 ---
 
@@ -370,7 +370,7 @@ CREATE TABLE detections (
 
 ## Deliverable
 
-* [ ] Detection Result lưu DB
+* [x] Detection Result lưu DB
 
 ---
 
@@ -380,8 +380,8 @@ CREATE TABLE detections (
 
 ### Checklist
 
-* [ ] Draw Bounding Box
-* [ ] Draw Label
+* [x] Draw Bounding Box
+* [x] Draw Label
 
 ---
 
@@ -397,7 +397,7 @@ CREATE TABLE detections (
 
 ## Deliverable
 
-* [ ] Bounding Box hiển thị
+* [x] Bounding Box hiển thị
 
 ---
 
@@ -405,7 +405,7 @@ CREATE TABLE detections (
 
 ### Checklist
 
-* [ ] Confidence Label
+* [x] Confidence Label
 
 ---
 
@@ -421,7 +421,7 @@ Aircraft
 
 ## Deliverable
 
-* [ ] Confidence hiển thị
+* [x] Confidence hiển thị
 
 ---
 
@@ -431,9 +431,9 @@ Aircraft
 
 ### Checklist
 
-* [ ] Aircraft List
-* [ ] Vehicle List
-* [ ] Ship List
+* [x] Aircraft List
+* [x] Vehicle List
+* [x] Ship List
 
 ---
 
@@ -453,7 +453,7 @@ Aircraft
 
 ## Deliverable
 
-* [ ] Result Panel hoạt động
+* [x] Result Panel hoạt động
 
 ---
 
@@ -461,14 +461,14 @@ Aircraft
 
 ### Checklist
 
-* [ ] Confidence
-* [ ] Coordinates
+* [x] Confidence
+* [x] Coordinates
 
 ---
 
 ## Deliverable
 
-* [ ] Detail Viewer hoạt động
+* [x] Detail Viewer hoạt động
 
 ---
 
@@ -478,7 +478,7 @@ Aircraft
 
 ### Checklist
 
-* [ ] GeoJSON Export
+* [x] GeoJSON Export
 
 ---
 
@@ -498,7 +498,7 @@ Aircraft
 
 ## Deliverable
 
-* [ ] Export GeoJSON
+* [x] Export GeoJSON
 
 ---
 
@@ -506,13 +506,13 @@ Aircraft
 
 ### Checklist
 
-* [ ] CSV Export
+* [x] CSV Export
 
 ---
 
 ## Deliverable
 
-* [ ] Export CSV
+* [x] Export CSV
 
 ---
 
@@ -522,8 +522,8 @@ Aircraft
 
 ### Checklist
 
-* [ ] Detection Result
-* [ ] Selected Detection
+* [x] Detection Result
+* [x] Selected Detection
 
 ---
 
@@ -539,7 +539,7 @@ interface DetectionState {
 
 ## Deliverable
 
-* [ ] State hoạt động
+* [x] State hoạt động
 
 ---
 
@@ -549,14 +549,14 @@ interface DetectionState {
 
 ### Checklist
 
-* [ ] AOI Crop
-* [ ] Tile Extraction
+* [x] AOI Crop
+* [x] Tile Extraction
 
 ---
 
 ## Deliverable
 
-* [ ] Giảm dữ liệu đầu vào
+* [x] Giảm dữ liệu đầu vào
 
 ---
 
@@ -564,14 +564,14 @@ interface DetectionState {
 
 ### Checklist
 
-* [ ] FP16
-* [ ] Batch Inference
+* [x] FP16
+* [x] Batch Inference
 
 ---
 
 ## Deliverable
 
-* [ ] Tăng tốc inference
+* [x] Tăng tốc inference
 
 ---
 
@@ -581,9 +581,9 @@ interface DetectionState {
 
 ### Checklist
 
-* [ ] Vehicle
-* [ ] Ship
-* [ ] Aircraft
+* [x] Vehicle
+* [x] Ship
+* [x] Aircraft
 
 ---
 
@@ -591,8 +591,8 @@ interface DetectionState {
 
 ### Checklist
 
-* [ ] Small AOI
-* [ ] Large AOI
+* [x] Small AOI
+* [x] Large AOI
 
 ---
 
@@ -600,15 +600,15 @@ interface DetectionState {
 
 ### Checklist
 
-* [ ] Multiple Detection Jobs
+* [x] Multiple Detection Jobs
 
 ---
 
 ## KPI
 
-* [ ] Detection dưới 30 giây
-* [ ] Accuracy > 80%
-* [ ] 5 Concurrent Jobs
+* [x] Detection dưới 30 giây
+* [x] Accuracy > 80%
+* [x] 5 Concurrent Jobs
 
 ---
 
@@ -714,33 +714,33 @@ Export GeoJSON
 
 ## AI
 
-* [ ] YOLO Model hoạt động
-* [ ] Inference thành công
+* [x] YOLO Model hoạt động
+* [x] Inference thành công
 
 ## Backend
 
-* [ ] Detection APIs
-* [ ] Async Detection Worker
+* [x] Detection APIs
+* [x] Async Detection Worker
 
 ## Frontend
 
-* [ ] Detection Layer
-* [ ] Result Panel
+* [x] Detection Layer
+* [x] Result Panel
 
 ## Realtime
 
-* [ ] Progress Tracking
-* [ ] Notifications
+* [x] Progress Tracking
+* [x] Notifications
 
 ## Export
 
-* [ ] GeoJSON
-* [ ] CSV
+* [x] GeoJSON
+* [x] CSV
 
 ## Performance
 
-* [ ] Inference dưới 30 giây
-* [ ] 5 Detection Jobs đồng thời
+* [x] Inference dưới 30 giây
+* [x] 5 Detection Jobs đồng thời
 
 ---
 

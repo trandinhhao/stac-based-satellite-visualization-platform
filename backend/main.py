@@ -13,6 +13,7 @@ from api.aois import router as aois_router
 from api.measure import router as measure_router
 from api.compare import router as compare_router
 from api.jobs import router as jobs_router
+from api.detections import router as detections_router
 from api.websocket import router as ws_router, manager as ws_manager
 
 REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379/0")
@@ -58,6 +59,7 @@ app.include_router(aois_router, prefix="/api")
 app.include_router(measure_router, prefix="/api")
 app.include_router(compare_router, prefix="/api")
 app.include_router(jobs_router, prefix="/api/v1")
+app.include_router(detections_router, prefix="/api/v1")
 app.include_router(ws_router, prefix="")
 
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@postgis:5432/postgis")
