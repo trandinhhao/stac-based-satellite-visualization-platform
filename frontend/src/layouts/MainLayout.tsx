@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Globe, Compass, Layers, Info, Check, Eye, Search, Hexagon, Ruler, Columns, Clock } from 'lucide-react';
+import { Globe, Compass, Layers, Info, Check, Eye, Search, Hexagon, Ruler, Columns, Clock, Cpu } from 'lucide-react';
 import MapViewer from '../components/MapViewer';
 import SearchLocation from '../components/SearchLocation';
 import STACSearchPanel from '../components/STACSearchPanel';
@@ -8,6 +8,7 @@ import MeasurementPanel from '../components/MeasurementPanel';
 import ComparePanel from '../features/comparison/components/ComparePanel';
 import CompareViewer from '../features/comparison/components/CompareViewer';
 import JobDashboard from '../features/jobs/components/JobDashboard';
+import DetectionPanel from '../components/DetectionPanel';
 import { useMapStore } from '../store/useMapStore';
 import { useAOIStore } from '../store/useAOIStore';
 import { useCompareStore } from '../features/comparison/store/useCompareStore';
@@ -159,6 +160,17 @@ export default function MainLayout() {
               <Clock className="w-3.5 h-3.5 mb-0.5" />
               <span>Tác vụ</span>
             </button>
+            <button
+              onClick={() => setActiveTab('ai')}
+              className={`flex-1 py-1 text-[11px] font-bold rounded-lg transition-all cursor-pointer flex flex-col items-center justify-center ${
+                activeTab === 'ai'
+                  ? 'bg-sky-500/10 text-sky-400 font-bold border border-sky-500/20 shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200 border border-transparent'
+              }`}
+            >
+              <Cpu className="w-3.5 h-3.5 mb-0.5" />
+              <span>AI</span>
+            </button>
           </div>
 
           {activeTab === 'search' && (
@@ -218,6 +230,16 @@ export default function MainLayout() {
                 Tiến trình Tác vụ Nền
               </h3>
               <JobDashboard />
+            </div>
+          )}
+
+          {activeTab === 'ai' && (
+            /* Section 2: AI Detection Panel */
+            <div className="p-3.5 bg-slate-950/40 border border-slate-800/60 rounded-xl space-y-2">
+              <h3 className="text-xs font-bold text-sky-400 uppercase tracking-wider px-1">
+                Nhận diện đối tượng AI
+              </h3>
+              <DetectionPanel />
             </div>
           )}
 

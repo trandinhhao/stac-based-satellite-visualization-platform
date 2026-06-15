@@ -9,6 +9,7 @@ import { useMapStore } from '../store/useMapStore';
 import { useSTACStore } from '../store/useSTACStore';
 import { useAOIStore } from '../store/useAOIStore';
 import { useMeasurementStore } from '../store/useMeasurementStore';
+import { useDetectionStore } from '../store/useDetectionStore';
 import { api } from '../services/api';
 
 // Custom Rectangle Mode for MapboxDraw
@@ -436,6 +437,11 @@ export default function MapViewer() {
   const drawType = useAOIStore((state) => state.drawType);
   const editingAOIId = useAOIStore((state) => state.editingAOIId);
   const activeTab = useAOIStore((state) => state.activeTab);
+
+  // Detection State
+  const detections = useDetectionStore((state) => state.detections);
+  const selectedObject = useDetectionStore((state) => state.selectedObject);
+  const selectObject = useDetectionStore((state) => state.selectObject);
 
   // Measurement State & Refs
   const { isMeasuring, measureType, history, stopMeasuring } = useMeasurementStore();
@@ -935,6 +941,156 @@ export default function MapViewer() {
       }
     } catch (err) {
       console.error('Lỗi khi cập nhật lớp AOI:', err);
+    }
+  };
+
+  // Helper to dynamically update the AI Detections overlay layer (fill + outline + label)
+  const updateDetectionsLayer = (mapInstance: maplibregl.Map) => {
+    if (!mapInstance.isStyleLoaded()) {
+      mapInstance.once('style.load', () => updateDetectionsLayer(mapInstance));
+      return;
+    }
+
+    try {
+      const sourceId = 'ai-detections-source';
+      const fillLayerId = 'ai-detections-fill';
+      const outlineLayerId = 'ai-detections-outline';
+      const labelLayerId = 'ai-detections-label';
+
+      const features = detections.map((det, index) => {
+        const [xmin, ymin, xmax, ymax] = det.bbox;
+        const isSelected = selectedObject === det;
+        return {
+          type: 'Feature',
+          id: index,
+          geometry: {
+            type: 'Polygon',
+            coordinates: [[
+              [xmin, ymin],
+              [xmax, ymin],
+              [xmax, ymax],
+              [xmin, ymax],
+              [xmin, ymin]
+            ]]
+          },
+          properties: {
+            id: index,
+            object_class: det.object_class,
+            confidence: det.confidence,
+            isSelected,
+          }
+        };
+      });
+
+      const geojson: any = {
+        type: 'FeatureCollection',
+        features,
+      };
+
+      const source = mapInstance.getSource(sourceId) as maplibregl.GeoJSONSource;
+      if (!source) {
+        mapInstance.addSource(sourceId, {
+          type: 'geojson',
+          data: geojson,
+        });
+
+        // 1. Fill layer
+        mapInstance.addLayer({
+          id: fillLayerId,
+          type: 'fill',
+          source: sourceId,
+          paint: {
+            'fill-color': [
+              'match',
+              ['get', 'object_class'],
+              'aircraft', '#ef4444',
+              'ship', '#10b981',
+              'vehicle', '#f59e0b',
+              '#3b82f6'
+            ],
+            'fill-opacity': [
+              'case',
+              ['==', ['get', 'isSelected'], true],
+              0.3,
+              0.1
+            ]
+          }
+        });
+
+        // 2. Outline layer
+        mapInstance.addLayer({
+          id: outlineLayerId,
+          type: 'line',
+          source: sourceId,
+          paint: {
+            'line-color': [
+              'match',
+              ['get', 'object_class'],
+              'aircraft', '#f87171',
+              'ship', '#34d399',
+              'vehicle', '#fbbf24',
+              '#60a5fa'
+            ],
+            'line-width': [
+              'case',
+              ['==', ['get', 'isSelected'], true],
+              4,
+              2
+            ]
+          }
+        });
+
+        // 3. Label layer
+        mapInstance.addLayer({
+          id: labelLayerId,
+          type: 'symbol',
+          source: sourceId,
+          layout: {
+            'text-field': [
+              'concat',
+              ['upcase', ['get', 'object_class']],
+              ' (',
+              ['slice', ['number-format', ['*', ['get', 'confidence'], 100], { 'max-fraction-digits': 0 }], 0],
+              '%)'
+            ],
+            'text-size': 10,
+            'text-anchor': 'bottom',
+            'text-offset': [0, -0.6],
+            'text-allow-overlap': true,
+            'text-ignore-placement': true
+          },
+          paint: {
+            'text-color': '#ffffff',
+            'text-halo-color': '#0f172a',
+            'text-halo-width': 1.5
+          }
+        });
+
+        // 4. Click interaction on detections to select/highlight them
+        mapInstance.on('click', fillLayerId, (e) => {
+          if (e.features && e.features.length > 0) {
+            const index = e.features[0].properties?.id;
+            if (index !== undefined && index !== null) {
+              const det = detections[index];
+              if (det) {
+                selectObject(det);
+              }
+            }
+          }
+        });
+
+        mapInstance.on('mouseenter', fillLayerId, () => {
+          mapInstance.getCanvas().style.cursor = 'pointer';
+        });
+
+        mapInstance.on('mouseleave', fillLayerId, () => {
+          mapInstance.getCanvas().style.cursor = '';
+        });
+      } else {
+        source.setData(geojson);
+      }
+    } catch (err) {
+      console.error('Lỗi khi cập nhật lớp AI Detection:', err);
     }
   };
 
@@ -1486,6 +1642,7 @@ export default function MapViewer() {
 
         updateAOIsLayer(map.current);
         updateMeasurementsLayer(map.current);
+        updateDetectionsLayer(map.current);
       });
 
       // Load initial overlay if the initial selected layer is a remote sensing one
@@ -1496,6 +1653,7 @@ export default function MapViewer() {
           if (map.current) {
             updateAOIsLayer(map.current);
             updateMeasurementsLayer(map.current);
+            updateDetectionsLayer(map.current);
           }
         });
       }
@@ -1535,6 +1693,7 @@ export default function MapViewer() {
         if (map.current) {
           updateAOIsLayer(map.current);
           updateMeasurementsLayer(map.current);
+          updateDetectionsLayer(map.current);
         }
       });
     } else {
@@ -1544,6 +1703,7 @@ export default function MapViewer() {
         updateStacOverlay();
         updateAOIsLayer(map.current);
         updateMeasurementsLayer(map.current);
+        updateDetectionsLayer(map.current);
       } else {
         map.current.once('style.load', () => {
           updateRemoteSensingOverlay();
@@ -1551,11 +1711,18 @@ export default function MapViewer() {
           if (map.current) {
             updateAOIsLayer(map.current);
             updateMeasurementsLayer(map.current);
+            updateDetectionsLayer(map.current);
           }
         });
       }
     }
   }, [selectedLayer]);
+
+  // Listen to detections and selectedObject changes to update the map layers
+  useEffect(() => {
+    if (!map.current) return;
+    updateDetectionsLayer(map.current);
+  }, [detections, selectedObject]);
 
   const tempGeometry = useAOIStore((state) => state.tempGeometry);
 
