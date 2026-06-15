@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Globe, Compass, Layers, Info, Check, Eye, Search, Hexagon, Ruler, Columns, Clock } from 'lucide-react';
 import MapViewer from '../components/MapViewer';
 import SearchLocation from '../components/SearchLocation';
@@ -10,6 +11,8 @@ import JobDashboard from '../features/jobs/components/JobDashboard';
 import { useMapStore } from '../store/useMapStore';
 import { useAOIStore } from '../store/useAOIStore';
 import { useCompareStore } from '../features/comparison/store/useCompareStore';
+import { useWebSocketStore } from '../store/useWebSocketStore';
+import { NotificationToast } from '../components/NotificationToast';
 
 const LAYER_CATEGORIES = [
   {
@@ -47,6 +50,18 @@ export default function MainLayout() {
   const { center, zoom, selectedLayer, setSelectedLayer, setCenter, setZoom } = useMapStore();
   const { activeTab, setActiveTab } = useAOIStore();
   const compareMode = useCompareStore((state) => state.compareMode);
+  
+  const connect = useWebSocketStore((state) => state.connect);
+  const disconnect = useWebSocketStore((state) => state.disconnect);
+
+  useEffect(() => {
+    // Automatically establish WebSocket connection on layout mount
+    connect();
+    return () => {
+      // Disconnect socket connection on unmount
+      disconnect();
+    };
+  }, [connect, disconnect]);
 
   return (
     <div className="relative w-screen h-screen overflow-hidden bg-slate-950 text-slate-100 font-sans select-none">
@@ -303,6 +318,9 @@ export default function MainLayout() {
           <span className="text-white font-medium">{zoom.toFixed(1)}</span>
         </div>
       </footer>
+
+      {/* 5. Global Real-time Neon/Glassmorphic Notifications */}
+      <NotificationToast />
     </div>
   );
 }

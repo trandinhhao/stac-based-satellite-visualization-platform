@@ -3,6 +3,7 @@ import json
 import uuid
 import time
 import datetime
+import redis
 from celery.utils.log import get_task_logger
 from workers.celery_app import celery_app
 from db.database import SessionLocal
@@ -11,9 +12,13 @@ from models.job import Job
 logger = get_task_logger(__name__)
 
 RESULTS_DIR = os.getenv("RESULTS_DIR", "/app/results")
+REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379/0")
+
+# Redis client for publishing real-time events
+redis_client = redis.from_url(REDIS_URL)
 
 def update_job_status(job_id: str, status: str, progress: int, result_url: str = None, error_message: str = None):
-    """Update job state inside PostgreSQL database."""
+    """Update job state inside PostgreSQL database and publish WebSocket events via Redis."""
     db = SessionLocal()
     try:
         job_uuid = uuid.UUID(job_id)
@@ -30,7 +35,36 @@ def update_job_status(job_id: str, status: str, progress: int, result_url: str =
             if status in ["completed", "failed", "cancelled"]:
                 job.completed_at = datetime.datetime.utcnow()
             db.commit()
-            logger.info(f"Job {job_id} updated: status={status}, progress={progress}%")
+            logger.info(f"Job {job_id} updated in DB: status={status}, progress={progress}%")
+            
+            # Map status to matching WebSocket Event
+            event_type = "job_progress"
+            if status == "running" and progress <= 15:
+                event_type = "job_started"
+            elif status == "completed":
+                event_type = "job_completed"
+            elif status == "failed":
+                event_type = "job_failed"
+            elif status == "cancelled":
+                event_type = "job_cancelled"
+                
+            event_payload = {
+                "event": event_type,
+                "job_id": job_id,
+                "progress": progress,
+                "status": status,
+                "job_type": job.job_type,
+            }
+            if error_message is not None:
+                event_payload["error"] = error_message
+            if result_url is not None:
+                event_payload["result_url"] = result_url
+                
+            try:
+                redis_client.publish("job_updates", json.dumps(event_payload))
+                logger.info(f"Published event {event_type} to Redis Pub/Sub for Job {job_id}")
+            except Exception as re:
+                logger.error(f"Error publishing job update to Redis: {re}")
     except Exception as e:
         logger.error(f"Error updating job status in DB: {e}")
     finally:

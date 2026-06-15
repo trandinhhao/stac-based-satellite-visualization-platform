@@ -38,9 +38,9 @@ Sau Sprint 7, người dùng có thể:
 
 ### Checklist
 
-* [ ] WebSocket Gateway
-* [ ] Job Event Publisher
-* [ ] Frontend WebSocket Client
+* [x] WebSocket Gateway
+* [x] Job Event Publisher
+* [x] Frontend WebSocket Client
 
 ---
 
@@ -78,7 +78,7 @@ Frontend
 
 ## Deliverable
 
-* [ ] Kiến trúc realtime hoàn chỉnh
+* [x] Kiến trúc realtime hoàn chỉnh
 
 ---
 
@@ -88,9 +88,9 @@ Frontend
 
 ### Checklist
 
-* [ ] FastAPI WebSocket
-* [ ] Connection Manager
-* [ ] Client Registry
+* [x] FastAPI WebSocket
+* [x] Connection Manager
+* [x] Client Registry
 
 ---
 
@@ -104,7 +104,7 @@ Frontend
 
 ## Deliverable
 
-* [ ] WebSocket Server hoạt động
+* [x] WebSocket Server hoạt động
 
 ---
 
@@ -112,15 +112,15 @@ Frontend
 
 ### Checklist
 
-* [ ] Connect
-* [ ] Disconnect
-* [ ] Reconnect
+* [x] Connect
+* [x] Disconnect
+* [x] Reconnect
 
 ---
 
 ## Deliverable
 
-* [ ] Quản lý kết nối ổn định
+* [x] Quản lý kết nối ổn định
 
 ---
 
@@ -130,8 +130,8 @@ Frontend
 
 ### Checklist
 
-* [ ] Publish Event
-* [ ] Broadcast Event
+* [x] Publish Event
+* [x] Broadcast Event
 
 ---
 
@@ -148,7 +148,7 @@ Frontend
 
 ## Deliverable
 
-* [ ] Event hoạt động
+* [x] Event hoạt động
 
 ---
 
@@ -156,8 +156,8 @@ Frontend
 
 ### Checklist
 
-* [ ] Progress Update
-* [ ] Percentage Update
+* [x] Progress Update
+* [x] Percentage Update
 
 ---
 
@@ -175,7 +175,7 @@ Frontend
 
 ## Deliverable
 
-* [ ] Progress realtime hoạt động
+* [x] Progress realtime hoạt động
 
 ---
 
@@ -183,7 +183,7 @@ Frontend
 
 ### Checklist
 
-* [ ] Completion Event
+* [x] Completion Event
 
 ---
 
@@ -200,7 +200,7 @@ Frontend
 
 ## Deliverable
 
-* [ ] Completion Event hoạt động
+* [x] Completion Event hoạt động
 
 ---
 
@@ -208,7 +208,7 @@ Frontend
 
 ### Checklist
 
-* [ ] Error Event
+* [x] Error Event
 
 ---
 
@@ -226,7 +226,7 @@ Frontend
 
 ## Deliverable
 
-* [ ] Failure Event hoạt động
+* [x] Failure Event hoạt động
 
 ---
 
@@ -236,8 +236,8 @@ Frontend
 
 ### Checklist
 
-* [ ] Worker Publish Event
-* [ ] Backend Consume Event
+* [x] Worker Publish Event
+* [x] Backend Consume Event
 
 ---
 
@@ -263,7 +263,7 @@ Frontend
 
 ## Deliverable
 
-* [ ] Worker gửi event thành công
+* [x] Worker gửi event thành công
 
 ---
 
@@ -273,16 +273,16 @@ Frontend
 
 ### Checklist
 
-* [ ] Configure Vite WebSocket Proxy (`vite.config.ts`)
-* [ ] Open Connection
-* [ ] Receive Message
-* [ ] Auto Reconnect
+* [x] Configure Vite WebSocket Proxy (`vite.config.ts`)
+* [x] Open Connection
+* [x] Receive Message
+* [x] Auto Reconnect
 
 ---
 
 ## Deliverable
 
-* [ ] WebSocket Client hoạt động
+* [x] WebSocket Client hoạt động
 
 ---
 
@@ -290,16 +290,16 @@ Frontend
 
 ### Checklist
 
-* [ ] Started Event
-* [ ] Progress Event
-* [ ] Completed Event
-* [ ] Failed Event
+* [x] Started Event
+* [x] Progress Event
+* [x] Completed Event
+* [x] Failed Event
 
 ---
 
 ## Deliverable
 
-* [ ] Event xử lý đúng
+* [x] Event xử lý đúng
 
 ---
 
@@ -309,8 +309,8 @@ Frontend
 
 ### Checklist
 
-* [ ] Percentage
-* [ ] Animation
+* [x] Percentage
+* [x] Animation
 
 ---
 
@@ -328,7 +328,7 @@ Processing...
 
 ## Deliverable
 
-* [ ] Progress Bar hoạt động
+* [x] Progress Bar hoạt động
 
 ---
 
@@ -336,10 +336,10 @@ Processing...
 
 ### Checklist
 
-* [ ] Pending
-* [ ] Running
-* [ ] Completed
-* [ ] Failed
+* [x] Pending
+* [x] Running
+* [x] Completed
+* [x] Failed
 
 ---
 
@@ -353,7 +353,7 @@ Processing...
 
 ## Deliverable
 
-* [ ] Status Badge hoạt động
+* [x] Status Badge hoạt động
 
 ---
 
@@ -363,7 +363,7 @@ Processing...
 
 ### Checklist
 
-* [ ] Custom Glassmorphic Toast/Snackbar utilizing MUI `@mui/material`
+* [x] Custom Glassmorphic Toast/Snackbar utilizing MUI `@mui/material`
 
 ---
 
@@ -377,7 +377,7 @@ Job completed successfully.
 
 ## Deliverable
 
-* [ ] Success Notification hoạt động
+* [x] Success Notification hoạt động
 
 ---
 
@@ -385,7 +385,7 @@ Job completed successfully.
 
 ### Checklist
 
-* [ ] Custom Glassmorphic Error Toast/Snackbar utilizing MUI `@mui/material`
+* [x] Custom Glassmorphic Error Toast/Snackbar utilizing MUI `@mui/material`
 
 ---
 
@@ -399,7 +399,7 @@ Job failed.
 
 ## Deliverable
 
-* [ ] Error Notification hoạt động
+* [x] Error Notification hoạt động
 
 ---
 
@@ -409,13 +409,13 @@ Job failed.
 
 ### Checklist
 
-* [ ] Realtime Update
+* [x] Realtime Update
 
 ---
 
 ## Deliverable
 
-* [ ] Dashboard cập nhật realtime
+* [x] Dashboard cập nhật realtime
 
 ---
 
@@ -423,14 +423,14 @@ Job failed.
 
 ### Checklist
 
-* [ ] Progress Update
-* [ ] Result Update
+* [x] Progress Update
+* [x] Result Update
 
 ---
 
 ## Deliverable
 
-* [ ] Chi tiết Job cập nhật realtime
+* [x] Chi tiết Job cập nhật realtime
 
 ---
 
@@ -440,7 +440,7 @@ Job failed.
 
 ### Checklist
 
-* [ ] Progress Tracking
+* [x] Progress Tracking
 
 ---
 
@@ -456,7 +456,7 @@ Searching Sentinel-2 Images
 
 ## Deliverable
 
-* [ ] AOI Search realtime
+* [x] AOI Search realtime
 
 ---
 
@@ -466,7 +466,7 @@ Searching Sentinel-2 Images
 
 ### Checklist
 
-* [ ] Compare Progress
+* [x] Compare Progress
 
 ---
 
@@ -482,7 +482,7 @@ Generating Comparison
 
 ## Deliverable
 
-* [ ] Comparison realtime
+* [x] Comparison realtime
 
 ---
 
@@ -492,7 +492,7 @@ Generating Comparison
 
 ### Checklist
 
-* [ ] Server Sent Events via native FastAPI `StreamingResponse` (no extra packages)
+* [x] Server Sent Events via native FastAPI `StreamingResponse` (no extra packages)
 
 ---
 
@@ -506,7 +506,7 @@ GET /events/jobs
 
 ## Deliverable
 
-* [ ] SSE hoạt động
+* [x] SSE hoạt động
 
 ---
 
@@ -516,9 +516,9 @@ GET /events/jobs
 
 ### Checklist
 
-* [ ] Socket State
-* [ ] Connection State
-* [ ] Job Events
+* [x] Socket State
+* [x] Connection State
+* [x] Job Events
 
 ---
 
@@ -535,7 +535,7 @@ interface RealtimeState {
 
 ## Deliverable
 
-* [ ] Store hoạt động
+* [x] Store hoạt động
 
 ---
 
@@ -545,14 +545,14 @@ interface RealtimeState {
 
 ### Checklist
 
-* [ ] Active Connections
-* [ ] Connection Metrics
+* [x] Active Connections
+* [x] Connection Metrics
 
 ---
 
 ## Deliverable
 
-* [ ] Monitoring hoạt động
+* [x] Monitoring hoạt động
 
 ---
 
@@ -560,14 +560,14 @@ interface RealtimeState {
 
 ### Checklist
 
-* [ ] Event Count
-* [ ] Event Throughput
+* [x] Event Count
+* [x] Event Throughput
 
 ---
 
 ## Deliverable
 
-* [ ] Event Tracking hoạt động
+* [x] Event Tracking hoạt động
 
 ---
 
@@ -577,9 +577,9 @@ interface RealtimeState {
 
 ### Checklist
 
-* [ ] Connect
-* [ ] Disconnect
-* [ ] Reconnect
+* [x] Connect
+* [x] Disconnect
+* [x] Reconnect
 
 ---
 
@@ -587,10 +587,10 @@ interface RealtimeState {
 
 ### Checklist
 
-* [ ] Started
-* [ ] Progress
-* [ ] Completed
-* [ ] Failed
+* [x] Started
+* [x] Progress
+* [x] Completed
+* [x] Failed
 
 ---
 
@@ -598,16 +598,16 @@ interface RealtimeState {
 
 ### Checklist
 
-* [ ] 50 Connections
-* [ ] 100 Connections
+* [x] 50 Connections
+* [x] 100 Connections
 
 ---
 
 ## KPI
 
-* [ ] Event Delivery < 200ms
-* [ ] Reconnect < 5s
-* [ ] 100 Concurrent Connections
+* [x] Event Delivery < 200ms
+* [x] Reconnect < 5s
+* [x] 100 Concurrent Connections
 
 ---
 
@@ -691,30 +691,30 @@ Người dùng mở kết quả
 
 ## Backend
 
-* [ ] WebSocket Server
-* [ ] Event Publisher
-* [ ] Event Broadcast
+* [x] WebSocket Server
+* [x] Event Publisher
+* [x] Event Broadcast
 
 ## Frontend
 
-* [ ] WebSocket Client
-* [ ] Progress Bar
-* [ ] Notifications
+* [x] WebSocket Client
+* [x] Progress Bar
+* [x] Notifications
 
 ## Integration
 
-* [ ] Celery → WebSocket
-* [ ] Redis Pub/Sub
+* [x] Celery → WebSocket
+* [x] Redis Pub/Sub
 
 ## Monitoring
 
-* [ ] Active Connections
-* [ ] Event Metrics
+* [x] Active Connections
+* [x] Event Metrics
 
 ## Performance
 
-* [ ] Event dưới 200ms
-* [ ] 100 Connections đồng thời
+* [x] Event dưới 200ms
+* [x] 100 Connections đồng thời
 
 ---
 

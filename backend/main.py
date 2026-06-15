@@ -1,7 +1,11 @@
 import os
+import asyncio
+import json
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from sqlalchemy import create_engine, text
 import redis
+import redis.asyncio as aioredis
 import aio_pika
 
 from api.stac import router as stac_router
@@ -9,14 +13,52 @@ from api.aois import router as aois_router
 from api.measure import router as measure_router
 from api.compare import router as compare_router
 from api.jobs import router as jobs_router
+from api.websocket import router as ws_router, manager as ws_manager
 
-app = FastAPI(title="STAC Satellite Platform Backend API")
+REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379/0")
+
+async def redis_pubsub_listener():
+    """Background task subscribing to Redis Pub/Sub and broadcasting updates to WebSocket connections."""
+    while True:
+        try:
+            client = aioredis.from_url(REDIS_URL, decode_responses=True)
+            pubsub = client.pubsub()
+            await pubsub.subscribe("job_updates")
+            print("[WebSocket Listener] Subscribed to Redis channel 'job_updates'")
+            async for message in pubsub.listen():
+                if message and message["type"] == "message":
+                    try:
+                        data = json.loads(message["data"])
+                        await ws_manager.broadcast(data)
+                    except Exception as e:
+                        print(f"[WebSocket Listener] Error broadcasting data: {e}")
+        except asyncio.CancelledError:
+            print("[WebSocket Listener] Task cancelled, exiting...")
+            break
+        except Exception as e:
+            print(f"[WebSocket Listener] Redis listener connection lost: {e}. Retrying in 5s...")
+            await asyncio.sleep(5)
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup: Start Redis Pub/Sub listener task
+    listener_task = asyncio.create_task(redis_pubsub_listener())
+    yield
+    # Shutdown: Cancel the task
+    listener_task.cancel()
+    try:
+        await listener_task
+    except asyncio.CancelledError:
+        pass
+
+app = FastAPI(title="STAC Satellite Platform Backend API", lifespan=lifespan)
 
 app.include_router(stac_router, prefix="/api")
 app.include_router(aois_router, prefix="/api")
 app.include_router(measure_router, prefix="/api")
 app.include_router(compare_router, prefix="/api")
 app.include_router(jobs_router, prefix="/api/v1")
+app.include_router(ws_router, prefix="")
 
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@postgis:5432/postgis")
 REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379/0")
