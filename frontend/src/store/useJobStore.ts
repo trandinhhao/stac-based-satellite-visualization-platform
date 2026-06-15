@@ -27,6 +27,15 @@ interface JobState {
   cancelJob: (jobId: string) => Promise<void>;
   startPollingJobs: () => void;
   stopPollingJobs: () => void;
+  updateJobFromEvent: (eventData: {
+    event: string;
+    job_id: string;
+    progress: number;
+    status: string;
+    error?: string;
+    result_url?: string;
+    job_type?: string;
+  }) => void;
 }
 
 export const useJobStore = create<JobState>((set, get) => ({
@@ -60,7 +69,13 @@ export const useJobStore = create<JobState>((set, get) => ({
         payload
       });
       await get().fetchJobs();
-      get().startPollingJobs(); // Trigger immediate polling when a new job is created
+      
+      // Only trigger polling if WebSocket is not currently connected
+      const { useWebSocketStore } = await import('./useWebSocketStore');
+      const isConnected = useWebSocketStore.getState().connected;
+      if (!isConnected) {
+        get().startPollingJobs();
+      }
       return response.data.job_id;
     } catch (err: any) {
       const errMsg = err.response?.data?.detail || 'Không thể tạo mới Job xử lý nền.';
@@ -80,7 +95,13 @@ export const useJobStore = create<JobState>((set, get) => ({
     }
   },
 
-  startPollingJobs: () => {
+  startPollingJobs: async () => {
+    // If WebSocket is connected, skip polling to conserve resources
+    const { useWebSocketStore } = await import('./useWebSocketStore');
+    if (useWebSocketStore.getState().connected) {
+      return;
+    }
+
     // Prevent multiple parallel intervals
     if (get().pollingIntervalId) return;
 
@@ -113,5 +134,31 @@ export const useJobStore = create<JobState>((set, get) => ({
       window.clearInterval(intervalId);
       set({ pollingIntervalId: null });
     }
+  },
+
+  updateJobFromEvent: (eventData) => {
+    set((state) => {
+      // If job is not in state yet, pull the list
+      const jobExists = state.jobs.some((j) => j.id === eventData.job_id);
+      if (!jobExists) {
+        get().fetchJobs();
+        return {};
+      }
+
+      const updatedJobs = state.jobs.map((job) => {
+        if (job.id === eventData.job_id) {
+          return {
+            ...job,
+            status: eventData.status as any,
+            progress: eventData.progress,
+            error_message: eventData.error !== undefined ? eventData.error : job.error_message,
+            result_url: eventData.result_url !== undefined ? eventData.result_url : job.result_url,
+          };
+        }
+        return job;
+      });
+
+      return { jobs: updatedJobs };
+    });
   },
 }));

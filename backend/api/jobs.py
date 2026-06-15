@@ -1,10 +1,12 @@
 import os
 import json
 import uuid
+import asyncio
+import redis.asyncio as aioredis
 from datetime import datetime
 from typing import List, Optional, Dict, Any
-from fastapi import APIRouter, Depends, HTTPException, Query
-from fastapi.responses import JSONResponse
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import text
 from sqlalchemy.orm import Session
@@ -257,3 +259,29 @@ def cancel_job(job_id: str, db: Session = Depends(get_db)):
         "job_id": job_id,
         "status": "cancelled"
     }
+
+@router.get("/sse")
+async def sse_jobs(request: Request):
+    """Server-Sent Events (SSE) fallback endpoint to stream real-time job updates."""
+    async def event_generator():
+        redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
+        client = aioredis.from_url(redis_url, decode_responses=True)
+        pubsub = client.pubsub()
+        await pubsub.subscribe("job_updates")
+        try:
+            while True:
+                # Terminate stream if client disconnects
+                if await request.is_disconnected():
+                    break
+                # Fetch messages from Redis Pub/Sub channel
+                message = await pubsub.get_message(ignore_subscribe_messages=True, timeout=1.0)
+                if message:
+                    yield f"data: {message['data']}\n\n"
+                await asyncio.sleep(0.5)
+        except Exception as e:
+            pass
+        finally:
+            await pubsub.unsubscribe("job_updates")
+            await client.close()
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
