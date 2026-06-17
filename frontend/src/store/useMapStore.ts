@@ -13,7 +13,7 @@ interface MapState {
 
 export const useMapStore = create<MapState>((set) => ({
   center: [105.83416, 21.02776], // Default center for Vietnam [lng, lat]
-  zoom: 6,                      // Default zoom level
+  zoom: 12,                     // Default zoom level
   selectedLayer: 'openfreemap', // Default layer is OpenFreeMap
   searchResults: [],
   setCenter: (center) => set({ center }),

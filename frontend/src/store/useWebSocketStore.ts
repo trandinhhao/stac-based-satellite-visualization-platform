@@ -12,6 +12,24 @@ interface WebSocketState {
 export const useWebSocketStore = create<WebSocketState>((set) => {
   let reconnectTimeoutId: any = null;
   let socketInstance: WebSocket | null = null;
+  let heartbeatIntervalId: any = null;
+
+  const startHeartbeat = (ws: WebSocket) => {
+    stopHeartbeat();
+    heartbeatIntervalId = setInterval(() => {
+      if (ws.readyState === WebSocket.OPEN) {
+        console.log('Sending WebSocket heartbeat ping...');
+        ws.send('ping');
+      }
+    }, 30000); // 30s
+  };
+
+  const stopHeartbeat = () => {
+    if (heartbeatIntervalId) {
+      clearInterval(heartbeatIntervalId);
+      heartbeatIntervalId = null;
+    }
+  };
 
   const connectSocket = () => {
     // Avoid double connections
@@ -34,9 +52,14 @@ export const useWebSocketStore = create<WebSocketState>((set) => {
         clearTimeout(reconnectTimeoutId);
         reconnectTimeoutId = null;
       }
+      startHeartbeat(ws);
     };
 
     ws.onmessage = (event) => {
+      if (event.data === 'pong') {
+        console.log('WebSocket heartbeat pong received.');
+        return;
+      }
       try {
         const data = JSON.parse(event.data);
         console.log('WebSocket event received:', data);
@@ -66,6 +89,7 @@ export const useWebSocketStore = create<WebSocketState>((set) => {
       console.log(`WebSocket connection closed (code: ${event.code}). Attempting to reconnect in 3s...`);
       set({ connected: false, socket: null });
       socketInstance = null;
+      stopHeartbeat();
       
       // Auto-reconnect loop
       reconnectTimeoutId = setTimeout(() => {
@@ -103,6 +127,7 @@ export const useWebSocketStore = create<WebSocketState>((set) => {
         clearTimeout(reconnectTimeoutId);
         reconnectTimeoutId = null;
       }
+      stopHeartbeat();
       if (socketInstance) {
         socketInstance.close();
         socketInstance = null;

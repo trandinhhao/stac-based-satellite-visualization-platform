@@ -1,8 +1,11 @@
 from fastapi import APIRouter, HTTPException, Body
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
+import json
+import hashlib
 from services.stac.collections import get_stac_collections
 from services.stac.search import search_stac_images
+from services.redis_cache import redis_cache
 
 router = APIRouter(prefix="/stac", tags=["STAC"])
 
@@ -15,8 +18,15 @@ class SearchRequest(BaseModel):
 
 @router.get("/collections")
 def get_collections():
+    cache_key = "stac_collections"
+    cached = redis_cache.get(cache_key)
+    if cached:
+        return cached
+
     try:
-        return get_stac_collections()
+        res = get_stac_collections()
+        redis_cache.set(cache_key, res, expire_seconds=3600)  # Cache for 1 hour
+        return res
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -62,6 +72,18 @@ def search_items(req: SearchRequest):
 
     try:
         query_params = req.model_dump(exclude_none=True)
-        return search_stac_images(query_params)
+        # Create a deterministic key based on sorted query parameters
+        param_str = json.dumps(query_params, sort_keys=True)
+        param_hash = hashlib.md5(param_str.encode("utf-8")).hexdigest()
+        cache_key = f"stac_search:{param_hash}"
+        
+        cached = redis_cache.get(cache_key)
+        if cached:
+            return cached
+
+        res = search_stac_images(query_params)
+        redis_cache.set(cache_key, res, expire_seconds=300)  # Cache for 5 minutes
+        return res
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+

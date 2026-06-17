@@ -402,8 +402,8 @@ const BASE_STYLES: Record<string, string | maplibregl.StyleSpecification> = {
 // Sentinel-1, Landsat-8, and PlanetScope are local offline high-res scenes with exact bounds
 const REMOTE_SENSING_LAYERS: Record<string, { url: string; attr: string; bounds?: [number, number, number, number]; minzoom?: number; maxzoom?: number }> = {
   'sentinel-2': {
-    url: 'https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless_3857/default/GoogleMapsCompatible/{z}/{y}/{x}.jpg',
-    attr: '© Copernicus Sentinel-2 / EOX Cloudless',
+    url: 'https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2023_3857/default/GoogleMapsCompatible/{z}/{y}/{x}.jpg',
+    attr: '© Copernicus Sentinel-2 / EOX Cloudless 2023',
   },
   'sentinel-1': {
     url: '/cog/tiles/{z}/{x}/{y}.png?url=/data/samples/sentinel1.tif&colormap_name=bone',
@@ -426,6 +426,7 @@ export default function MapViewer() {
   const map = useRef<maplibregl.Map | null>(null);
   const activeBaseLayer = useRef<string>('openfreemap');
   const drawRef = useRef<MapboxDraw | null>(null);
+  const contextPin = useRef<maplibregl.Marker | null>(null);
 
   const { center, zoom, selectedLayer, setCenter, setZoom } = useMapStore();
   const selectedItem = useSTACStore((state) => state.selectedItem);
@@ -446,6 +447,57 @@ export default function MapViewer() {
   // Measurement State & Refs
   const { isMeasuring, measureType, history, stopMeasuring } = useMeasurementStore();
   const measurementMarkers = useRef<maplibregl.Marker[]>([]);
+
+  const placePin = (lng: number, lat: number) => {
+    if (!map.current) return;
+
+    if (contextPin.current) {
+      contextPin.current.remove();
+    }
+
+    const el = document.createElement('div');
+    el.className = 'flex flex-col items-center select-none pointer-events-auto';
+    el.innerHTML = `
+      <div class="px-2.5 py-1.5 bg-slate-950/95 backdrop-blur-md border border-slate-850 rounded-lg shadow-xl text-center flex flex-col space-y-0.5 animate-in fade-in zoom-in-95 duration-150">
+        <div class="text-[9.5px] font-black uppercase tracking-wider text-rose-400">Tọa độ Ghim</div>
+        <div class="text-[10px] font-medium text-slate-300">Lat: <span class="text-white font-bold">${lat.toFixed(6)}</span></div>
+        <div class="text-[10px] font-medium text-slate-300">Lng: <span class="text-white font-bold">${lng.toFixed(6)}</span></div>
+      </div>
+      <div class="w-2.5 h-2.5 bg-slate-950 border-r border-b border-slate-850 rotate-45 -mt-1.5 shadow-lg"></div>
+      
+      <!-- Premium Static Red Pushpin -->
+      <div class="relative flex flex-col items-center mt-2">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 48" class="w-8 h-12 drop-shadow-[0_3px_5px_rgba(0,0,0,0.3)]">
+          <defs>
+            <radialGradient id="ballGrad" cx="35%" cy="35%" r="60%">
+              <stop offset="0%" stop-color="#FF6B6B" />
+              <stop offset="60%" stop-color="#EF4444" />
+              <stop offset="100%" stop-color="#991B1B" />
+            </radialGradient>
+          </defs>
+          <!-- Needle Left Half (Light Silver) -->
+          <polygon points="14.8,23 16,23 16,47 15.6,47" fill="#E5E7EB" />
+          <!-- Needle Right Half (Dark Silver) -->
+          <polygon points="16,23 17.2,23 16.4,47 16,47" fill="#9CA3AF" />
+          <!-- Collar Left Half -->
+          <polygon points="13.5,20.2 16,20.2 16,23 14.8,23" fill="#D1D5DB" />
+          <!-- Collar Right Half -->
+          <polygon points="16,20.2 18.5,20.2 17.2,23 16,23" fill="#9CA3AF" />
+          <!-- Red Ball -->
+          <circle cx="16" cy="11" r="9.5" fill="url(#ballGrad)" />
+          <!-- Ball Highlight -->
+          <ellipse cx="12.5" cy="7.5" rx="3.5" ry="2.5" fill="#FFFFFF" opacity="0.6" transform="rotate(-30 12.5 7.5)" />
+        </svg>
+      </div>
+    `;
+
+    contextPin.current = new maplibregl.Marker({
+      element: el,
+      anchor: 'bottom',
+    })
+      .setLngLat([lng, lat])
+      .addTo(map.current);
+  };
 
   const clearMeasurementMarkers = () => {
     measurementMarkers.current.forEach((m) => m.remove());
@@ -1099,6 +1151,9 @@ export default function MapViewer() {
     if (map.current) return; // Prevent double initialization
 
     let handleContextMenu: ((e: MouseEvent) => void) | null = null;
+    let handleMouseDown: ((e: MouseEvent) => void) | null = null;
+    let handleMouseMove: ((e: MouseEvent) => void) | null = null;
+    let handleMouseUp: ((e: MouseEvent) => void) | null = null;
 
     if (mapContainer.current) {
       const isBase = selectedLayer in BASE_STYLES;
@@ -1121,7 +1176,7 @@ export default function MapViewer() {
           showCompass: true,
           showZoom: true,
         }),
-        'top-right'
+        'bottom-right'
       );
 
       // Add scale control
@@ -1130,16 +1185,24 @@ export default function MapViewer() {
           maxWidth: 100,
           unit: 'metric',
         }),
-        'bottom-left'
+        'bottom-right'
       );
 
-      // Add compact attribution control to bottom-left
+      // Add compact attribution control to bottom-right next to navigation controls
       map.current.addControl(
         new maplibregl.AttributionControl({
           compact: true,
         }),
-        'bottom-left'
+        'bottom-right'
       );
+
+      // Force compact class on the attribution control on every render to prevent expanded states on load/change
+      map.current.on('render', () => {
+        const attribEl = mapContainer.current?.querySelector('.maplibregl-ctrl-attrib');
+        if (attribEl && !attribEl.classList.contains('maplibregl-compact')) {
+          attribEl.classList.add('maplibregl-compact');
+        }
+      });
 
       // Initialize Mapbox Draw
       const draw = new MapboxDraw({
@@ -1553,6 +1616,10 @@ export default function MapViewer() {
       });
 
       map.current.on('click', () => {
+        if (contextPin.current) {
+          contextPin.current.remove();
+          contextPin.current = null;
+        }
         const isMeasuring = useMeasurementStore.getState().isMeasuring;
         if (isMeasuring) {
           ensureMeasurementProperties();
@@ -1561,12 +1628,54 @@ export default function MapViewer() {
       });
 
       // Cancel drawing mode on Right Click (contextmenu) via Canvas Event Listener (very robust)
+      // If not drawing, place a coordinates ghim pin on the map
       const canvas = map.current.getCanvas();
+      
+      let rightClickStart: { x: number; y: number } | null = null;
+      let isRightDragging = false;
+
+      handleMouseDown = (e: MouseEvent) => {
+        if (e.button === 2) {
+          rightClickStart = { x: e.clientX, y: e.clientY };
+          isRightDragging = false;
+        }
+      };
+
+      handleMouseMove = (e: MouseEvent) => {
+        if (rightClickStart) {
+          const dx = e.clientX - rightClickStart.x;
+          const dy = e.clientY - rightClickStart.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist > 5) {
+            isRightDragging = true;
+          }
+        }
+      };
+
+      handleMouseUp = (e: MouseEvent) => {
+        if (e.button === 2) {
+          rightClickStart = null;
+        }
+      };
+
+      canvas.addEventListener('mousedown', handleMouseDown);
+      canvas.addEventListener('mousemove', handleMouseMove);
+      canvas.addEventListener('mouseup', handleMouseUp);
+
       handleContextMenu = (e: MouseEvent) => {
+        if (!map.current) return;
+        e.preventDefault(); // Always prevent default context menu on map canvas
+        
+        if (isRightDragging) {
+          isRightDragging = false; // Reset for future interactions
+          return;
+        }
+
+        let isDrawingMode = false;
         if (drawRef.current) {
           const mode = drawRef.current.getMode();
           if (mode.startsWith('draw_')) {
-            e.preventDefault();
+            isDrawingMode = true;
             drawRef.current.changeMode('simple_select');
             drawRef.current.deleteAll();
             
@@ -1581,6 +1690,14 @@ export default function MapViewer() {
             }
             console.log('[Draw] Drawing cancelled via Canvas Right Click');
           }
+        }
+        
+        if (!isDrawingMode) {
+          const rect = canvas.getBoundingClientRect();
+          const x = e.clientX - rect.left;
+          const y = e.clientY - rect.top;
+          const lngLat = map.current.unproject([x, y]);
+          placePin(lngLat.lng, lngLat.lat);
         }
       };
       canvas.addEventListener('contextmenu', handleContextMenu);
@@ -1660,11 +1777,26 @@ export default function MapViewer() {
     }
 
     return () => {
+      if (contextPin.current) {
+        contextPin.current.remove();
+        contextPin.current = null;
+      }
       if (map.current) {
         try {
           const canvasEl = map.current.getCanvas();
-          if (canvasEl && handleContextMenu) {
-            canvasEl.removeEventListener('contextmenu', handleContextMenu);
+          if (canvasEl) {
+            if (handleContextMenu) {
+              canvasEl.removeEventListener('contextmenu', handleContextMenu);
+            }
+            if (handleMouseDown) {
+              canvasEl.removeEventListener('mousedown', handleMouseDown);
+            }
+            if (handleMouseMove) {
+              canvasEl.removeEventListener('mousemove', handleMouseMove);
+            }
+            if (handleMouseUp) {
+              canvasEl.removeEventListener('mouseup', handleMouseUp);
+            }
           }
         } catch (err) {
           // ignore
@@ -1909,7 +2041,7 @@ export default function MapViewer() {
 
   const handleHomeClick = () => {
     setCenter([105.83416, 21.02776]);
-    setZoom(6);
+    setZoom(12);
   };
 
   return (
@@ -1917,7 +2049,7 @@ export default function MapViewer() {
       <div ref={mapContainer} className="w-full h-full absolute inset-0 z-0" />
       
       {/* Floating Home Button (Epic 7 - Reset View) */}
-      <div className="absolute top-[120px] right-[10px] z-10">
+      <div className="absolute bottom-[150px] right-[10px] z-10">
         <button
           onClick={handleHomeClick}
           title="Reset View (Về vị trí mặc định)"
