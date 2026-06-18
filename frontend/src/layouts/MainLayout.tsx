@@ -1,5 +1,5 @@
-import { useEffect, lazy, Suspense } from 'react';
-import { Compass, Layers, Info, Search, Hexagon, Ruler, Columns, Clock, Cpu, Loader2 } from 'lucide-react';
+import { useState, useEffect, useRef, lazy, Suspense } from 'react';
+import { Compass, Layers, Search, Hexagon, Ruler, Columns, Clock, Cpu, Loader2, ChevronLeft, Globe } from 'lucide-react';
 import MapViewer from '../components/MapViewer';
 import SearchLocation from '../components/SearchLocation';
 import CompareViewer from '../features/comparison/components/CompareViewer';
@@ -25,6 +25,26 @@ export default function MainLayout() {
   const { activeTab, setActiveTab } = useAOIStore();
   const compareMode = useCompareStore((state) => state.compareMode);
   
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const prevTabRef = useRef(activeTab);
+
+  // Automatically open the drawer whenever activeTab changes programmatically
+  useEffect(() => {
+    if (activeTab !== prevTabRef.current) {
+      setIsDrawerOpen(true);
+      prevTabRef.current = activeTab;
+    }
+  }, [activeTab]);
+
+  const handleTabClick = (tab: 'location' | 'search' | 'aoi' | 'measure' | 'comparison' | 'jobs' | 'ai') => {
+    if (activeTab === tab) {
+      setIsDrawerOpen(!isDrawerOpen);
+    } else {
+      setActiveTab(tab);
+      setIsDrawerOpen(true);
+    }
+  };
+
   const connect = useWebSocketStore((state) => state.connect);
   const disconnect = useWebSocketStore((state) => state.disconnect);
 
@@ -43,179 +63,236 @@ export default function MainLayout() {
       <div className="absolute inset-0 z-0">
         {compareMode !== 'none' ? <CompareViewer /> : <MapViewer />}
       </div>
-      {/* 3. Floating Sidebar with Categorized Layers */}
-      <aside className="absolute top-4 left-4 z-10 w-96 max-h-[70vh] hidden md:flex flex-col bg-slate-900/85 backdrop-blur-md border border-slate-800/85 rounded-2xl shadow-2xl overflow-hidden transition-all duration-300">
-        {/* Sidebar Header */}
-        <div className="p-4 border-b border-slate-800/85 flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <Layers className="w-4 h-4 text-sky-400" />
-            <h2 className="text-sm font-semibold text-slate-200">Bảng điều khiển</h2>
-          </div>
-          <span className="text-[10px] px-2 py-0.5 bg-slate-800 text-slate-400 border border-slate-700/50 rounded-full font-mono font-semibold">
-            Sprint 3
-          </span>
-        </div>
-
-        {/* Sidebar Content */}
-        <div className="p-4 space-y-4 overflow-y-auto">
-          {/* Tab Switching Navigation */}
-          <div className="flex bg-slate-950/60 p-1 border border-slate-800/80 rounded-xl">
-            <button
-              onClick={() => setActiveTab('search')}
-              className={`flex-1 py-1 text-[11px] font-bold rounded-lg transition-all cursor-pointer flex flex-col items-center justify-center ${
-                activeTab === 'search'
-                  ? 'bg-sky-500/10 text-sky-400 font-bold border border-sky-500/20 shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200 border border-transparent'
-              }`}
-            >
-              <Search className="w-3.5 h-3.5 mb-0.5" />
-              <span>STAC</span>
-            </button>
-            <button
-              onClick={() => setActiveTab('aoi')}
-              className={`flex-1 py-1 text-[11px] font-bold rounded-lg transition-all cursor-pointer flex flex-col items-center justify-center ${
-                activeTab === 'aoi'
-                  ? 'bg-sky-500/10 text-sky-400 font-bold border border-sky-500/20 shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200 border border-transparent'
-              }`}
-            >
-              <Hexagon className="w-3.5 h-3.5 mb-0.5" />
-              <span>AOI</span>
-            </button>
-            <button
-              onClick={() => setActiveTab('measure')}
-              className={`flex-1 py-1 text-[11px] font-bold rounded-lg transition-all cursor-pointer flex flex-col items-center justify-center ${
-                activeTab === 'measure'
-                  ? 'bg-emerald-500/10 text-emerald-400 font-bold border border-emerald-500/20 shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200 border border-transparent'
-              }`}
-            >
-              <Ruler className="w-3.5 h-3.5 mb-0.5" />
-              <span>Đo đạc</span>
-            </button>
-            <button
-              onClick={() => setActiveTab('comparison')}
-              className={`flex-1 py-1 text-[11px] font-bold rounded-lg transition-all cursor-pointer flex flex-col items-center justify-center ${
-                activeTab === 'comparison'
-                  ? 'bg-emerald-500/10 text-emerald-400 font-bold border border-emerald-500/20 shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200 border border-transparent'
-              }`}
-            >
-              <Columns className="w-3.5 h-3.5 mb-0.5" />
-              <span>So sánh</span>
-            </button>
-            <button
-              onClick={() => setActiveTab('jobs')}
-              className={`flex-1 py-1 text-[11px] font-bold rounded-lg transition-all cursor-pointer flex flex-col items-center justify-center ${
-                activeTab === 'jobs'
-                  ? 'bg-sky-500/10 text-sky-400 font-bold border border-sky-500/20 shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200 border border-transparent'
-              }`}
-            >
-              <Clock className="w-3.5 h-3.5 mb-0.5" />
-              <span>Tác vụ</span>
-            </button>
-            <button
-              onClick={() => setActiveTab('ai')}
-              className={`flex-1 py-1 text-[11px] font-bold rounded-lg transition-all cursor-pointer flex flex-col items-center justify-center ${
-                activeTab === 'ai'
-                  ? 'bg-sky-500/10 text-sky-400 font-bold border border-sky-500/20 shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200 border border-transparent'
-              }`}
-            >
-              <Cpu className="w-3.5 h-3.5 mb-0.5" />
-              <span>AI</span>
-            </button>
-          </div>
-
-          <Suspense fallback={
-            <div className="p-6 text-center flex flex-col items-center justify-center space-y-2 text-slate-400">
-              <Loader2 className="w-5 h-5 animate-spin text-sky-400" />
-              <span className="text-xs font-medium">Đang tải bảng điều khiển...</span>
+      {/* 3. Floating GIS-Style Sidebar Menu & Collapsible Drawer */}
+      <div className="absolute top-4 left-4 z-10 hidden md:flex items-start h-[calc(100vh-10rem)] max-h-[75vh] pointer-events-none">
+        {/* Navigation Rail */}
+        <div className="flex flex-col items-center justify-between py-4 w-16 bg-slate-900/90 backdrop-blur-md border border-slate-800/85 rounded-2xl shadow-2xl pointer-events-auto h-fit space-y-4 flex-shrink-0">
+          <div className="flex flex-col items-center space-y-4 w-full">
+            {/* Logo Icon */}
+            <div className="p-1.5 bg-slate-950/60 border border-slate-800/60 rounded-xl mb-2">
+              <Layers className="w-5 h-5 text-sky-400" />
             </div>
-          }>
-            {activeTab === 'search' && (
-              <>
-                {/* Section 1: Search Location */}
-                <div className="p-3.5 bg-slate-950/40 border border-slate-800/60 rounded-xl space-y-2">
-                  <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider px-1">
-                    Tìm kiếm địa điểm
-                  </h3>
-                  <SearchLocation />
-                </div>
+            
+            {/* Vertically Stacked Menu Buttons */}
+            <div className="flex flex-col space-y-3 w-full px-2">
+              {/* Location Search */}
+              <button
+                onClick={() => handleTabClick('location')}
+                title="Tìm kiếm địa điểm & tọa độ"
+                className={`w-full py-2.5 rounded-xl transition-all cursor-pointer flex flex-col items-center justify-center relative group ${
+                  activeTab === 'location' && isDrawerOpen
+                    ? 'bg-sky-500/10 text-sky-400 font-bold border border-transparent'
+                    : 'text-slate-400 hover:text-slate-200 border border-transparent hover:bg-slate-800/40'
+                }`}
+              >
+                <Search className="w-5 h-5" />
+                <span className="text-[9px] font-bold mt-1">Tìm kiếm</span>
+              </button>
 
-                {/* Section 2: STAC Search Panel */}
-                <div className="p-3.5 bg-slate-950/40 border border-slate-800/60 rounded-xl space-y-2">
-                  <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider px-1">
-                    Tìm kiếm ảnh vệ tinh (STAC)
-                  </h3>
-                  <STACSearchPanel />
-                </div>
-              </>
-            )}
+              {/* STAC Search */}
+              <button
+                onClick={() => handleTabClick('search')}
+                title="Tìm kiếm STAC"
+                className={`w-full py-2.5 rounded-xl transition-all cursor-pointer flex flex-col items-center justify-center relative group ${
+                  activeTab === 'search' && isDrawerOpen
+                    ? 'bg-sky-500/10 text-sky-400 font-bold border border-transparent'
+                    : 'text-slate-400 hover:text-slate-200 border border-transparent hover:bg-slate-800/40'
+                }`}
+              >
+                <Globe className="w-5 h-5" />
+                <span className="text-[9px] font-bold mt-1">STAC</span>
+              </button>
 
-            {activeTab === 'aoi' && (
-              /* Section 2: AOI Manager Panel */
-              <div className="p-3.5 bg-slate-950/40 border border-slate-800/60 rounded-xl space-y-2">
-                <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider px-1">
-                  Quản lý Vùng quan tâm (AOI)
-                </h3>
-                <AOIManagerPanel />
-              </div>
-            )}
+              {/* AOI Manager */}
+              <button
+                onClick={() => handleTabClick('aoi')}
+                title="Vùng quan tâm"
+                className={`w-full py-2.5 rounded-xl transition-all cursor-pointer flex flex-col items-center justify-center relative group ${
+                  activeTab === 'aoi' && isDrawerOpen
+                    ? 'bg-sky-500/10 text-sky-400 font-bold border border-transparent'
+                    : 'text-slate-400 hover:text-slate-200 border border-transparent hover:bg-slate-800/40'
+                }`}
+              >
+                <Hexagon className="w-5 h-5" />
+                <span className="text-[9px] font-bold mt-1">AOI</span>
+              </button>
 
-            {activeTab === 'measure' && (
-              /* Section 2: Measurement Panel */
-              <div className="p-3.5 bg-slate-950/40 border border-slate-800/60 rounded-xl space-y-2">
-                <h3 className="text-xs font-bold text-emerald-400 uppercase tracking-wider px-1">
-                  Công cụ đo đạc địa lý
-                </h3>
-                <MeasurementPanel />
-              </div>
-            )}
+              {/* Measurement */}
+              <button
+                onClick={() => handleTabClick('measure')}
+                title="Đo đạc"
+                className={`w-full py-2.5 rounded-xl transition-all cursor-pointer flex flex-col items-center justify-center relative group ${
+                  activeTab === 'measure' && isDrawerOpen
+                    ? 'bg-emerald-500/10 text-emerald-400 font-bold border border-transparent'
+                    : 'text-slate-400 hover:text-slate-200 border border-transparent hover:bg-slate-800/40'
+                }`}
+              >
+                <Ruler className="w-5 h-5" />
+                <span className="text-[9px] font-bold mt-1">Đo đạc</span>
+              </button>
 
-            {activeTab === 'comparison' && (
-              /* Section 2: Compare Panel */
-              <div className="p-3.5 bg-slate-950/40 border border-slate-800/60 rounded-xl space-y-2">
-                <h3 className="text-xs font-bold text-emerald-400 uppercase tracking-wider px-1">
-                  Đối chiếu ảnh vệ tinh
-                </h3>
-                <ComparePanel />
-              </div>
-            )}
+              {/* Comparison */}
+              <button
+                onClick={() => handleTabClick('comparison')}
+                title="So sánh"
+                className={`w-full py-2.5 rounded-xl transition-all cursor-pointer flex flex-col items-center justify-center relative group ${
+                  activeTab === 'comparison' && isDrawerOpen
+                    ? 'bg-emerald-500/10 text-emerald-400 font-bold border border-transparent'
+                    : 'text-slate-400 hover:text-slate-200 border border-transparent hover:bg-slate-800/40'
+                }`}
+              >
+                <Columns className="w-5 h-5" />
+                <span className="text-[9px] font-bold mt-1">So sánh</span>
+              </button>
 
-            {activeTab === 'jobs' && (
-              /* Section 2: Job Dashboard Panel */
-              <div className="p-3.5 bg-slate-950/40 border border-slate-800/60 rounded-xl space-y-2">
-                <h3 className="text-xs font-bold text-sky-400 uppercase tracking-wider px-1">
-                  Tiến trình Tác vụ Nền
-                </h3>
-                <JobDashboard />
-              </div>
-            )}
+              {/* Job Dashboard */}
+              <button
+                onClick={() => handleTabClick('jobs')}
+                title="Tác vụ"
+                className={`w-full py-2.5 rounded-xl transition-all cursor-pointer flex flex-col items-center justify-center relative group ${
+                  activeTab === 'jobs' && isDrawerOpen
+                    ? 'bg-sky-500/10 text-sky-400 font-bold border border-transparent'
+                    : 'text-slate-400 hover:text-slate-200 border border-transparent hover:bg-slate-800/40'
+                }`}
+              >
+                <Clock className="w-5 h-5" />
+                <span className="text-[9px] font-bold mt-1">Tác vụ</span>
+              </button>
 
-            {activeTab === 'ai' && (
-              /* Section 2: AI Detection Panel */
-              <div className="p-3.5 bg-slate-950/40 border border-slate-800/60 rounded-xl space-y-2">
-                <h3 className="text-xs font-bold text-sky-400 uppercase tracking-wider px-1">
-                  Nhận diện đối tượng AI
-                </h3>
-                <DetectionPanel />
-              </div>
-            )}
-          </Suspense>
-
-
-
-
+              {/* AI Detection */}
+              <button
+                onClick={() => handleTabClick('ai')}
+                title="AI Detection"
+                className={`w-full py-2.5 rounded-xl transition-all cursor-pointer flex flex-col items-center justify-center relative group ${
+                  activeTab === 'ai' && isDrawerOpen
+                    ? 'bg-sky-500/10 text-sky-400 font-bold border border-transparent'
+                    : 'text-slate-400 hover:text-slate-200 border border-transparent hover:bg-slate-800/40'
+                }`}
+              >
+                <Cpu className="w-5 h-5" />
+                <span className="text-[9px] font-bold mt-1">AI</span>
+              </button>
+            </div>
+          </div>
         </div>
 
-        {/* Sidebar Footer Info */}
-        <div className="p-3.5 bg-slate-950/50 border-t border-slate-800/85 flex items-center space-x-2 text-[11px] text-slate-400">
-          <Info className="w-3.5 h-3.5 text-sky-400 flex-shrink-0 animate-pulse" />
-          <span>Chọn lớp viễn thám để render động XYZ tiles từ TiTiler.</span>
+        {/* Collapsible Drawer Panel */}
+        <div
+          className={`bg-slate-900/85 backdrop-blur-md border border-slate-800/85 rounded-2xl shadow-2xl flex flex-col pointer-events-auto transition-all duration-300 ease-in-out h-full overflow-hidden ${
+            isDrawerOpen ? 'w-96 opacity-100 translate-x-0 ml-3' : 'w-0 opacity-0 -translate-x-4 border-none pointer-events-none ml-0'
+          }`}
+        >
+          {/* Inner fixed-width container preventing content warping during resizing animation */}
+          <div className="w-96 h-full flex flex-col min-h-0">
+            {/* Drawer Header */}
+            <div className="p-4 border-b border-slate-800/85 flex items-center justify-between flex-shrink-0">
+              <div className="flex items-center space-x-2">
+                {activeTab === 'location' && <Search className="w-4 h-4 text-sky-400" />}
+                {activeTab === 'search' && <Globe className="w-4 h-4 text-sky-400" />}
+                {activeTab === 'aoi' && <Hexagon className="w-4 h-4 text-sky-400" />}
+                {activeTab === 'measure' && <Ruler className="w-4 h-4 text-emerald-400" />}
+                {activeTab === 'comparison' && <Columns className="w-4 h-4 text-emerald-400" />}
+                {activeTab === 'jobs' && <Clock className="w-4 h-4 text-sky-400" />}
+                {activeTab === 'ai' && <Cpu className="w-4 h-4 text-sky-400" />}
+                <h2 className="text-sm font-semibold text-slate-200">
+                  {activeTab === 'location' && 'Tìm kiếm địa điểm & tọa độ'}
+                  {activeTab === 'search' && 'Tìm kiếm vệ tinh (STAC)'}
+                  {activeTab === 'aoi' && 'Quản lý vùng quan tâm (AOI)'}
+                  {activeTab === 'measure' && 'Công cụ đo đạc địa lý'}
+                  {activeTab === 'comparison' && 'Đối chiếu ảnh vệ tinh'}
+                  {activeTab === 'jobs' && 'Tiến trình tác vụ nền'}
+                  {activeTab === 'ai' && 'Nhận diện đối tượng AI'}
+                </h2>
+              </div>
+              <button
+                onClick={() => setIsDrawerOpen(false)}
+                className="p-1 hover:bg-slate-800/60 rounded-lg text-slate-400 hover:text-slate-200 transition-colors cursor-pointer"
+                title="Đóng bảng điều khiển"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Drawer Content */}
+            <div className="flex-1 p-4 space-y-4 overflow-y-auto min-h-0">
+              <Suspense fallback={
+                <div className="p-6 text-center flex flex-col items-center justify-center space-y-2 text-slate-400">
+                  <Loader2 className="w-5 h-5 animate-spin text-sky-400" />
+                  <span className="text-xs font-medium">Đang tải bảng điều khiển...</span>
+                </div>
+              }>
+                {activeTab === 'location' && (
+                  <div className="p-3.5 bg-slate-950/40 border border-slate-800/60 rounded-xl space-y-2">
+                    <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider px-1">
+                      Tìm kiếm địa điểm & tọa độ
+                    </h3>
+                    <SearchLocation />
+                  </div>
+                )}
+
+                {activeTab === 'search' && (
+                  <div className="p-3.5 bg-slate-950/40 border border-slate-800/60 rounded-xl space-y-2">
+                    <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider px-1">
+                      Tìm kiếm ảnh vệ tinh (STAC)
+                    </h3>
+                    <STACSearchPanel />
+                  </div>
+                )}
+
+                {activeTab === 'aoi' && (
+                  /* Section 2: AOI Manager Panel */
+                  <div className="p-3.5 bg-slate-950/40 border border-slate-800/60 rounded-xl space-y-2">
+                    <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider px-1">
+                      Quản lý Vùng quan tâm (AOI)
+                    </h3>
+                    <AOIManagerPanel />
+                  </div>
+                )}
+
+                {activeTab === 'measure' && (
+                  /* Section 2: Measurement Panel */
+                  <div className="p-3.5 bg-slate-950/40 border border-slate-800/60 rounded-xl space-y-2">
+                    <h3 className="text-xs font-bold text-emerald-400 uppercase tracking-wider px-1">
+                      Công cụ đo đạc địa lý
+                    </h3>
+                    <MeasurementPanel />
+                  </div>
+                )}
+
+                {activeTab === 'comparison' && (
+                  /* Section 2: Compare Panel */
+                  <div className="p-3.5 bg-slate-950/40 border border-slate-800/60 rounded-xl space-y-2">
+                    <h3 className="text-xs font-bold text-emerald-400 uppercase tracking-wider px-1">
+                      Đối chiếu ảnh vệ tinh
+                    </h3>
+                    <ComparePanel />
+                  </div>
+                )}
+
+                {activeTab === 'jobs' && (
+                  /* Section 2: Job Dashboard Panel */
+                  <div className="p-3.5 bg-slate-950/40 border border-slate-800/60 rounded-xl space-y-2">
+                    <h3 className="text-xs font-bold text-sky-400 uppercase tracking-wider px-1">
+                      Tiến trình Tác vụ Nền
+                    </h3>
+                    <JobDashboard />
+                  </div>
+                )}
+
+                {activeTab === 'ai' && (
+                  /* Section 2: AI Detection Panel */
+                  <div className="p-3.5 bg-slate-950/40 border border-slate-800/60 rounded-xl space-y-2">
+                    <h3 className="text-xs font-bold text-sky-400 uppercase tracking-wider px-1">
+                      Nhận diện đối tượng AI
+                    </h3>
+                    <DetectionPanel />
+                  </div>
+                )}
+              </Suspense>
+            </div>
+          </div>
         </div>
-      </aside>
+      </div>
 
       {/* 4. Floating Real-time Status Bar */}
       <footer className="absolute top-4 right-4 z-10 flex items-center space-x-4 bg-slate-900/90 backdrop-blur-md border border-slate-800/85 px-4 py-2 rounded-xl shadow-2xl font-mono text-[11px] text-slate-300 font-medium">

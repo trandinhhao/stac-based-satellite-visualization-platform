@@ -1,5 +1,4 @@
 import { useState, useRef, useEffect } from 'react';
-import { Layers } from 'lucide-react';
 import { useMapStore } from '../store/useMapStore';
 
 // Custom high-quality vector SVGs for each map thumbnail
@@ -153,10 +152,9 @@ export default function MapLayersSwitcher() {
         }`}
       >
         <MapThumbnail type={selectedLayer} />
-        {/* Layer Icon & Text Overlay at the bottom */}
-        <div className="absolute bottom-0 inset-x-0 bg-slate-900/90 py-1 px-1 flex flex-col items-center justify-center border-t border-slate-800/40">
-          <div className="flex flex-col items-center space-y-0.5 text-white">
-            <Layers className="w-4.5 h-4.5 text-sky-400 group-hover:animate-pulse" />
+        {/* Layer Text Overlay at the bottom */}
+        <div className="absolute bottom-0 inset-x-0 bg-slate-900/90 py-1.5 px-1 flex flex-col items-center justify-center border-t border-slate-800/40">
+          <div className="flex flex-col items-center text-white">
             <span className="text-[9.5px] font-black tracking-widest leading-none uppercase">Layers</span>
           </div>
         </div>

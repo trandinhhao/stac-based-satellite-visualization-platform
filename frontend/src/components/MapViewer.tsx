@@ -428,7 +428,7 @@ export default function MapViewer() {
   const drawRef = useRef<MapboxDraw | null>(null);
   const contextPin = useRef<maplibregl.Marker | null>(null);
 
-  const { center, zoom, selectedLayer, setCenter, setZoom } = useMapStore();
+  const { center, zoom, selectedLayer, setCenter, setZoom, searchPin } = useMapStore();
   const selectedItem = useSTACStore((state) => state.selectedItem);
 
   const aois = useAOIStore((state) => state.aois);
@@ -459,7 +459,6 @@ export default function MapViewer() {
     el.className = 'flex flex-col items-center select-none pointer-events-auto';
     el.innerHTML = `
       <div class="px-2.5 py-1.5 bg-slate-950/95 backdrop-blur-md border border-slate-850 rounded-lg shadow-xl text-center flex flex-col space-y-0.5 animate-in fade-in zoom-in-95 duration-150">
-        <div class="text-[9.5px] font-black uppercase tracking-wider text-rose-400">Tọa độ Ghim</div>
         <div class="text-[10px] font-medium text-slate-300">Lat: <span class="text-white font-bold">${lat.toFixed(6)}</span></div>
         <div class="text-[10px] font-medium text-slate-300">Lng: <span class="text-white font-bold">${lng.toFixed(6)}</span></div>
       </div>
@@ -1619,6 +1618,7 @@ export default function MapViewer() {
         if (contextPin.current) {
           contextPin.current.remove();
           contextPin.current = null;
+          useMapStore.getState().setSearchPin(null);
         }
         const isMeasuring = useMeasurementStore.getState().isMeasuring;
         if (isMeasuring) {
@@ -2038,6 +2038,19 @@ export default function MapViewer() {
       });
     }
   }, [center, zoom]);
+
+  // Listen to searchPin changes and place/remove marker
+  useEffect(() => {
+    if (!map.current) return;
+    if (searchPin) {
+      placePin(searchPin[0], searchPin[1]);
+    } else {
+      if (contextPin.current) {
+        contextPin.current.remove();
+        contextPin.current = null;
+      }
+    }
+  }, [searchPin]);
 
   const handleHomeClick = () => {
     setCenter([105.83416, 21.02776]);
