@@ -2004,17 +2004,6 @@ export default function MapViewer() {
   // Listen to STAC selected item changes from the store
   useEffect(() => {
     updateStacOverlay();
-
-    if (selectedItem) {
-      const centerLng = (selectedItem.bbox[0] + selectedItem.bbox[2]) / 2;
-      const centerLat = (selectedItem.bbox[1] + selectedItem.bbox[3]) / 2;
-      
-      const isCalif = selectedItem.bbox[0] < -100;
-      const zoomLevel = isCalif ? 14 : 12;
-
-      setCenter([centerLng, centerLat]);
-      setZoom(zoomLevel);
-    }
   }, [selectedItem]);
 
   // Listen to external store updates (e.g., geocoding flyTo updates)

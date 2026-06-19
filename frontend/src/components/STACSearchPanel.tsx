@@ -26,7 +26,7 @@ export default function STACSearchPanel() {
   const setActiveTab = useAOIStore((state) => state.setActiveTab);
   const { selectImageA, selectImageB } = useCompareStore();
 
-  const [spatialScope, setSpatialScope] = useState<'viewport' | 'aoi' | 'global'>('viewport');
+  const [spatialScope, setSpatialScope] = useState<'viewport' | 'aoi'>('viewport');
 
   // Sync spatial scope selection when selected AOI updates
   useEffect(() => {
@@ -62,7 +62,7 @@ export default function STACSearchPanel() {
   const handleSearch = () => {
     const payload: any = {
       collections: [filters.selectedCollection],
-      datetime: `${filters.startDate}/${filters.endDate}`,
+      datetime: filters.date,
     };
 
     if (spatialScope === 'viewport') {
@@ -125,35 +125,19 @@ export default function STACSearchPanel() {
           </div>
         </div>
 
-        {/* Date Filters */}
-        <div className="grid grid-cols-2 gap-2">
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
-              Từ ngày
-            </label>
-            <div className="relative flex items-center">
-              <input
-                type="date"
-                value={filters.startDate}
-                onChange={(e) => setFilters({ startDate: e.target.value })}
-                className="w-full h-10 pl-9 pr-3 bg-slate-950/40 border border-slate-800/80 focus:border-sky-500/80 rounded-xl text-xs text-slate-300 outline-none transition-all"
-              />
-              <Calendar className="absolute left-3 w-4 h-4 text-slate-500 pointer-events-none" />
-            </div>
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
-              Đến ngày
-            </label>
-            <div className="relative flex items-center">
-              <input
-                type="date"
-                value={filters.endDate}
-                onChange={(e) => setFilters({ endDate: e.target.value })}
-                className="w-full h-10 pl-9 pr-3 bg-slate-950/40 border border-slate-800/80 focus:border-sky-500/80 rounded-xl text-xs text-slate-300 outline-none transition-all"
-              />
-              <Calendar className="absolute left-3 w-4 h-4 text-slate-500 pointer-events-none" />
-            </div>
+        {/* Date Filter */}
+        <div className="space-y-1.5">
+          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
+            Ngày chụp ảnh vệ tinh
+          </label>
+          <div className="relative flex items-center">
+            <input
+              type="date"
+              value={filters.date}
+              onChange={(e) => setFilters({ date: e.target.value })}
+              className="w-full h-10 pl-9 pr-3 bg-slate-950/40 border border-slate-800/80 focus:border-sky-500/80 rounded-xl text-xs text-slate-300 outline-none transition-all"
+            />
+            <Calendar className="absolute left-3 w-4 h-4 text-slate-500 pointer-events-none" />
           </div>
         </div>
 
@@ -162,7 +146,7 @@ export default function STACSearchPanel() {
           <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
             Phạm vi không gian (Spatial Scope)
           </label>
-          <div className="grid grid-cols-3 gap-1.5">
+          <div className="grid grid-cols-2 gap-1.5">
             <button
               type="button"
               onClick={() => setSpatialScope('viewport')}
@@ -189,17 +173,6 @@ export default function STACSearchPanel() {
             >
               <span>Vùng AOI</span>
               {selectedAOI && <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />}
-            </button>
-            <button
-              type="button"
-              onClick={() => setSpatialScope('global')}
-              className={`h-8 px-2 rounded-lg text-[10px] font-bold transition-all border cursor-pointer ${
-                spatialScope === 'global'
-                  ? 'bg-sky-500/20 border-sky-500/50 text-sky-400'
-                  : 'bg-slate-950/40 border-slate-800/80 hover:bg-slate-800/40 text-slate-400'
-              }`}
-            >
-              Toàn cầu
             </button>
           </div>
           {spatialScope === 'aoi' && selectedAOI && (

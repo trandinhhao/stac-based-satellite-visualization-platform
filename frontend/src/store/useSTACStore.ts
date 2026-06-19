@@ -28,8 +28,7 @@ export interface STACItem {
 
 interface STACFilters {
   selectedCollection: string;
-  startDate: string;
-  endDate: string;
+  date: string;
   searchInViewport: boolean;
 }
 
@@ -49,8 +48,7 @@ interface STACState {
 
 const DEFAULT_FILTERS: STACFilters = {
   selectedCollection: 'sentinel-2-l2a',
-  startDate: '2025-01-01',
-  endDate: '2025-12-31',
+  date: '2025-06-15',
   searchInViewport: true,
 };
 
