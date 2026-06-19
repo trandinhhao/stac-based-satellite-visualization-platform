@@ -760,7 +760,9 @@ export default function MapViewer() {
           const isGlobal = href.includes('blob.core.windows.net') || href.includes('planetarycomputer');
           
           let tileUrl = '';
-          if (isGlobal) {
+          if (item.collection === 'PSScene') {
+            tileUrl = `/api/stac/planet/tiles/PSScene/${item.id}/{z}/{x}/{y}.png`;
+          } else if (isGlobal) {
             // Route directly to Microsoft Planetary Computer Tile API
             if (item.collection === 'sentinel-2-l2a') {
               tileUrl = `https://planetarycomputer.microsoft.com/api/data/v1/item/tiles/WebMercatorQuad/{z}/{x}/{y}@1x?collection=sentinel-2-l2a&item=${item.id}&assets=visual&asset_bidx=visual%7C1%2C2%2C3&nodata=0&format=png`;

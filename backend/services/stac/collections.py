@@ -29,7 +29,7 @@ def get_stac_collections():
             elif col_id == "landsat-8-c2-l2":
                 title = "Landsat-8 C2 L2 (Global - MPC)"
             elif col_id == "planetscope-ortho":
-                continue  # Skip PlanetScope in UI
+                continue  # Skip PlanetScope sample in UI
             elif col_id == "test-collection":
                 continue  # Skip test collection in UI
             
@@ -46,6 +46,12 @@ def get_stac_collections():
                 "id": "landsat-9-c2-l2",
                 "title": "Landsat-9 C2 L2 (Global - MPC)"
             })
+
+        # Manually inject PlanetScope (3m)
+        formatted.append({
+            "id": "PSScene",
+            "title": "PlanetScope (3m - Planet)"
+        })
             
         # 3. Cache the formatted response
         redis_cache.set(CACHE_KEY_COLLECTIONS, formatted, CACHE_TTL_COLLECTIONS)

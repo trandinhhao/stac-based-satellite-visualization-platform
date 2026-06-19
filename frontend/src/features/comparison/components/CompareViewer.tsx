@@ -56,6 +56,9 @@ const BASE_STYLES: Record<string, string | maplibregl.StyleSpecification> = {
 function getTileUrl(item: STACItem) {
   const visualAsset = item.assets.visual;
   if (!visualAsset) return '';
+  if (item.collection === 'PSScene') {
+    return `/api/stac/planet/tiles/PSScene/${item.id}/{z}/{x}/{y}.png`;
+  }
   const href = visualAsset.href;
   const isGlobal = href.includes('blob.core.windows.net') || href.includes('planetarycomputer');
   

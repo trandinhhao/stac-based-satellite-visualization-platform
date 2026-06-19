@@ -112,3 +112,46 @@ def get_planet_tile(mosaic_name: str, z: int, x: int, y: int):
         raise HTTPException(status_code=e.code, detail=f"Planet API error: {e.reason}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/planet/tiles/PSScene/{scene_id}/{z}/{x}/{y}.png")
+def get_planet_scene_tile(scene_id: str, z: int, x: int, y: int):
+    if not PLANET_API_KEY or PLANET_API_KEY == "your_planet_api_key_here":
+        raise HTTPException(status_code=500, detail="PLANET_API_KEY is not configured on the server")
+    
+    url = f"https://tiles.planet.com/data/v1/PSScene/{scene_id}/{z}/{x}/{y}.png?api_key={PLANET_API_KEY}"
+    
+    try:
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+        with urllib.request.urlopen(req, timeout=10) as response:
+            tile_data = response.read()
+            return Response(
+                content=tile_data,
+                media_type="image/png",
+                headers={"Cache-Control": "public, max-age=86400"}
+            )
+    except urllib.error.HTTPError as e:
+        raise HTTPException(status_code=e.code, detail=f"Planet API error: {e.reason}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/planet/thumbnail/{scene_id}")
+def get_planet_scene_thumbnail(scene_id: str):
+    if not PLANET_API_KEY or PLANET_API_KEY == "your_planet_api_key_here":
+        raise HTTPException(status_code=500, detail="PLANET_API_KEY is not configured on the server")
+    
+    url = f"https://tiles.planet.com/data/v1/item-types/PSScene/items/{scene_id}/thumb?width=256&api_key={PLANET_API_KEY}"
+    
+    try:
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+        with urllib.request.urlopen(req, timeout=10) as response:
+            thumb_data = response.read()
+            return Response(
+                content=thumb_data,
+                media_type="image/png",
+                headers={"Cache-Control": "public, max-age=86400"}
+            )
+    except urllib.error.HTTPError as e:
+        raise HTTPException(status_code=e.code, detail=f"Planet API error: {e.reason}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
