@@ -405,19 +405,9 @@ const REMOTE_SENSING_LAYERS: Record<string, { url: string; attr: string; bounds?
     url: 'https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2023_3857/default/GoogleMapsCompatible/{z}/{y}/{x}.jpg',
     attr: '© Copernicus Sentinel-2 / EOX Cloudless 2023',
   },
-  'sentinel-1': {
-    url: '/cog/tiles/{z}/{x}/{y}.png?url=/data/samples/sentinel1.tif&colormap_name=bone',
-    attr: '© ESA Sentinel-1 / California (byte.tif) / TiTiler',
-    bounds: [-117.64204279334717, 33.891546129503816, -117.6289845627537, 33.90243533203516],
-    minzoom: 11,
-    maxzoom: 18,
-  },
-  'landsat-8': {
-    url: '/cog/tiles/{z}/{x}/{y}.png?url=/data/samples/landsat8.tif&colormap_name=terrain',
-    attr: '© NASA/USGS Landsat-8 / California (byte.tif) / TiTiler',
-    bounds: [-117.64204279334717, 33.891546129503816, -117.6289845627537, 33.90243533203516],
-    minzoom: 11,
-    maxzoom: 18,
+  'planet-basemap': {
+    url: '/api/stac/planet/tiles/global_monthly_2025_06_mosaic/{z}/{x}/{y}.png',
+    attr: '© Planet Labs / Education & Research Program',
   },
 };
 

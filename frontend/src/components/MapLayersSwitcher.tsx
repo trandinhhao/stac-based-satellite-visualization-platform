@@ -61,27 +61,16 @@ const MapThumbnail = ({ type }: { type: string }) => {
       </svg>
     );
   }
-  if (type === 'sentinel-1') {
+  if (type === 'planet-basemap') {
     return (
       <svg className="w-full h-full object-cover" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect width="80" height="80" fill="#1E293B" />
-        <path d="M 0,10 Q 40,30 80,10 L 80,80 L 0,80 Z" fill="#0F172A" />
-        <path d="M 10,-10 L 90,70" stroke="#475569" strokeWidth="2" opacity="0.5" />
-        <path d="M -10,30 L 70,110" stroke="#475569" strokeWidth="2" opacity="0.5" />
-        <path d="M 20,40 Q 35,25 50,45 T 75,30" stroke="#94A3B8" strokeWidth="2.5" fill="none" strokeDasharray="3 3" />
-        <path d="M 0,20 Q 30,50 80,40" stroke="#334155" strokeWidth="4" fill="none" />
-      </svg>
-    );
-  }
-  if (type === 'landsat-8') {
-    return (
-      <svg className="w-full h-full object-cover" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect width="80" height="80" fill="#BE185D" />
-        <path d="M 0,30 Q 30,10 50,40 T 80,20 L 80,80 L 0,80 Z" fill="#9D174D" />
-        <path d="M 15,45 Q 40,25 65,55" stroke="#06B6D4" strokeWidth="6" fill="none" opacity="0.6" strokeLinecap="round" />
-        <path d="M 0,10 Q 20,40 50,15" stroke="#F59E0B" strokeWidth="4" fill="none" opacity="0.8" />
-        <rect x="10" y="55" width="20" height="20" fill="#155E75" opacity="0.5" />
-        <rect x="40" y="55" width="15" height="15" fill="#D946EF" opacity="0.4" />
+        <rect width="80" height="80" fill="#020617" />
+        <circle cx="40" cy="40" r="30" fill="#0F172A" stroke="#1E293B" strokeWidth="1" />
+        <path d="M 20,40 Q 40,25 60,40 T 20,40 Z" fill="#047857" opacity="0.5" />
+        <path d="M 25,35 Q 40,55 55,35" stroke="#0284C7" strokeWidth="2" strokeLinecap="round" fill="none" opacity="0.8" />
+        <circle cx="45" cy="30" r="3" fill="#38BDF8" />
+        <path d="M 10,20 Q 30,10 70,60" stroke="#38BDF8" strokeWidth="1.5" strokeDasharray="3,3" fill="none" />
+        <rect x="35" y="35" width="10" height="10" rx="1" fill="#E2E8F0" transform="rotate(45 40 40)" />
       </svg>
     );
   }
@@ -109,8 +98,7 @@ const LAYER_CATEGORIES = [
     title: 'Viễn thám',
     layers: [
       { id: 'sentinel-2', name: 'Sentinel-2' },
-      { id: 'sentinel-1', name: 'Sentinel-1' },
-      { id: 'landsat-8', name: 'Landsat-8' },
+      { id: 'planet-basemap', name: 'Planet Map' },
     ],
   },
 ];

@@ -1,4 +1,7 @@
-from fastapi import APIRouter, HTTPException, Body
+import os
+import urllib.request
+import urllib.error
+from fastapi import APIRouter, HTTPException, Body, Response
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 import json
@@ -87,3 +90,25 @@ def search_items(req: SearchRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+PLANET_API_KEY = os.getenv("PLANET_API_KEY")
+
+@router.get("/planet/tiles/{mosaic_name}/{z}/{x}/{y}.png")
+def get_planet_tile(mosaic_name: str, z: int, x: int, y: int):
+    if not PLANET_API_KEY or PLANET_API_KEY == "your_planet_api_key_here":
+        raise HTTPException(status_code=500, detail="PLANET_API_KEY is not configured on the server")
+    
+    url = f"https://tiles.planet.com/basemaps/v1/planet-tiles/{mosaic_name}/gmap/{z}/{x}/{y}.png?api_key={PLANET_API_KEY}"
+    
+    try:
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+        with urllib.request.urlopen(req, timeout=10) as response:
+            tile_data = response.read()
+            return Response(
+                content=tile_data,
+                media_type="image/png",
+                headers={"Cache-Control": "public, max-age=86400"}
+            )
+    except urllib.error.HTTPError as e:
+        raise HTTPException(status_code=e.code, detail=f"Planet API error: {e.reason}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

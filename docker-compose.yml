@@ -89,6 +89,7 @@ services:
       - DATABASE_URL=${DATABASE_URL}
       - REDIS_URL=${REDIS_URL}
       - RABBITMQ_URL=${RABBITMQ_URL}
+      - PLANET_API_KEY=${PLANET_API_KEY}
     ports:
       - "${BACKEND_PORT}:${BACKEND_PORT}"
     volumes:
