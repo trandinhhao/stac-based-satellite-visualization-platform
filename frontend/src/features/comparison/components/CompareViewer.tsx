@@ -95,7 +95,7 @@ export default function CompareViewer() {
 
   const { imageA, imageB, compareMode, opacity, swipePosition, setSwipePosition } = useCompareStore();
   const { center, zoom, selectedLayer, setCenter, setZoom } = useMapStore();
-  const { aois, selectedAOIId } = useAOIStore();
+  const { aois, selectedAOIId, selectedAOIIds } = useAOIStore();
 
   // 1. Initialize maps
   useEffect(() => {
@@ -208,7 +208,7 @@ export default function CompareViewer() {
         properties: {
           id: aoi.id,
           name: aoi.name,
-          isSelected: selectedAOIId ? String(aoi.id).toLowerCase().trim() === String(selectedAOIId).toLowerCase().trim() : false,
+          isSelected: selectedAOIIds.includes(aoi.id),
         },
       }));
 
@@ -231,12 +231,7 @@ export default function CompareViewer() {
           source: sourceId,
           paint: {
             'fill-color': '#3b82f6',
-            'fill-opacity': [
-              'case',
-              ['==', ['get', 'isSelected'], true],
-              0.15,
-              0.05,
-            ],
+            'fill-opacity': 0, // Fully transparent to keep STAC images completely clear while preserving click interaction
           },
         });
 
@@ -355,7 +350,7 @@ export default function CompareViewer() {
   useEffect(() => {
     updateAOILayer(mapA.current);
     updateAOILayer(mapB.current);
-  }, [aois, selectedAOIId]);
+  }, [aois, selectedAOIId, selectedAOIIds]);
 
   // Sync state: updates on selected map base style
   useEffect(() => {

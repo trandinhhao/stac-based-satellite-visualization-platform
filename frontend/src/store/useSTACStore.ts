@@ -28,7 +28,8 @@ export interface STACItem {
 
 interface STACFilters {
   selectedCollection: string;
-  date: string;
+  startDate: string;
+  endDate: string;
   searchInViewport: boolean;
 }
 
@@ -48,7 +49,8 @@ interface STACState {
 
 const DEFAULT_FILTERS: STACFilters = {
   selectedCollection: 'sentinel-2-l2a',
-  date: '2025-06-15',
+  startDate: '2026-01-01',
+  endDate: '2026-01-01',
   searchInViewport: true,
 };
 
@@ -59,7 +61,14 @@ export const useSTACStore = create<STACState>((set) => ({
   filters: DEFAULT_FILTERS,
   bbox: null,
   setCollections: (collections) => set({ collections }),
-  setSearchResults: (searchResults) => set({ searchResults }),
+  setSearchResults: (searchResults) => {
+    const sorted = [...searchResults].sort((a, b) => {
+      const timeA = a.properties.datetime ? new Date(a.properties.datetime).getTime() : 0;
+      const timeB = b.properties.datetime ? new Date(b.properties.datetime).getTime() : 0;
+      return timeA - timeB;
+    });
+    set({ searchResults: sorted });
+  },
   setSelectedItem: (selectedItem) => set({ selectedItem }),
   setFilters: (updatedFilters) =>
     set((state) => ({

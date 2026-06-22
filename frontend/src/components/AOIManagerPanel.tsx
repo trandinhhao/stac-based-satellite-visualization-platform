@@ -20,12 +20,14 @@ export default function AOIManagerPanel() {
   const {
     aois,
     selectedAOIId,
+    selectedAOIIds,
     isDrawing,
     drawType,
     tempGeometry,
     editingAOIId,
     isLoading,
     error,
+    showAllAOIs,
     fetchAOIs,
     selectAOI,
     createAOI,
@@ -37,7 +39,8 @@ export default function AOIManagerPanel() {
     setTempGeometry,
     setEditingAOI,
     clearError,
-    setActiveTab
+    setActiveTab,
+    setShowAllAOIs
   } = useAOIStore();
 
   // Form states for creating a new AOI
@@ -182,6 +185,9 @@ export default function AOIManagerPanel() {
     if (editingAOIId === aoi.id) {
       // Ending edit mode: SAVE changes!
       if (tempGeometry) {
+        if (!confirm('Bạn có chắc chắn muốn xác nhận chỉnh sửa hình học của vùng này?')) {
+          return;
+        }
         try {
           await updateAOI(aoi.id, { geometry: tempGeometry });
         } catch (err) {
@@ -280,7 +286,7 @@ export default function AOIManagerPanel() {
       )}
 
       {/* Save Shape Form (When a new shape has been drawn but not saved) */}
-      {tempGeometry && (
+      {!editingAOIId && tempGeometry && (
         <form 
           onSubmit={handleSaveDrawn} 
           className="p-3.5 bg-amber-500/10 border border-amber-500/30 rounded-xl space-y-3.5 shadow-xl animate-in slide-in-from-top duration-200"
@@ -338,53 +344,21 @@ export default function AOIManagerPanel() {
         </form>
       )}
 
-      {/* Editing geometry notification */}
-      {editingAOIId && (
-        <div className="p-3.5 bg-sky-500/10 border border-sky-500/30 rounded-xl space-y-2.5">
-          <div className="flex items-center space-x-2 text-sky-400">
-            <Edit2 className="w-4 h-4 animate-bounce" />
-            <h4 className="text-xs font-bold">Chế độ chỉnh sửa hình học</h4>
-          </div>
-          <p className="text-[11px] text-slate-400 leading-normal">
-            Kéo thả các điểm nút màu vàng trên bản đồ để thay đổi hình dạng AOI. Khi hoàn thành, nhấp nút Lưu thay đổi dưới đây hoặc bấm nút Sửa trên danh sách.
-          </p>
-          <div className="flex items-center space-x-2 pt-1">
-            <button
-              onClick={async () => {
-                if (tempGeometry) {
-                  try {
-                    await updateAOI(editingAOIId, { geometry: tempGeometry });
-                  } catch (err) {
-                    console.error('Lỗi khi cập nhật hình học AOI:', err);
-                  }
-                }
-                setEditingAOI(null);
-                setTempGeometry(null);
-              }}
-              className="flex-1 h-8 bg-sky-500 hover:bg-sky-400 text-slate-950 text-xs font-bold rounded-lg cursor-pointer flex items-center justify-center space-x-1.5 transition-all"
-            >
-              <Save className="w-3.5 h-3.5" />
-              <span>Lưu thay đổi</span>
-            </button>
-            <button
-              onClick={() => {
-                setEditingAOI(null);
-                setTempGeometry(null);
-              }}
-              className="px-3 h-8 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white text-xs font-bold rounded-lg cursor-pointer transition-all"
-            >
-              Hủy
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* AOI List */}
       <div className="space-y-3 pt-2">
         <div className="flex items-center justify-between border-b border-slate-800/60 pb-1.5 px-0.5">
           <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
             Danh sách vùng AOI ({aois.length})
           </span>
+          <label className="flex items-center space-x-1.5 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={showAllAOIs}
+              onChange={(e) => setShowAllAOIs(e.target.checked)}
+              className="w-3.5 h-3.5 rounded bg-slate-950 border-slate-800 text-sky-500 focus:ring-sky-500/20 cursor-pointer"
+            />
+            <span className="text-[10px] font-bold text-slate-400">Hiện tất cả</span>
+          </label>
         </div>
 
         {aois.length === 0 ? (
@@ -394,13 +368,13 @@ export default function AOIManagerPanel() {
         ) : (
           <div className="space-y-2 max-h-[420px] overflow-y-auto pr-1">
             {aois.map((aoi) => {
-              const isSelected = selectedAOIId ? String(aoi.id).toLowerCase().trim() === String(selectedAOIId).toLowerCase().trim() : false;
+              const isSelected = selectedAOIIds.includes(aoi.id);
               const isEditingText = inlineEditingId === aoi.id;
               
               return (
                 <div
                   key={aoi.id}
-                  onClick={() => !isEditingText && selectAOI(isSelected ? null : aoi.id)}
+                  onClick={() => !isEditingText && selectAOI(aoi.id)}
                   className={`w-full p-3 rounded-xl border transition-all duration-200 flex flex-col space-y-2.5 cursor-pointer ${
                     isSelected
                       ? 'bg-sky-500/10 border-sky-500/50 text-white shadow-lg'
@@ -450,49 +424,65 @@ export default function AOIManagerPanel() {
                       </div>
                     )}
 
-                    {/* Fast Action Icons (Only visible when selected) */}
-                    {isSelected && !isEditingText && (
+                    {/* Fast Action Icons (Only visible when primary selected) */}
+                    {selectedAOIId === aoi.id && !isEditingText && (
                       <div className="flex items-center space-x-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
-                        <button
-                          onClick={() => startInlineEdit(aoi)}
-                          title="Sửa tên / mô tả"
-                          className="p-1.5 bg-slate-900/60 hover:bg-slate-800 border border-slate-800/80 rounded-lg text-slate-400 hover:text-white cursor-pointer transition-all"
-                        >
-                          <Edit2 className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => toggleEditGeometry(aoi)}
-                          title={editingAOIId === aoi.id ? "Lưu hình học" : "Sửa hình học trên bản đồ"}
-                          className={`p-1.5 border rounded-lg cursor-pointer transition-all ${
-                            editingAOIId === aoi.id
-                              ? 'bg-amber-500/20 border-amber-500/50 text-amber-300 animate-pulse'
-                              : 'bg-slate-900/60 hover:bg-slate-800 border-slate-800/80 text-slate-400 hover:text-white'
-                          }`}
-                        >
-                          {editingAOIId === aoi.id ? (
-                            <Save className="w-3.5 h-3.5 text-amber-400" />
-                          ) : (
-                            <Maximize2 className="w-3.5 h-3.5" />
-                          )}
-                        </button>
-                        <button
-                          onClick={() => handleExport(aoi)}
-                          title="Xuất file GeoJSON"
-                          className="p-1.5 bg-slate-900/60 hover:bg-slate-800 border border-slate-800/80 rounded-lg text-slate-400 hover:text-white cursor-pointer transition-all"
-                        >
-                          <Download className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={async () => {
-                            if (confirm(`Bạn có chắc chắn muốn xóa vùng AOI "${aoi.name}"?`)) {
-                              await deleteAOI(aoi.id);
-                            }
-                          }}
-                          title="Xóa vùng"
-                          className="p-1.5 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 hover:border-red-500/40 rounded-lg text-red-400 hover:text-red-300 cursor-pointer transition-all"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                        {editingAOIId === aoi.id ? (
+                          <>
+                            <button
+                              onClick={() => toggleEditGeometry(aoi)}
+                              title="Lưu hình học"
+                              className="p-1.5 bg-amber-500/20 border border-amber-500/50 text-amber-300 animate-pulse rounded-lg cursor-pointer transition-all"
+                            >
+                              <Save className="w-3.5 h-3.5 text-amber-400" />
+                            </button>
+                            <button
+                              onClick={() => {
+                                setEditingAOI(null);
+                                setTempGeometry(null);
+                              }}
+                              title="Hủy chỉnh sửa"
+                              className="p-1.5 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 hover:border-red-500/40 rounded-lg text-red-400 hover:text-red-300 cursor-pointer transition-all"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button
+                              onClick={() => startInlineEdit(aoi)}
+                              title="Sửa tên / mô tả"
+                              className="p-1.5 bg-slate-900/60 hover:bg-slate-800 border border-slate-800/80 rounded-lg text-slate-400 hover:text-white cursor-pointer transition-all"
+                            >
+                              <Edit2 className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => toggleEditGeometry(aoi)}
+                              title="Sửa hình học trên bản đồ"
+                              className="p-1.5 bg-slate-900/60 hover:bg-slate-800 border border-slate-800/80 rounded-lg text-slate-400 hover:text-white cursor-pointer transition-all"
+                            >
+                              <Maximize2 className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => handleExport(aoi)}
+                              title="Xuất file GeoJSON"
+                              className="p-1.5 bg-slate-900/60 hover:bg-slate-800 border border-slate-800/80 rounded-lg text-slate-400 hover:text-white cursor-pointer transition-all"
+                            >
+                              <Download className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={async () => {
+                                if (confirm(`Bạn có chắc chắn muốn xóa vùng AOI "${aoi.name}"?`)) {
+                                  await deleteAOI(aoi.id);
+                                }
+                              }}
+                              title="Xóa vùng"
+                              className="p-1.5 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 hover:border-red-500/40 rounded-lg text-red-400 hover:text-red-300 cursor-pointer transition-all"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </>
+                        )}
                       </div>
                     )}
                   </div>
@@ -510,7 +500,7 @@ export default function AOIManagerPanel() {
                   </div>
 
                   {/* Search Satellite Images Button Shortcut */}
-                  {isSelected && !isEditingText && (
+                  {selectedAOIId === aoi.id && !isEditingText && (
                     <button
                       onClick={(e) => {
                         e.stopPropagation();

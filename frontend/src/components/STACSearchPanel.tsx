@@ -20,9 +20,9 @@ export default function STACSearchPanel() {
     setFilters,
   } = useSTACStore();
 
-  const selectedAOIId = useAOIStore((state) => state.selectedAOIId);
+  const selectedAOIIds = useAOIStore((state) => state.selectedAOIIds);
   const aois = useAOIStore((state) => state.aois);
-  const selectedAOI = aois.find((aoi) => selectedAOIId ? String(aoi.id).toLowerCase().trim() === String(selectedAOIId).toLowerCase().trim() : false);
+  const selectedAOIs = aois.filter((aoi) => selectedAOIIds.includes(aoi.id));
   const setActiveTab = useAOIStore((state) => state.setActiveTab);
   const { selectImageA, selectImageB } = useCompareStore();
 
@@ -30,12 +30,12 @@ export default function STACSearchPanel() {
 
   // Sync spatial scope selection when selected AOI updates
   useEffect(() => {
-    if (selectedAOI) {
+    if (selectedAOIs.length > 0) {
       setSpatialScope('aoi');
     } else if (spatialScope === 'aoi') {
       setSpatialScope('viewport');
     }
-  }, [selectedAOIId]);
+  }, [selectedAOIIds]);
 
   // 1. Query Collections List
   const { isLoading: isLoadingCollections } = useQuery<STACCollection[]>({
@@ -60,17 +60,32 @@ export default function STACSearchPanel() {
   });
 
   const handleSearch = () => {
+    const datetimeStr = filters.startDate && filters.endDate
+      ? `${filters.startDate}/${filters.endDate}`
+      : filters.startDate
+      ? `${filters.startDate}/..`
+      : filters.endDate
+      ? `../${filters.endDate}`
+      : undefined;
+
     const payload: any = {
       collections: [filters.selectedCollection],
-      datetime: filters.date,
+      datetime: datetimeStr,
     };
 
     if (spatialScope === 'viewport') {
       if (!bbox) return;
       payload.bbox = bbox;
     } else if (spatialScope === 'aoi') {
-      if (!selectedAOI) return;
-      payload.intersects = selectedAOI.geometry;
+      if (selectedAOIs.length === 0) return;
+      if (selectedAOIs.length === 1) {
+        payload.intersects = selectedAOIs[0].geometry;
+      } else {
+        payload.intersects = {
+          type: 'MultiPolygon',
+          coordinates: selectedAOIs.map(aoi => aoi.geometry.coordinates)
+        };
+      }
     }
 
     searchMutation.mutate(payload);
@@ -125,19 +140,32 @@ export default function STACSearchPanel() {
           </div>
         </div>
 
-        {/* Date Filter */}
+        {/* Date Filter (Range) */}
         <div className="space-y-1.5">
           <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
-            Ngày chụp ảnh vệ tinh
+            Thời gian chụp ảnh vệ tinh (Từ ngày - Đến ngày)
           </label>
-          <div className="relative flex items-center">
-            <input
-              type="date"
-              value={filters.date}
-              onChange={(e) => setFilters({ date: e.target.value })}
-              className="w-full h-10 pl-9 pr-3 bg-slate-950/40 border border-slate-800/80 focus:border-sky-500/80 rounded-xl text-xs text-slate-300 outline-none transition-all"
-            />
-            <Calendar className="absolute left-3 w-4 h-4 text-slate-500 pointer-events-none" />
+          <div className="grid grid-cols-2 gap-2">
+            <div className="relative flex items-center">
+              <input
+                type="date"
+                value={filters.startDate}
+                onChange={(e) => setFilters({ startDate: e.target.value })}
+                className="w-full h-10 pl-9 pr-2 bg-slate-950/40 border border-slate-800/80 focus:border-sky-500/80 rounded-xl text-[11px] text-slate-300 outline-none transition-all"
+                title="Từ ngày"
+              />
+              <Calendar className="absolute left-3 w-4 h-4 text-slate-500 pointer-events-none" />
+            </div>
+            <div className="relative flex items-center">
+              <input
+                type="date"
+                value={filters.endDate}
+                onChange={(e) => setFilters({ endDate: e.target.value })}
+                className="w-full h-10 pl-9 pr-2 bg-slate-950/40 border border-slate-800/80 focus:border-sky-500/80 rounded-xl text-[11px] text-slate-300 outline-none transition-all"
+                title="Đến ngày"
+              />
+              <Calendar className="absolute left-3 w-4 h-4 text-slate-500 pointer-events-none" />
+            </div>
           </div>
         </div>
 
@@ -160,25 +188,27 @@ export default function STACSearchPanel() {
             </button>
             <button
               type="button"
-              disabled={!selectedAOI}
+              disabled={selectedAOIs.length === 0}
               onClick={() => setSpatialScope('aoi')}
               className={`h-8 px-2 rounded-lg text-[10px] font-bold transition-all border cursor-pointer flex items-center justify-center space-x-1 ${
                 spatialScope === 'aoi'
                   ? 'bg-sky-500/20 border-sky-500/50 text-sky-400'
-                  : !selectedAOI
+                  : selectedAOIs.length === 0
                   ? 'bg-slate-950/20 border-slate-900/20 text-slate-600 cursor-not-allowed opacity-40'
                   : 'bg-slate-950/40 border-slate-800/80 hover:bg-slate-800/40 text-slate-400'
               }`}
-              title={!selectedAOI ? "Chọn một AOI trong Quản lý AOI để kích hoạt" : `Vùng AOI: ${selectedAOI.name}`}
+              title={selectedAOIs.length === 0 ? "Chọn một AOI trong Quản lý AOI để kích hoạt" : selectedAOIs.length === 1 ? `Vùng AOI: ${selectedAOIs[0].name}` : `Đã chọn ${selectedAOIs.length} vùng AOI`}
             >
               <span>Vùng AOI</span>
-              {selectedAOI && <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />}
+              {selectedAOIs.length > 0 && <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />}
             </button>
           </div>
-          {spatialScope === 'aoi' && selectedAOI && (
+          {spatialScope === 'aoi' && selectedAOIs.length > 0 && (
             <div className="text-[10px] text-emerald-400 px-0.5 mt-1.5 flex items-center space-x-1 animate-in fade-in duration-200">
               <span>✓ Đang áp dụng AOI:</span>
-              <span className="font-bold underline">{selectedAOI.name}</span>
+              <span className="font-bold underline">
+                {selectedAOIs.length === 1 ? selectedAOIs[0].name : `Đã chọn ${selectedAOIs.length} vùng`}
+              </span>
             </div>
           )}
         </div>
@@ -208,14 +238,6 @@ export default function STACSearchPanel() {
         <div className="flex items-center justify-between border-b border-slate-800/60 pb-1.5 px-0.5">
           <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
             Kết quả ({searchResults.length})
-          </span>
-        </div>
-
-        {/* Tip for global and local search */}
-        <div className="p-2.5 bg-sky-500/5 border border-sky-500/10 rounded-xl text-[10px] text-slate-400 leading-normal flex items-start space-x-1.5">
-          <span className="text-sky-400">💡</span>
-          <span>
-            <strong>Tìm kiếm ảnh</strong>: Hãy điều chỉnh các bộ lọc và di chuyển bản đồ đến khu vực cần xem, sau đó nhấn nút <strong>Tìm kiếm ảnh vệ tinh</strong> để cập nhật danh sách ảnh mới nhất.
           </span>
         </div>
 

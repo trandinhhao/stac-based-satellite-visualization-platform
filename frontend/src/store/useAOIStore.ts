@@ -20,6 +20,7 @@ export interface AOI {
 interface AOIState {
   aois: AOI[];
   selectedAOIId: string | null;
+  selectedAOIIds: string[];
   isDrawing: boolean;
   drawType: 'polygon' | 'rectangle' | 'circle' | null;
   tempGeometry: AOIGeometry | null;
@@ -27,8 +28,11 @@ interface AOIState {
   isLoading: boolean;
   error: string | null;
   activeTab: 'location' | 'search' | 'aoi' | 'measure' | 'comparison' | 'jobs' | 'ai';
+  isDrawerOpen: boolean;
+  showAllAOIs: boolean;
   
   fetchAOIs: () => Promise<void>;
+  setIsDrawerOpen: (isDrawerOpen: boolean) => void;
   selectAOI: (id: string | null) => void;
   createAOI: (name: string, description: string, geometry: AOIGeometry) => Promise<AOI>;
   updateAOI: (id: string, data: { name?: string; description?: string; geometry?: AOIGeometry }) => Promise<AOI>;
@@ -40,11 +44,13 @@ interface AOIState {
   setEditingAOI: (id: string | null) => void;
   setActiveTab: (tab: 'location' | 'search' | 'aoi' | 'measure' | 'comparison' | 'jobs' | 'ai') => void;
   clearError: () => void;
+  setShowAllAOIs: (showAll: boolean) => void;
 }
 
 export const useAOIStore = create<AOIState>((set) => ({
   aois: [],
   selectedAOIId: null,
+  selectedAOIIds: [],
   isDrawing: false,
   drawType: null,
   tempGeometry: null,
@@ -52,6 +58,8 @@ export const useAOIStore = create<AOIState>((set) => ({
   isLoading: false,
   error: null,
   activeTab: 'search',
+  isDrawerOpen: false,
+  showAllAOIs: false,
 
   fetchAOIs: async () => {
     set({ isLoading: true, error: null });
@@ -65,7 +73,20 @@ export const useAOIStore = create<AOIState>((set) => ({
   },
 
   selectAOI: (id) => {
-    set({ selectedAOIId: id });
+    if (id === null) {
+      set({ selectedAOIIds: [], selectedAOIId: null });
+    } else {
+      set((state) => {
+        const isAlreadySelected = state.selectedAOIIds.includes(id);
+        const nextIds = isAlreadySelected 
+          ? state.selectedAOIIds.filter(x => x !== id)
+          : [...state.selectedAOIIds, id];
+        return {
+          selectedAOIIds: nextIds,
+          selectedAOIId: nextIds.length > 0 ? nextIds[nextIds.length - 1] : null
+        };
+      });
+    }
   },
 
   createAOI: async (name, description, geometry) => {
@@ -75,6 +96,7 @@ export const useAOIStore = create<AOIState>((set) => ({
       const newAOI = response.data;
       set((state) => ({
         aois: [newAOI, ...state.aois],
+        selectedAOIIds: [...state.selectedAOIIds, newAOI.id],
         selectedAOIId: newAOI.id,
         isLoading: false,
       }));
@@ -107,11 +129,15 @@ export const useAOIStore = create<AOIState>((set) => ({
     set({ isLoading: true, error: null });
     try {
       await api.delete(`/aois/${id}`);
-      set((state) => ({
-        aois: state.aois.filter((aoi) => aoi.id !== id),
-        selectedAOIId: state.selectedAOIId === id ? null : state.selectedAOIId,
-        isLoading: false,
-      }));
+      set((state) => {
+        const nextIds = state.selectedAOIIds.filter((x) => x !== id);
+        return {
+          aois: state.aois.filter((aoi) => aoi.id !== id),
+          selectedAOIIds: nextIds,
+          selectedAOIId: state.selectedAOIId === id ? (nextIds.length > 0 ? nextIds[nextIds.length - 1] : null) : state.selectedAOIId,
+          isLoading: false,
+        };
+      });
     } catch (err: any) {
       const errMsg = err.response?.data?.detail || 'Không thể xóa vùng quan tâm (AOI).';
       set({ error: errMsg, isLoading: false });
@@ -134,6 +160,7 @@ export const useAOIStore = create<AOIState>((set) => ({
       const newAOI = response.data;
       set((state) => ({
         aois: [newAOI, ...state.aois],
+        selectedAOIIds: [...state.selectedAOIIds, newAOI.id],
         selectedAOIId: newAOI.id,
         isLoading: false,
       }));
@@ -145,10 +172,12 @@ export const useAOIStore = create<AOIState>((set) => ({
     }
   },
 
+  setIsDrawerOpen: (isDrawerOpen) => set({ isDrawerOpen }),
   setDrawing: (isDrawing) => set({ isDrawing }),
   setDrawType: (drawType) => set({ drawType }),
   setTempGeometry: (tempGeometry) => set({ tempGeometry }),
   setEditingAOI: (editingAOIId) => set({ editingAOIId }),
   setActiveTab: (activeTab) => set({ activeTab }),
   clearError: () => set({ error: null }),
+  setShowAllAOIs: (showAllAOIs) => set({ showAllAOIs }),
 }));

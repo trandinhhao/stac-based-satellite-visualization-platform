@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, lazy, Suspense } from 'react';
+import { useEffect, useRef, lazy, Suspense } from 'react';
 import { Compass, Layers, Search, Hexagon, Ruler, Columns, Clock, Cpu, Loader2, ChevronLeft, Globe } from 'lucide-react';
 import MapViewer from '../components/MapViewer';
 import SearchLocation from '../components/SearchLocation';
@@ -22,10 +22,13 @@ const DetectionPanel = lazy(() => import('../components/DetectionPanel'));
 
 export default function MainLayout() {
   const { center, zoom } = useMapStore();
-  const { activeTab, setActiveTab } = useAOIStore();
+  const { activeTab, setActiveTab, isDrawerOpen, setIsDrawerOpen, aois, selectedAOIIds } = useAOIStore();
   const compareMode = useCompareStore((state) => state.compareMode);
+  const selectedAOINames = aois
+    .filter((a) => selectedAOIIds.includes(a.id))
+    .map((a) => a.name)
+    .join(', ');
   
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const prevTabRef = useRef(activeTab);
 
   // Automatically open the drawer whenever activeTab changes programmatically
@@ -294,23 +297,40 @@ export default function MainLayout() {
         </div>
       </div>
 
-      {/* 4. Floating Real-time Status Bar */}
-      <footer className="absolute top-4 right-4 z-10 flex items-center space-x-4 bg-slate-900/90 backdrop-blur-md border border-slate-800/85 px-4 py-2 rounded-xl shadow-2xl font-mono text-[11px] text-slate-300 font-medium">
-        <div className="flex items-center space-x-1.5 border-r border-slate-800 pr-3">
-          <Compass className="w-3.5 h-3.5 text-sky-400" />
-          <span className="font-semibold text-slate-400">Vĩ độ (Lat):</span>
-          <span className="text-white font-medium">{center[1].toFixed(5)}</span>
-        </div>
-        <div className="flex items-center space-x-1.5 border-r border-slate-800 pr-3">
-          <Compass className="w-3.5 h-3.5 text-sky-400" />
-          <span className="font-semibold text-slate-400">Kinh độ (Lng):</span>
-          <span className="text-white font-medium">{center[0].toFixed(5)}</span>
-        </div>
-        <div className="flex items-center space-x-1.5">
-          <span className="font-semibold text-sky-400">Zoom:</span>
-          <span className="text-white font-medium">{zoom.toFixed(1)}</span>
-        </div>
-      </footer>
+      {/* 4. Floating Real-time Status Bar & Selected AOI Indicator */}
+      <div className="absolute top-4 right-4 z-10 flex flex-col items-end space-y-2">
+        {/* Status Bar */}
+        <footer className="flex items-center space-x-4 bg-slate-900/90 backdrop-blur-md border border-slate-800/85 px-4 py-2 rounded-xl shadow-2xl font-mono text-[11px] text-slate-300 font-medium">
+          <div className="flex items-center space-x-1.5 border-r border-slate-800 pr-3">
+            <Compass className="w-3.5 h-3.5 text-sky-400" />
+            <span className="font-semibold text-slate-400">Vĩ độ (Lat):</span>
+            <span className="text-white font-medium">{center[1].toFixed(5)}</span>
+          </div>
+          <div className="flex items-center space-x-1.5 border-r border-slate-800 pr-3">
+            <Compass className="w-3.5 h-3.5 text-sky-400" />
+            <span className="font-semibold text-slate-400">Kinh độ (Lng):</span>
+            <span className="text-white font-medium">{center[0].toFixed(5)}</span>
+          </div>
+          <div className="flex items-center space-x-1.5">
+            <span className="font-semibold text-sky-400">Zoom:</span>
+            <span className="text-white font-medium">{zoom.toFixed(1)}</span>
+          </div>
+        </footer>
+
+        {/* Selected AOI Indicator */}
+        {selectedAOIIds.length > 0 && (
+          <div 
+            className="flex items-center space-x-1.5 bg-slate-900/90 backdrop-blur-md border border-sky-500/30 hover:border-sky-500/50 px-3 py-1.5 rounded-lg shadow-xl text-[10px] text-sky-400 animate-in slide-in-from-top-2 duration-200 font-mono max-w-[280px]"
+            title={selectedAOINames}
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-sky-500 animate-pulse flex-shrink-0"></span>
+            <span className="font-semibold text-slate-400 flex-shrink-0">AOI ({selectedAOIIds.length}):</span>
+            <span className="text-white font-bold truncate">
+              {selectedAOINames}
+            </span>
+          </div>
+        )}
+      </div>
 
       {/* 5. Global Real-time Neon/Glassmorphic Notifications */}
       <NotificationToast />

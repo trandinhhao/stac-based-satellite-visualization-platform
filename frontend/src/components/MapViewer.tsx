@@ -395,21 +395,48 @@ const BASE_STYLES: Record<string, string | maplibregl.StyleSpecification> = {
       },
     ],
   },
-};
-
-// Remote sensing configuration
-// Sentinel-2 is global online via EOX
-// Sentinel-1, Landsat-8, and PlanetScope are local offline high-res scenes with exact bounds
-const REMOTE_SENSING_LAYERS: Record<string, { url: string; attr: string; bounds?: [number, number, number, number]; minzoom?: number; maxzoom?: number }> = {
   'sentinel-2': {
-    url: 'https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2023_3857/default/GoogleMapsCompatible/{z}/{y}/{x}.jpg',
-    attr: '© Copernicus Sentinel-2 / EOX Cloudless 2023',
+    version: 8,
+    sources: {
+      'sentinel-2-tiles': {
+        type: 'raster',
+        tiles: ['https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2023_3857/default/GoogleMapsCompatible/{z}/{y}/{x}.jpg'],
+        tileSize: 256,
+        attribution: '© Copernicus Sentinel-2 / EOX Cloudless 2023',
+      },
+    },
+    layers: [
+      {
+        id: 'sentinel-2-tiles',
+        type: 'raster',
+        source: 'sentinel-2-tiles',
+        minzoom: 0,
+        maxzoom: 18,
+      },
+    ],
   },
   'planet-basemap': {
-    url: '/api/stac/planet/tiles/global_monthly_2025_06_mosaic/{z}/{x}/{y}.png',
-    attr: '© Planet Labs / Education & Research Program',
+    version: 8,
+    sources: {
+      'planet-basemap-tiles': {
+        type: 'raster',
+        tiles: ['/api/stac/planet/tiles/global_monthly_2025_06_mosaic/{z}/{x}/{y}.png'],
+        tileSize: 256,
+        attribution: '© Planet Labs / Education & Research Program',
+      },
+    },
+    layers: [
+      {
+        id: 'planet-basemap-tiles',
+        type: 'raster',
+        source: 'planet-basemap-tiles',
+        minzoom: 0,
+        maxzoom: 18,
+      },
+    ],
   },
 };
+
 
 export default function MapViewer() {
   const mapContainer = useRef<HTMLDivElement>(null);
@@ -417,17 +444,20 @@ export default function MapViewer() {
   const activeBaseLayer = useRef<string>('openfreemap');
   const drawRef = useRef<MapboxDraw | null>(null);
   const contextPin = useRef<maplibregl.Marker | null>(null);
+  const prevSelectedAOIIds = useRef<string[]>([]);
 
   const { center, zoom, selectedLayer, setCenter, setZoom, searchPin } = useMapStore();
   const selectedItem = useSTACStore((state) => state.selectedItem);
 
   const aois = useAOIStore((state) => state.aois);
   const selectedAOIId = useAOIStore((state) => state.selectedAOIId);
-  const selectAOI = useAOIStore((state) => state.selectAOI);
+  const selectedAOIIds = useAOIStore((state) => state.selectedAOIIds);
   const isDrawing = useAOIStore((state) => state.isDrawing);
   const drawType = useAOIStore((state) => state.drawType);
   const editingAOIId = useAOIStore((state) => state.editingAOIId);
   const activeTab = useAOIStore((state) => state.activeTab);
+  const isDrawerOpen = useAOIStore((state) => state.isDrawerOpen);
+  const showAllAOIs = useAOIStore((state) => state.showAllAOIs);
 
   // Detection State
   const detections = useDetectionStore((state) => state.detections);
@@ -670,7 +700,6 @@ export default function MapViewer() {
 
   const updateMeasurementsLayer = (mapInstance: maplibregl.Map) => {
     if (!mapInstance.isStyleLoaded()) {
-      mapInstance.once('style.load', () => updateMeasurementsLayer(mapInstance));
       return;
     }
 
@@ -727,18 +756,49 @@ export default function MapViewer() {
       } else {
         source.setData(geojson);
       }
+      arrangeLayers(mapInstance);
     } catch (err) {
       console.error('Lỗi khi cập nhật lớp lịch sử đo đạc:', err);
     }
   };
 
+  // Helper to arrange layer order: base-map < stac-overlay < custom-vector-layers < gl-draw-layers
+  const arrangeLayers = (mapInstance: maplibregl.Map) => {
+    if (!mapInstance.isStyleLoaded()) return;
+
+    try {
+      const layers = mapInstance.getStyle().layers || [];
+      const layerIds = layers.map(l => l.id);
+
+      const hasStac = layerIds.includes('stac-overlay');
+      if (hasStac) {
+        const customVectorLayers = [
+          'aois-fill',
+          'aois-outline',
+          'measurements-history-fill',
+          'measurements-history-outline',
+          'ai-detections-fill',
+          'ai-detections-outline',
+          'ai-detections-label'
+        ];
+
+        const firstVectorLayer = layers.find(l => 
+          customVectorLayers.includes(l.id) || l.id.startsWith('gl-draw-')
+        );
+
+        if (firstVectorLayer && firstVectorLayer.id !== 'stac-overlay') {
+          mapInstance.moveLayer('stac-overlay', firstVectorLayer.id);
+          console.log(`[MapViewer] Arranged layers: moved stac-overlay before ${firstVectorLayer.id}`);
+        }
+      }
+    } catch (err) {
+      console.error('[MapViewer] Error arranging layers:', err);
+    }
+  };
+
   // Helper to dynamically render STAC image overlay
   const updateStacOverlay = () => {
-    if (!map.current) return;
-
-    // Guard against style load race conditions
-    if (!map.current.isStyleLoaded()) {
-      map.current.once('style.load', updateStacOverlay);
+    if (!map.current || !map.current.isStyleLoaded()) {
       return;
     }
 
@@ -796,78 +856,43 @@ export default function MapViewer() {
             bounds: item.bbox,
           });
 
+          // Insert under vector layers to keep AOIs on top
+          const vectorLayers = [
+            'aois-fill',
+            'aois-outline',
+            'measurements-history-fill',
+            'measurements-history-outline',
+            'ai-detections-fill',
+            'ai-detections-outline',
+            'ai-detections-label'
+          ];
+          const allLayers = map.current.getStyle().layers || [];
+          const firstVectorLayer = allLayers.find(l => 
+            vectorLayers.includes(l.id) || l.id.startsWith('gl-draw-')
+          );
+
           map.current.addLayer({
             id: 'stac-overlay',
             type: 'raster',
             source: 'stac-source',
             paint: { 'raster-opacity': 1.0 },
-          });
+          }, firstVectorLayer?.id);
         }
       }
+      arrangeLayers(map.current);
     } catch (error) {
       console.error('[STAC] Error updating STAC overlay:', error);
     }
   };
 
   // Helper to dynamically update the remote sensing overlay layer
-  // Helper to dynamically update the remote sensing overlay layer
   const updateRemoteSensingOverlay = () => {
-    if (!map.current) return;
-
-    try {
-      // Clean up existing overlay layer if present
-      if (map.current.getLayer('rs-overlay')) {
-        map.current.removeLayer('rs-overlay');
-      }
-
-      // Add new remote sensing layer as overlay if selected
-      const rsConfig = REMOTE_SENSING_LAYERS[selectedLayer];
-      if (rsConfig) {
-        const sourceId = `rs-source-${selectedLayer}`;
-        const tileUrl = rsConfig.url;
-        console.log(`[TiTiler] Rendering overlay for layer "${selectedLayer}" using source "${sourceId}"`);
-
-        // Check if the source already exists in the map style
-        if (!map.current.getSource(sourceId)) {
-          const sourceConfig: any = {
-            type: 'raster',
-            tiles: [tileUrl],
-            tileSize: 256,
-            attribution: rsConfig.attr,
-          };
-
-          if (rsConfig.bounds !== undefined) {
-            sourceConfig.bounds = rsConfig.bounds;
-          }
-          if (rsConfig.minzoom !== undefined) {
-            sourceConfig.minzoom = rsConfig.minzoom;
-          }
-          if (rsConfig.maxzoom !== undefined) {
-            sourceConfig.maxzoom = rsConfig.maxzoom;
-          }
-
-          console.log(`[TiTiler] Creating new source "${sourceId}":`, sourceConfig);
-          map.current.addSource(sourceId, sourceConfig);
-        } else {
-          console.log(`[TiTiler] Reusing existing source "${sourceId}"`);
-        }
-
-        map.current.addLayer({
-          id: 'rs-overlay',
-          type: 'raster',
-          source: sourceId,
-          paint: { 'raster-opacity': 1.0 },
-        });
-      }
-    } catch (error) {
-      console.error('[TiTiler] Error in updateRemoteSensingOverlay:', error);
-    }
+    // Deprecated: Remote sensing layers are now configured as full base styles in BASE_STYLES.
   };
 
   // Helper to dynamically update the AOIs overlay layer (fill + outline)
   const updateAOIsLayer = (mapInstance: maplibregl.Map) => {
     if (!mapInstance.isStyleLoaded()) {
-      mapInstance.once('style.load', () => updateAOIsLayer(mapInstance));
       return;
     }
 
@@ -878,23 +903,39 @@ export default function MapViewer() {
 
       // Hide the AOI that is currently being edited so it doesn't double-render
       // We filter it out in JS using a bulletproof string-cast comparison, and also pass isEditing just in case
-      const features = aois
-        .filter((aoi) => {
-          if (!editingAOIId) return true;
-          return String(aoi.id).toLowerCase().trim() !== String(editingAOIId).toLowerCase().trim();
-        })
-        .map((aoi) => ({
-          type: 'Feature',
-          id: aoi.id,
-          geometry: aoi.geometry,
-          properties: {
-            id: aoi.id,
-            name: aoi.name,
-            description: aoi.description,
-            isSelected: selectedAOIId ? String(aoi.id).toLowerCase().trim() === String(selectedAOIId).toLowerCase().trim() : false,
-            isEditing: false, // Already filtered out, but defined for consistency
-          },
-        }));
+      const showAOIs = activeTab === 'aoi' && isDrawerOpen && showAllAOIs;
+      const features = showAOIs
+        ? aois
+            .filter((aoi) => {
+              if (!editingAOIId) return true;
+              return String(aoi.id).toLowerCase().trim() !== String(editingAOIId).toLowerCase().trim();
+            })
+            .map((aoi) => ({
+              type: 'Feature',
+              id: aoi.id,
+              geometry: aoi.geometry,
+              properties: {
+                id: aoi.id,
+                name: aoi.name,
+                description: aoi.description,
+                isSelected: selectedAOIIds.includes(aoi.id),
+                isEditing: false, // Already filtered out, but defined for consistency
+              },
+            }))
+        : aois
+            .filter((aoi) => selectedAOIIds.includes(aoi.id))
+            .map((aoi) => ({
+              type: 'Feature',
+              id: aoi.id,
+              geometry: aoi.geometry,
+              properties: {
+                id: aoi.id,
+                name: aoi.name,
+                description: aoi.description,
+                isSelected: true,
+                isEditing: false,
+              },
+            }));
 
       const geojson: any = {
         type: 'FeatureCollection',
@@ -915,12 +956,7 @@ export default function MapViewer() {
           source: sourceId,
           paint: {
             'fill-color': '#3b82f6',
-            'fill-opacity': [
-              'case',
-              ['==', ['get', 'isSelected'], true],
-              0.25,
-              0.08,
-            ],
+            'fill-opacity': 0, // Fully transparent to keep STAC images completely clear while preserving click interaction
           },
         });
 
@@ -951,37 +987,11 @@ export default function MapViewer() {
           },
         });
 
-        // Add click and hover interactions
-        mapInstance.on('click', fillLayerId, (e) => {
-          // If the user is currently drawing or editing, do NOT allow selecting an AOI from the map!
-          const isDrawing = useAOIStore.getState().isDrawing;
-          const editingAOIId = useAOIStore.getState().editingAOIId;
-          const isMeasuring = useMeasurementStore.getState().isMeasuring;
-          const activeTab = useAOIStore.getState().activeTab;
-          if (isDrawing || editingAOIId || isMeasuring || activeTab === 'measure') return;
 
-          if (e.features && e.features.length > 0) {
-            const clickedId = e.features[0].properties?.id;
-            if (clickedId) {
-              if (e.originalEvent) {
-                (e.originalEvent as any).clickedOnAOI = true;
-              }
-              selectAOI(clickedId);
-              useAOIStore.getState().setActiveTab('aoi');
-            }
-          }
-        });
-
-        mapInstance.on('mouseenter', fillLayerId, () => {
-          mapInstance.getCanvas().style.cursor = 'pointer';
-        });
-
-        mapInstance.on('mouseleave', fillLayerId, () => {
-          mapInstance.getCanvas().style.cursor = '';
-        });
       } else {
         source.setData(geojson);
       }
+      arrangeLayers(mapInstance);
     } catch (err) {
       console.error('Lỗi khi cập nhật lớp AOI:', err);
     }
@@ -990,7 +1000,6 @@ export default function MapViewer() {
   // Helper to dynamically update the AI Detections overlay layer (fill + outline + label)
   const updateDetectionsLayer = (mapInstance: maplibregl.Map) => {
     if (!mapInstance.isStyleLoaded()) {
-      mapInstance.once('style.load', () => updateDetectionsLayer(mapInstance));
       return;
     }
 
@@ -1132,10 +1141,28 @@ export default function MapViewer() {
       } else {
         source.setData(geojson);
       }
+      arrangeLayers(mapInstance);
     } catch (err) {
       console.error('Lỗi khi cập nhật lớp AI Detection:', err);
     }
   };
+
+  // Refs to keep track of the latest helper functions to prevent closure staleness
+  const updateAOIsLayerRef = useRef(updateAOIsLayer);
+  const updateMeasurementsLayerRef = useRef(updateMeasurementsLayer);
+  const updateDetectionsLayerRef = useRef(updateDetectionsLayer);
+  const updateStacOverlayRef = useRef(updateStacOverlay);
+  const updateRemoteSensingOverlayRef = useRef(updateRemoteSensingOverlay);
+  const arrangeLayersRef = useRef(arrangeLayers);
+
+  useEffect(() => {
+    updateAOIsLayerRef.current = updateAOIsLayer;
+    updateMeasurementsLayerRef.current = updateMeasurementsLayer;
+    updateDetectionsLayerRef.current = updateDetectionsLayer;
+    updateStacOverlayRef.current = updateStacOverlay;
+    updateRemoteSensingOverlayRef.current = updateRemoteSensingOverlay;
+    arrangeLayersRef.current = arrangeLayers;
+  });
 
   // Initialize Map Instance
   useEffect(() => {
@@ -1147,8 +1174,7 @@ export default function MapViewer() {
     let handleMouseUp: ((e: MouseEvent) => void) | null = null;
 
     if (mapContainer.current) {
-      const isBase = selectedLayer in BASE_STYLES;
-      const initialBase = isBase ? selectedLayer : 'openfreemap';
+      const initialBase = selectedLayer in BASE_STYLES ? selectedLayer : 'openfreemap';
       activeBaseLayer.current = initialBase;
 
       map.current = new maplibregl.Map({
@@ -1695,29 +1721,6 @@ export default function MapViewer() {
       canvas.addEventListener('contextmenu', handleContextMenu);
 
       // Click on map background to deselect active AOI
-      map.current.on('click', (e) => {
-        if (!map.current) return;
-
-        // If the click was already handled by the AOI layer, do NOT deselect!
-        if (e.originalEvent && (e.originalEvent as any).clickedOnAOI) return;
-
-        // If user is drawing or editing, do NOT deselect!
-        const isDrawing = useAOIStore.getState().isDrawing;
-        const editingAOIId = useAOIStore.getState().editingAOIId;
-        const isMeasuring = useMeasurementStore.getState().isMeasuring;
-        const activeTab = useAOIStore.getState().activeTab;
-        if (isDrawing || editingAOIId || isMeasuring || activeTab === 'measure') return;
-
-        // Query if click was on any AOI feature
-        const features = map.current.queryRenderedFeatures(e.point, {
-          layers: ['aois-fill'],
-        });
-
-        // If no AOI was clicked, deselect the active AOI
-        if (features.length === 0) {
-          useAOIStore.getState().selectAOI(null);
-        }
-      });
 
       // Synchronize map movement with global state
       map.current.on('moveend', () => {
@@ -1738,6 +1741,67 @@ export default function MapViewer() {
         ]);
       });
 
+      // Persistent styledata event listener to restore all custom sources and layers when style changes or data updates
+      map.current.on('styledata', () => {
+        if (!map.current || !map.current.isStyleLoaded()) return;
+
+        // Restore custom layers/sources if they are missing
+        if (map.current.getStyle()) {
+          // STAC Overlay
+          const stacItem = useSTACStore.getState().selectedItem;
+          if (stacItem && !map.current.getSource('stac-source')) {
+            console.log('[MapViewer] Restoring STAC overlay on styledata');
+            updateStacOverlayRef.current();
+          }
+
+          // AOIs Layer
+          if (!map.current.getSource('aois-source')) {
+            console.log('[MapViewer] Restoring AOIs layer on styledata');
+            updateAOIsLayerRef.current(map.current);
+          }
+
+          // Measurements Layer
+          if (!map.current.getSource('measurements-history-source')) {
+            console.log('[MapViewer] Restoring measurements layer on styledata');
+            updateMeasurementsLayerRef.current(map.current);
+          }
+
+          // AI Detections Layer
+          if (!map.current.getSource('ai-detections-source')) {
+            console.log('[MapViewer] Restoring AI detections layer on styledata');
+            updateDetectionsLayerRef.current(map.current);
+          }
+
+          // Restore Mapbox Draw features if missing after style load
+          if (drawRef.current) {
+            const editingId = useAOIStore.getState().editingAOIId;
+            const tempGeo = useAOIStore.getState().tempGeometry;
+            if (editingId || tempGeo) {
+              const drawFeatures = drawRef.current.getAll().features;
+              if (drawFeatures.length === 0) {
+                console.log('[MapViewer] Restoring Mapbox Draw features on styledata');
+                if (editingId) {
+                  const currentAOIs = useAOIStore.getState().aois;
+                  const editingAOI = currentAOIs.find((a) => a.id === editingId);
+                  if (editingAOI) {
+                    drawRef.current.deleteAll();
+                    const featureIds = drawRef.current.add(editingAOI.geometry);
+                    const featureId = Array.isArray(featureIds) ? featureIds[0] : featureIds;
+                    drawRef.current.changeMode('direct_select', { featureId: featureId as any });
+                  }
+                } else if (tempGeo) {
+                  drawRef.current.deleteAll();
+                  drawRef.current.add(tempGeo);
+                }
+              }
+            }
+          }
+
+          // Ensure proper layer order: base-map < stac-overlay < custom-vector-layers < gl-draw-layers
+          arrangeLayersRef.current(map.current);
+        }
+      });
+
       // Synchronize initial bounding box on load
       map.current.once('load', () => {
         if (!map.current) return;
@@ -1748,24 +1812,7 @@ export default function MapViewer() {
           rawBounds.getEast(),
           rawBounds.getNorth(),
         ]);
-
-        updateAOIsLayer(map.current);
-        updateMeasurementsLayer(map.current);
-        updateDetectionsLayer(map.current);
       });
-
-      // Load initial overlay if the initial selected layer is a remote sensing one
-      if (!isBase) {
-        map.current.once('style.load', () => {
-          updateRemoteSensingOverlay();
-          updateStacOverlay();
-          if (map.current) {
-            updateAOIsLayer(map.current);
-            updateMeasurementsLayer(map.current);
-            updateDetectionsLayer(map.current);
-          }
-        });
-      }
     }
 
     return () => {
@@ -1810,34 +1857,14 @@ export default function MapViewer() {
     if (activeBaseLayer.current !== targetBase) {
       activeBaseLayer.current = targetBase;
       map.current.setStyle(BASE_STYLES[targetBase]);
-      // Wait for the style to load before applying the overlay layer
-      map.current.once('style.load', () => {
-        updateRemoteSensingOverlay();
-        updateStacOverlay();
-        if (map.current) {
-          updateAOIsLayer(map.current);
-          updateMeasurementsLayer(map.current);
-          updateDetectionsLayer(map.current);
-        }
-      });
     } else {
-      // If the base style hasn't changed, we can update the overlay immediately
+      // If the base style hasn't changed, we can update the overlay immediately using ref helpers
       if (map.current.isStyleLoaded()) {
-        updateRemoteSensingOverlay();
-        updateStacOverlay();
-        updateAOIsLayer(map.current);
-        updateMeasurementsLayer(map.current);
-        updateDetectionsLayer(map.current);
-      } else {
-        map.current.once('style.load', () => {
-          updateRemoteSensingOverlay();
-          updateStacOverlay();
-          if (map.current) {
-            updateAOIsLayer(map.current);
-            updateMeasurementsLayer(map.current);
-            updateDetectionsLayer(map.current);
-          }
-        });
+        updateRemoteSensingOverlayRef.current();
+        updateStacOverlayRef.current();
+        updateAOIsLayerRef.current(map.current);
+        updateMeasurementsLayerRef.current(map.current);
+        updateDetectionsLayerRef.current(map.current);
       }
     }
   }, [selectedLayer]);
@@ -1967,12 +1994,22 @@ export default function MapViewer() {
     }, 100);
 
     return () => clearTimeout(timer);
-  }, [aois, selectedAOIId, editingAOIId]);
+  }, [aois, selectedAOIId, selectedAOIIds, editingAOIId, activeTab, isDrawerOpen, selectedLayer, showAllAOIs]);
 
-  // Zoom to selected AOI when selectedAOIId changes
+  // Zoom to newly selected AOI
   useEffect(() => {
-    if (!map.current || !selectedAOIId) return;
-    const selectedAOI = aois.find((a) => selectedAOIId ? String(a.id).toLowerCase().trim() === String(selectedAOIId).toLowerCase().trim() : false);
+    if (!map.current) return;
+    
+    // Find newly added IDs
+    const newlyAddedId = selectedAOIIds.find(id => !prevSelectedAOIIds.current.includes(id));
+    
+    // Update ref for next trigger
+    prevSelectedAOIIds.current = selectedAOIIds;
+
+    // Only zoom if an AOI was newly selected (unselected -> selected)
+    if (!newlyAddedId) return;
+
+    const selectedAOI = aois.find((a) => String(a.id).toLowerCase().trim() === String(newlyAddedId).toLowerCase().trim());
     if (selectedAOI && selectedAOI.geometry) {
       // Calculate bounding box of coordinates
       const coords = selectedAOI.geometry.coordinates[0];
@@ -1985,13 +2022,17 @@ export default function MapViewer() {
       });
 
       if (minLng !== Infinity) {
+        const leftPadding = isDrawerOpen ? 450 : 120;
         map.current.fitBounds(
           [[minLng, minLat], [maxLng, maxLat]],
-          { padding: 120, duration: 1500 }
+          {
+            padding: { top: 120, bottom: 120, left: leftPadding, right: 120 },
+            duration: 1500
+          }
         );
       }
     }
-  }, [selectedAOIId, aois]);
+  }, [selectedAOIIds, aois]);
 
   // Listen to STAC selected item changes from the store
   useEffect(() => {

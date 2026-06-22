@@ -270,7 +270,7 @@ export default function SearchLocation() {
             className="w-full h-10 bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold rounded-xl transition-all duration-200 flex items-center justify-center space-x-2 shadow-lg shadow-sky-950/40 cursor-pointer"
           >
             <Compass className="w-4 h-4" />
-            <span>Bay đến tọa độ</span>
+            <span>Chuyển đến tọa độ</span>
           </button>
         </div>
       )}

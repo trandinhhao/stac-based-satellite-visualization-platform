@@ -47,10 +47,10 @@ def get_stac_collections():
                 "title": "Landsat-9 C2 L2 (Global - MPC)"
             })
 
-        # Manually inject PlanetScope (3m)
+        # Manually inject PlanetScope
         formatted.append({
             "id": "PSScene",
-            "title": "PlanetScope (3m - Planet)"
+            "title": "PlanetScope (Planet.com)"
         })
             
         # 3. Cache the formatted response
