@@ -355,86 +355,22 @@ const customDirectSelectMode: any = {
 // Base style definitions for standard base layers
 const BASE_STYLES: Record<string, string | maplibregl.StyleSpecification> = {
   openfreemap: 'https://tiles.openfreemap.org/styles/liberty',
-  osm: {
-    version: 8,
-    sources: {
-      'osm-tiles': {
-        type: 'raster',
-        tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
-        tileSize: 256,
-        attribution: '© OpenStreetMap contributors',
-      },
-    },
-    layers: [
-      {
-        id: 'osm-tiles',
-        type: 'raster',
-        source: 'osm-tiles',
-        minzoom: 0,
-        maxzoom: 19,
-      },
-    ],
-  },
-  'google-satellite': {
-    version: 8,
-    sources: {
-      'google-satellite': {
-        type: 'raster',
-        tiles: ['https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}'],
-        tileSize: 256,
-        attribution: '© Google Maps',
-      },
-    },
-    layers: [
-      {
-        id: 'google-satellite',
-        type: 'raster',
-        source: 'google-satellite',
-        minzoom: 0,
-        maxzoom: 20,
-      },
-    ],
-  },
-  'sentinel-2': {
-    version: 8,
-    sources: {
-      'sentinel-2-tiles': {
-        type: 'raster',
-        tiles: ['https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2023_3857/default/GoogleMapsCompatible/{z}/{y}/{x}.jpg'],
-        tileSize: 256,
-        attribution: '© Copernicus Sentinel-2 / EOX Cloudless 2023',
-      },
-    },
-    layers: [
-      {
-        id: 'sentinel-2-tiles',
-        type: 'raster',
-        source: 'sentinel-2-tiles',
-        minzoom: 0,
-        maxzoom: 18,
-      },
-    ],
-  },
-  'planet-basemap': {
-    version: 8,
-    sources: {
-      'planet-basemap-tiles': {
-        type: 'raster',
-        tiles: ['/api/stac/planet/tiles/global_monthly_2025_06_mosaic/{z}/{x}/{y}.png'],
-        tileSize: 256,
-        attribution: '© Planet Labs / Education & Research Program',
-      },
-    },
-    layers: [
-      {
-        id: 'planet-basemap-tiles',
-        type: 'raster',
-        source: 'planet-basemap-tiles',
-        minzoom: 0,
-        maxzoom: 18,
-      },
-    ],
-  },
+};
+
+const syncBaseLayerVisibility = (mapInstance: maplibregl.Map, selectedId: string) => {
+  const baseRasterLayers = {
+    'osm': 'osm-tiles',
+    'google-satellite': 'google-satellite',
+    'sentinel-2': 'sentinel-2-tiles',
+    'planet-basemap': 'planet-basemap-tiles',
+  };
+
+  Object.entries(baseRasterLayers).forEach(([id, layerId]) => {
+    if (mapInstance.getLayer(layerId)) {
+      const visibility = id === selectedId ? 'visible' : 'none';
+      mapInstance.setLayoutProperty(layerId, 'visibility', visibility);
+    }
+  });
 };
 
 
@@ -465,7 +401,7 @@ export default function MapViewer() {
   const selectObject = useDetectionStore((state) => state.selectObject);
 
   // Measurement State & Refs
-  const { isMeasuring, measureType, history, stopMeasuring } = useMeasurementStore();
+  const { isMeasuring, measureType, history, hoveredMeasurementId } = useMeasurementStore();
   const measurementMarkers = useRef<maplibregl.Marker[]>([]);
 
   const placePin = (lng: number, lat: number) => {
@@ -523,96 +459,96 @@ export default function MapViewer() {
     measurementMarkers.current = [];
   };
 
+  const deleteActiveDrawingFeature = () => {
+    if (!drawRef.current) return;
+    const historyIds = useMeasurementStore.getState().history.map((m: any) => String(m.id));
+    const activeFeature = drawRef.current.getAll().features.find(
+      (f) => (f.properties?.isMeasurement === 'true' || f.properties?.user_isMeasurement === 'true') && 
+             f.properties?.isCompleted !== 'true' && 
+             f.properties?.user_isCompleted !== 'true' && 
+             !historyIds.includes(String(f.id))
+    );
+    console.log('[DEBUG] deleteActiveDrawingFeature found:', activeFeature, 'historyIds:', historyIds);
+    if (activeFeature && activeFeature.id !== undefined) {
+      console.log('[DEBUG] deleteActiveDrawingFeature actually deleting ID:', activeFeature.id);
+      drawRef.current.delete(activeFeature.id as any);
+    }
+  };
+
   const ensureMeasurementProperties = () => {
     if (!drawRef.current || !useMeasurementStore.getState().isMeasuring) return;
     const all = drawRef.current.getAll();
     all.features.forEach((f) => {
-      if (f.id && f.properties?.isMeasurement !== 'true') {
-        drawRef.current?.setFeatureProperty(String(f.id), 'isMeasurement', 'true');
+      if (f.id && f.properties?.isMeasurement !== 'true' && f.properties?.user_isMeasurement !== 'true') {
+        drawRef.current?.setFeatureProperty(f.id as any, 'isMeasurement', 'true');
       }
     });
   };
 
-  const renderMeasurementLabels = (feature: any, cursorLngLat?: [number, number]) => {
+  const renderMeasurementLabels = (features: any[], cursorLngLat?: [number, number], activeFeatureId?: string) => {
     clearMeasurementMarkers();
     if (!map.current || !drawRef.current) return;
+    const currentMap = map.current;
 
     const mode = drawRef.current.getMode();
 
-    if (feature.geometry.type === 'LineString') {
-      let coords = [...feature.geometry.coordinates];
-      if (mode === 'draw_line_string' && cursorLngLat) {
-        coords.push(cursorLngLat);
+    features.forEach((feature) => {
+      const isFeatureActive = (feature.id === activeFeatureId);
+      const isFeatureHovered = (String(feature.id) === String(hoveredMeasurementId));
+      const markerBg = isFeatureHovered ? 'bg-amber-500' : 'bg-emerald-500';
+
+      if (feature.geometry.type === 'LineString') {
+        let coords = [...feature.geometry.coordinates];
+        const isDrawing = (mode === 'draw_line_string' && isFeatureActive);
+        if (isDrawing && cursorLngLat && coords.length > 0) {
+          coords[coords.length - 1] = cursorLngLat;
+        }
+
+        if (coords.length < 2) return;
+
+        const limit = isDrawing ? coords.length - 1 : coords.length;
+
+        // Draw circular markers at all vertices with numbers inside
+        for (let i = 0; i < limit; i++) {
+          const pt = coords[i];
+          
+          const el = document.createElement('div');
+          el.className = `flex items-center justify-center w-5 h-5 ${markerBg} border-2 border-white rounded-full text-[9px] font-black text-white shadow-[0_2px_4px_rgba(0,0,0,0.35)] pointer-events-none`;
+          el.innerText = String(i + 1);
+
+          const marker = new maplibregl.Marker({ element: el, anchor: 'center' })
+            .setLngLat(pt as [number, number])
+            .addTo(currentMap);
+          measurementMarkers.current.push(marker);
+        }
+
+      } else if (feature.geometry.type === 'Polygon') {
+        let coords = [...feature.geometry.coordinates[0]];
+        const isDrawing = (mode === 'draw_polygon' && isFeatureActive);
+        if (isDrawing && cursorLngLat && coords.length >= 2) {
+          coords[coords.length - 1] = cursorLngLat;
+          coords.push(coords[0]);
+        }
+
+        if (coords.length < 4) return;
+
+        const limit = isDrawing ? coords.length - 2 : coords.length - 1;
+
+        // Draw circular markers at all vertices of the polygon with numbers inside
+        for (let i = 0; i < limit; i++) {
+          const pt = coords[i];
+          
+          const el = document.createElement('div');
+          el.className = `flex items-center justify-center w-5 h-5 ${markerBg} border-2 border-white rounded-full text-[9px] font-black text-white shadow-[0_2px_4px_rgba(0,0,0,0.35)] pointer-events-none`;
+          el.innerText = String(i + 1);
+
+          const marker = new maplibregl.Marker({ element: el, anchor: 'center' })
+            .setLngLat(pt as [number, number])
+            .addTo(currentMap);
+          measurementMarkers.current.push(marker);
+        }
       }
-
-      if (coords.length < 2) return;
-
-      // Draw segment markers
-      for (let i = 0; i < coords.length - 1; i++) {
-        const pt1 = coords[i];
-        const pt2 = coords[i + 1];
-        const distance = turf.distance(pt1, pt2, { units: 'meters' });
-        const mid = turf.midpoint(pt1, pt2).geometry.coordinates as [number, number];
-
-        const el = document.createElement('div');
-        el.className = 'px-1.5 py-0.5 bg-slate-900/90 text-[10px] font-bold text-emerald-400 border border-emerald-500/30 rounded shadow-md pointer-events-none backdrop-blur-sm';
-        el.innerText = distance >= 1000 ? `${(distance / 1000).toFixed(2)} km` : `${distance.toFixed(0)} m`;
-
-        const marker = new maplibregl.Marker({ element: el })
-          .setLngLat(mid)
-          .addTo(map.current);
-        measurementMarkers.current.push(marker);
-      }
-
-      // Draw cumulative distance marker at the last vertex
-      const totalLen = turf.length(turf.lineString(coords), { units: 'meters' });
-      const lastPt = coords[coords.length - 1] as [number, number];
-      const el = document.createElement('div');
-      el.className = 'px-2 py-1 bg-emerald-500 text-[11px] font-black text-slate-950 border border-white/40 rounded-md shadow-lg pointer-events-none flex items-center space-x-1';
-      el.innerHTML = `<span>🚩</span> <span>${totalLen >= 1000 ? `${(totalLen / 1000).toFixed(2)} km` : `${totalLen.toFixed(0)} m`}</span>`;
-
-      const marker = new maplibregl.Marker({ element: el })
-        .setLngLat(lastPt)
-        .addTo(map.current);
-      measurementMarkers.current.push(marker);
-
-    } else if (feature.geometry.type === 'Polygon') {
-      let coords = [...feature.geometry.coordinates[0]];
-      if (mode === 'draw_polygon' && cursorLngLat && coords.length >= 2) {
-        coords[coords.length - 1] = cursorLngLat;
-        coords.push(coords[0]);
-      }
-
-      if (coords.length < 4) return;
-
-      const poly = turf.polygon([coords]);
-      const area = turf.area(poly);
-      const perimeter = turf.length(turf.lineString(coords), { units: 'meters' });
-      let center: [number, number];
-      try {
-        center = turf.centroid(poly).geometry.coordinates as [number, number];
-      } catch {
-        center = coords[0] as [number, number];
-      }
-
-      const el = document.createElement('div');
-      el.className = 'px-2 py-1.5 bg-slate-900/90 border border-emerald-500/40 rounded-lg shadow-xl pointer-events-none text-center backdrop-blur-sm min-w-[90px] flex flex-col space-y-0.5';
-      const formattedArea = area >= 1000000 
-        ? `${(area / 1000000).toFixed(2)} km²` 
-        : area >= 10000 
-          ? `${(area / 10000).toFixed(2)} ha` 
-          : `${area.toFixed(0)} m²`;
-      const formattedPerim = perimeter >= 1000 ? `${(perimeter / 1000).toFixed(2)} km` : `${perimeter.toFixed(0)} m`;
-      el.innerHTML = `
-        <div class="text-[11px] font-black text-emerald-400">${formattedArea}</div>
-        <div class="text-[9px] font-semibold text-slate-400 border-t border-slate-800/80 pt-0.5">CV: ${formattedPerim}</div>
-      `;
-
-      const marker = new maplibregl.Marker({ element: el })
-        .setLngLat(center)
-        .addTo(map.current);
-      measurementMarkers.current.push(marker);
-    }
+    });
   };
 
   const updateMeasurementCalculations = (cursorLngLat?: [number, number]) => {
@@ -625,165 +561,152 @@ export default function MapViewer() {
     }
 
     const all = drawRef.current.getAll();
-    const measurementFeature = all.features.find(
+    const measurementFeatures = all.features.filter(
       (f) => f.properties?.isMeasurement === 'true' || f.properties?.user_isMeasurement === 'true'
     );
 
-    if (!measurementFeature) {
+    if (measurementFeatures.length === 0) {
       clearMeasurementMarkers();
+      useMeasurementStore.getState().setCurrentMeasurement(null);
       return;
     }
 
     const mode = drawRef.current.getMode();
+    let activeFeatureId: string | undefined = undefined;
+    let activeFeature = null;
 
-    if (measurementFeature.geometry.type === 'LineString') {
-      let coords = [...measurementFeature.geometry.coordinates];
-      if (mode === 'draw_line_string' && cursorLngLat) {
-        coords.push(cursorLngLat);
-      }
-
-      if (coords.length < 2) {
-        clearMeasurementMarkers();
-        return;
-      }
-
-      const totalLen = turf.length(turf.lineString(coords), { units: 'meters' });
-      const current = useMeasurementStore.getState().currentMeasurement;
-      
-      useMeasurementStore.getState().setCurrentMeasurement({
-        id: (measurementFeature.id as string) || current?.id || Math.random().toString(36).substring(7),
-        name: current?.name || '',
-        type: 'distance',
-        value: totalLen,
-        geometry: {
-          type: 'LineString',
-          coordinates: coords
-        },
-        created_at: current?.created_at || new Date().toISOString()
-      });
-
-      renderMeasurementLabels(measurementFeature, cursorLngLat);
-
-    } else if (measurementFeature.geometry.type === 'Polygon') {
-      let coords = [...measurementFeature.geometry.coordinates[0]];
-      if (mode === 'draw_polygon' && cursorLngLat && coords.length >= 2) {
-        coords[coords.length - 1] = cursorLngLat;
-        coords.push(coords[0]);
-      }
-
-      if (coords.length < 4) {
-        clearMeasurementMarkers();
-        return;
-      }
-
-      const poly = turf.polygon([coords]);
-      const area = turf.area(poly);
-      const perimeter = turf.length(turf.lineString(coords), { units: 'meters' });
-      const current = useMeasurementStore.getState().currentMeasurement;
-
-      useMeasurementStore.getState().setCurrentMeasurement({
-        id: (measurementFeature.id as string) || current?.id || Math.random().toString(36).substring(7),
-        name: current?.name || '',
-        type: 'area',
-        value: area,
-        perimeter: perimeter,
-        geometry: {
-          type: 'Polygon',
-          coordinates: [coords]
-        },
-        created_at: current?.created_at || new Date().toISOString()
-      });
-
-      renderMeasurementLabels(measurementFeature, cursorLngLat);
+    if (mode === 'draw_line_string' || mode === 'draw_polygon') {
+      const historyIds = useMeasurementStore.getState().history.map((m: any) => String(m.id));
+      activeFeature = measurementFeatures.find(f => !historyIds.includes(String(f.id)));
+      activeFeatureId = activeFeature?.id ? String(activeFeature.id) : undefined;
+    } else {
+      const selectedId = drawRef.current.getSelectedIds()[0];
+      activeFeatureId = selectedId ? String(selectedId) : undefined;
+      activeFeature = measurementFeatures.find(f => f.id === activeFeatureId);
     }
+
+    // If we have an active feature and we are in active drawing mode, update currentMeasurement in store
+    if (activeFeature && (mode === 'draw_line_string' || mode === 'draw_polygon')) {
+      if (activeFeature.geometry.type === 'LineString') {
+        let coords = [...activeFeature.geometry.coordinates];
+        if (cursorLngLat && coords.length > 0) {
+          coords[coords.length - 1] = cursorLngLat;
+        }
+
+        if (coords.length >= 2) {
+          const totalLen = turf.length(turf.lineString(coords), { units: 'meters' });
+          useMeasurementStore.getState().setCurrentMeasurement({
+            id: String(activeFeature.id),
+            name: 'Đo khoảng cách hiện tại',
+            type: 'distance',
+            value: totalLen,
+            geometry: {
+              type: 'LineString',
+              coordinates: coords
+            },
+            isDrawing: true,
+            created_at: new Date().toISOString()
+          });
+        }
+      } else if (activeFeature.geometry.type === 'Polygon') {
+        let coords = [...activeFeature.geometry.coordinates[0]];
+        if (cursorLngLat && coords.length >= 2) {
+          coords[coords.length - 1] = cursorLngLat;
+          coords.push(coords[0]);
+        }
+
+        if (coords.length >= 4) {
+          const poly = turf.polygon([coords]);
+          const area = turf.area(poly);
+          const perimeter = turf.length(turf.lineString(coords), { units: 'meters' });
+          useMeasurementStore.getState().setCurrentMeasurement({
+            id: String(activeFeature.id),
+            name: 'Đo diện tích hiện tại',
+            type: 'area',
+            value: area,
+            perimeter: perimeter,
+            geometry: {
+              type: 'Polygon',
+              coordinates: [coords]
+            },
+            isDrawing: true,
+            created_at: new Date().toISOString()
+          });
+        }
+      }
+    } else {
+      // Not drawing, clear currentMeasurement
+      useMeasurementStore.getState().setCurrentMeasurement(null);
+    }
+
+    // Combine active features in Mapbox Draw and completed features in history for rendering labels
+    const historyFeatures = useMeasurementStore.getState().history.map((m) => ({
+      type: 'Feature' as const,
+      id: m.id,
+      geometry: m.geometry,
+      properties: {
+        isMeasurement: 'true',
+        isCompleted: 'true',
+      },
+    }));
+
+    const featuresToLabel = [
+      ...historyFeatures,
+      ...measurementFeatures,
+    ];
+
+    renderMeasurementLabels(featuresToLabel, cursorLngLat, activeFeatureId);
   };
 
-  const updateMeasurementsLayer = (mapInstance: maplibregl.Map) => {
-    if (!mapInstance.isStyleLoaded()) {
-      return;
-    }
 
-    try {
-      const sourceId = 'measurements-history-source';
-      const fillLayerId = 'measurements-history-fill';
-      const outlineLayerId = 'measurements-history-outline';
-      
-      const history = useMeasurementStore.getState().history;
-
-      const features = history.map((item) => ({
-        type: 'Feature',
-        id: item.id,
-        geometry: item.geometry,
-        properties: {
-          id: item.id,
-          name: item.name,
-          type: item.type,
-        },
-      }));
-
-      const geojson: any = {
-        type: 'FeatureCollection',
-        features,
-      };
-
-      const source = mapInstance.getSource(sourceId) as maplibregl.GeoJSONSource;
-      if (!source) {
-        mapInstance.addSource(sourceId, {
-          type: 'geojson',
-          data: geojson,
-        });
-
-        mapInstance.addLayer({
-          id: fillLayerId,
-          type: 'fill',
-          source: sourceId,
-          filter: ['==', ['geometry-type'], 'Polygon'],
-          paint: {
-            'fill-color': '#10b981',
-            'fill-opacity': 0.08,
-          },
-        });
-
-        mapInstance.addLayer({
-          id: outlineLayerId,
-          type: 'line',
-          source: sourceId,
-          paint: {
-            'line-color': '#10b981',
-            'line-width': 3,
-          },
-        });
-      } else {
-        source.setData(geojson);
-      }
-      arrangeLayers(mapInstance);
-    } catch (err) {
-      console.error('Lỗi khi cập nhật lớp lịch sử đo đạc:', err);
-    }
-  };
 
   // Helper to arrange layer order: base-map < stac-overlay < custom-vector-layers < gl-draw-layers
   const arrangeLayers = (mapInstance: maplibregl.Map) => {
-    if (!mapInstance.isStyleLoaded()) return;
+    if (!mapInstance.getStyle() || !mapInstance.getStyle().layers) return;
 
     try {
       const layers = mapInstance.getStyle().layers || [];
       const layerIds = layers.map(l => l.id);
 
+      const baseRasterLayers = ['osm-tiles', 'google-satellite', 'sentinel-2-tiles', 'planet-basemap-tiles'];
+      const customLayers = [
+        'stac-overlay',
+        'completed-measurements-fill',
+        'completed-measurements-line',
+        'aois-fill',
+        'aois-outline',
+        'ai-detections-fill',
+        'ai-detections-outline',
+        'ai-detections-label'
+      ];
+
+      const firstCustomLayer = layers.find(l => 
+        customLayers.includes(l.id) || l.id.startsWith('gl-draw-')
+      );
+
+      if (firstCustomLayer) {
+        baseRasterLayers.forEach(baseId => {
+          if (layerIds.includes(baseId) && mapInstance.getLayer(baseId)) {
+            mapInstance.moveLayer(baseId, firstCustomLayer.id);
+          }
+        });
+      }
+
       const hasStac = layerIds.includes('stac-overlay');
       if (hasStac) {
-        const customVectorLayers = [
-          'aois-fill',
-          'aois-outline',
-          'measurements-history-fill',
-          'measurements-history-outline',
-          'ai-detections-fill',
-          'ai-detections-outline',
-          'ai-detections-label'
-        ];
-
         const firstVectorLayer = layers.find(l => 
-          customVectorLayers.includes(l.id) || l.id.startsWith('gl-draw-')
+          l.id !== 'stac-overlay' && (
+            [
+              'completed-measurements-fill',
+              'completed-measurements-line',
+              'aois-fill',
+              'aois-outline',
+              'ai-detections-fill',
+              'ai-detections-outline',
+              'ai-detections-label'
+            ].includes(l.id) || 
+            l.id.startsWith('gl-draw-')
+          )
         );
 
         if (firstVectorLayer && firstVectorLayer.id !== 'stac-overlay') {
@@ -798,7 +721,7 @@ export default function MapViewer() {
 
   // Helper to dynamically render STAC image overlay
   const updateStacOverlay = () => {
-    if (!map.current || !map.current.isStyleLoaded()) {
+    if (!map.current || !map.current.getStyle()) {
       return;
     }
 
@@ -860,8 +783,6 @@ export default function MapViewer() {
           const vectorLayers = [
             'aois-fill',
             'aois-outline',
-            'measurements-history-fill',
-            'measurements-history-outline',
             'ai-detections-fill',
             'ai-detections-outline',
             'ai-detections-label'
@@ -890,9 +811,137 @@ export default function MapViewer() {
     // Deprecated: Remote sensing layers are now configured as full base styles in BASE_STYLES.
   };
 
+  // Helper to dynamically update the completed measurements layer
+  const updateCompletedMeasurementsLayer = (mapInstance: maplibregl.Map, forceRecreate = false) => {
+    if (!mapInstance.getStyle()) {
+      console.log('[DEBUG] completed layer: style not initialized yet');
+      return;
+    }
+
+    try {
+      const sourceId = 'completed-measurements-source';
+      const fillLayerId = 'completed-measurements-fill';
+      const lineLayerId = 'completed-measurements-line';
+
+      if (forceRecreate) {
+        console.log('[DEBUG] completed layer: forcing recreate of source and layers');
+        if (mapInstance.getLayer(fillLayerId)) mapInstance.removeLayer(fillLayerId);
+        if (mapInstance.getLayer(lineLayerId)) mapInstance.removeLayer(lineLayerId);
+        if (mapInstance.getSource(sourceId)) mapInstance.removeSource(sourceId);
+      }
+
+      const features = activeTab === 'measure'
+        ? history.map((m) => ({
+            type: 'Feature',
+            id: m.id,
+            geometry: m.geometry,
+            properties: {
+              id: m.id,
+              type: m.type,
+              isMeasurement: 'true',
+              isCompleted: 'true',
+            },
+          }))
+        : [];
+
+      console.log('[DEBUG] completed layer: updating. activeTab =', activeTab, 'history length =', history.length, 'features count =', features.length);
+      if (features.length > 0) {
+        console.log('[DEBUG] completed layer first feature geometry:', JSON.stringify(features[0].geometry));
+      }
+
+      const geojson: any = {
+        type: 'FeatureCollection',
+        features,
+      };
+
+      const source = mapInstance.getSource(sourceId) as maplibregl.GeoJSONSource;
+      if (!source) {
+        console.log('[DEBUG] completed layer: creating source and layers');
+        mapInstance.addSource(sourceId, {
+          type: 'geojson',
+          data: geojson,
+        });
+
+        // Polygon Fill Layer
+        mapInstance.addLayer({
+          id: fillLayerId,
+          type: 'fill',
+          source: sourceId,
+          filter: ['==', '$type', 'Polygon'],
+          paint: {
+            'fill-color': [
+              'case',
+              ['==', ['get', 'id'], hoveredMeasurementId || ''],
+              '#f59e0b',
+              '#10b981'
+            ],
+            'fill-opacity': [
+              'case',
+              ['==', ['get', 'id'], hoveredMeasurementId || ''],
+              0.25,
+              0.12
+            ],
+          },
+        });
+
+        // Line Stroke Layer (for both LineStrings and Polygon boundaries)
+        mapInstance.addLayer({
+          id: lineLayerId,
+          type: 'line',
+          source: sourceId,
+          layout: {
+            'line-cap': 'round',
+            'line-join': 'round',
+          },
+          paint: {
+            'line-color': [
+              'case',
+              ['==', ['get', 'id'], hoveredMeasurementId || ''],
+              '#f59e0b',
+              '#10b981'
+            ],
+            'line-width': 4.5,
+          },
+        });
+      } else {
+        console.log('[DEBUG] completed layer: calling source.setData');
+        source.setData(geojson);
+        
+        // Dynamically update paint properties to reflect hover highlight state
+        if (mapInstance.getLayer(fillLayerId)) {
+          mapInstance.setPaintProperty(fillLayerId, 'fill-color', [
+            'case',
+            ['==', ['get', 'id'], hoveredMeasurementId || ''],
+            '#f59e0b',
+            '#10b981'
+          ]);
+          mapInstance.setPaintProperty(fillLayerId, 'fill-opacity', [
+            'case',
+            ['==', ['get', 'id'], hoveredMeasurementId || ''],
+            0.25,
+            0.12
+          ]);
+        }
+        if (mapInstance.getLayer(lineLayerId)) {
+          mapInstance.setPaintProperty(lineLayerId, 'line-color', [
+            'case',
+            ['==', ['get', 'id'], hoveredMeasurementId || ''],
+            '#f59e0b',
+            '#10b981'
+          ]);
+        }
+      }
+      const currentLayers = mapInstance.getStyle().layers || [];
+      console.log('[DEBUG] completed layer: all style layers on map:', currentLayers.map(l => l.id));
+      arrangeLayers(mapInstance);
+    } catch (err) {
+      console.error('[MapViewer] Error updating completed measurements layer:', err);
+    }
+  };
+
   // Helper to dynamically update the AOIs overlay layer (fill + outline)
-  const updateAOIsLayer = (mapInstance: maplibregl.Map) => {
-    if (!mapInstance.isStyleLoaded()) {
+  const updateAOIsLayer = (mapInstance: maplibregl.Map, forceRecreate = false) => {
+    if (!mapInstance.getStyle()) {
       return;
     }
 
@@ -900,6 +949,12 @@ export default function MapViewer() {
       const sourceId = 'aois-source';
       const fillLayerId = 'aois-fill';
       const outlineLayerId = 'aois-outline';
+
+      if (forceRecreate) {
+        if (mapInstance.getLayer(fillLayerId)) mapInstance.removeLayer(fillLayerId);
+        if (mapInstance.getLayer(outlineLayerId)) mapInstance.removeLayer(outlineLayerId);
+        if (mapInstance.getSource(sourceId)) mapInstance.removeSource(sourceId);
+      }
 
       // Hide the AOI that is currently being edited so it doesn't double-render
       // We filter it out in JS using a bulletproof string-cast comparison, and also pass isEditing just in case
@@ -998,8 +1053,8 @@ export default function MapViewer() {
   };
 
   // Helper to dynamically update the AI Detections overlay layer (fill + outline + label)
-  const updateDetectionsLayer = (mapInstance: maplibregl.Map) => {
-    if (!mapInstance.isStyleLoaded()) {
+  const updateDetectionsLayer = (mapInstance: maplibregl.Map, forceRecreate = false) => {
+    if (!mapInstance.getStyle()) {
       return;
     }
 
@@ -1008,6 +1063,13 @@ export default function MapViewer() {
       const fillLayerId = 'ai-detections-fill';
       const outlineLayerId = 'ai-detections-outline';
       const labelLayerId = 'ai-detections-label';
+
+      if (forceRecreate) {
+        if (mapInstance.getLayer(fillLayerId)) mapInstance.removeLayer(fillLayerId);
+        if (mapInstance.getLayer(outlineLayerId)) mapInstance.removeLayer(outlineLayerId);
+        if (mapInstance.getLayer(labelLayerId)) mapInstance.removeLayer(labelLayerId);
+        if (mapInstance.getSource(sourceId)) mapInstance.removeSource(sourceId);
+      }
 
       const features = detections.map((det, index) => {
         const [xmin, ymin, xmax, ymax] = det.bbox;
@@ -1149,18 +1211,18 @@ export default function MapViewer() {
 
   // Refs to keep track of the latest helper functions to prevent closure staleness
   const updateAOIsLayerRef = useRef(updateAOIsLayer);
-  const updateMeasurementsLayerRef = useRef(updateMeasurementsLayer);
   const updateDetectionsLayerRef = useRef(updateDetectionsLayer);
   const updateStacOverlayRef = useRef(updateStacOverlay);
   const updateRemoteSensingOverlayRef = useRef(updateRemoteSensingOverlay);
+  const updateCompletedMeasurementsLayerRef = useRef(updateCompletedMeasurementsLayer);
   const arrangeLayersRef = useRef(arrangeLayers);
 
   useEffect(() => {
     updateAOIsLayerRef.current = updateAOIsLayer;
-    updateMeasurementsLayerRef.current = updateMeasurementsLayer;
     updateDetectionsLayerRef.current = updateDetectionsLayer;
     updateStacOverlayRef.current = updateStacOverlay;
     updateRemoteSensingOverlayRef.current = updateRemoteSensingOverlay;
+    updateCompletedMeasurementsLayerRef.current = updateCompletedMeasurementsLayer;
     arrangeLayersRef.current = arrangeLayers;
   });
 
@@ -1417,7 +1479,7 @@ export default function MapViewer() {
           {
             'id': 'gl-draw-polygon-stroke-measurement-drawing',
             'type': 'line',
-            'filter': ['all', ['==', '$type', 'Polygon'], ['==', 'user_isMeasurement', 'true'], ['==', 'mode', 'draw_polygon']],
+            'filter': ['all', ['==', '$type', 'Polygon'], ['==', 'user_isMeasurement', 'true'], ['!=', 'user_isCompleted', 'true']],
             'layout': {
               'line-cap': 'round',
               'line-join': 'round'
@@ -1426,6 +1488,19 @@ export default function MapViewer() {
               'line-color': '#10b981',
               'line-width': 4.5,
               'line-dasharray': [2, 2]
+            }
+          },
+          {
+            'id': 'gl-draw-polygon-stroke-measurement-completed',
+            'type': 'line',
+            'filter': ['all', ['==', '$type', 'Polygon'], ['==', 'user_isMeasurement', 'true'], ['==', 'user_isCompleted', 'true']],
+            'layout': {
+              'line-cap': 'round',
+              'line-join': 'round'
+            },
+            'paint': {
+              'line-color': '#10b981',
+              'line-width': 4.5
             }
           },
           {
@@ -1457,7 +1532,7 @@ export default function MapViewer() {
           {
             'id': 'gl-draw-line-measurement-drawing',
             'type': 'line',
-            'filter': ['all', ['==', '$type', 'LineString'], ['==', 'user_isMeasurement', 'true'], ['==', 'mode', 'draw_line_string']],
+            'filter': ['all', ['==', '$type', 'LineString'], ['==', 'user_isMeasurement', 'true'], ['!=', 'user_isCompleted', 'true']],
             'layout': {
               'line-cap': 'round',
               'line-join': 'round'
@@ -1466,6 +1541,19 @@ export default function MapViewer() {
               'line-color': '#10b981',
               'line-width': 4.5,
               'line-dasharray': [2, 2]
+            }
+          },
+          {
+            'id': 'gl-draw-line-measurement-completed',
+            'type': 'line',
+            'filter': ['all', ['==', '$type', 'LineString'], ['==', 'user_isMeasurement', 'true'], ['==', 'user_isCompleted', 'true']],
+            'layout': {
+              'line-cap': 'round',
+              'line-join': 'round'
+            },
+            'paint': {
+              'line-color': '#10b981',
+              'line-width': 4.5
             }
           },
           {
@@ -1508,30 +1596,53 @@ export default function MapViewer() {
       const handleDrawCreate = async (e: any) => {
         if (e.features && e.features.length > 0) {
           const feature = e.features[0];
+          console.log('[DEBUG] handleDrawCreate triggered with feature:', feature);
           const isMeasuring = useMeasurementStore.getState().isMeasuring;
 
           if (isMeasuring) {
             // Set the feature property
             if (drawRef.current) {
-              drawRef.current.setFeatureProperty(String(feature.id), 'isMeasurement', 'true');
+              console.log('[DEBUG] handleDrawCreate setting isMeasurement=true on ID:', feature.id);
+              drawRef.current.setFeatureProperty(feature.id as any, 'isMeasurement', 'true');
             }
 
             try {
+              console.log('[DEBUG] handleDrawCreate calling api.post("/measure")');
               const response = await api.post('/measure', { geometry: feature.geometry });
               const data = response.data;
+              console.log('[DEBUG] handleDrawCreate API response:', data);
 
-              const current = useMeasurementStore.getState().currentMeasurement;
-              useMeasurementStore.getState().setCurrentMeasurement({
-                id: (feature.id as string) || Math.random().toString(36).substring(7),
-                name: current?.name || '',
-                type: data.type === 'distance' ? 'distance' : 'area',
+              // Mark as completed in Mapbox Draw immediately
+              if (drawRef.current) {
+                console.log('[DEBUG] handleDrawCreate setting isCompleted=true on ID:', feature.id);
+                drawRef.current.setFeatureProperty(feature.id as any, 'isCompleted', 'true');
+              }
+
+              // Save to completed measurements list (history) in store
+              const completedMeasurement = {
+                id: feature.id ? String(feature.id) : Math.random().toString(36).substring(7),
+                name: data.type === 'distance'
+                  ? `Đo khoảng cách #${useMeasurementStore.getState().history.filter((m: any) => m.type === 'distance').length + 1}`
+                  : `Đo diện tích #${useMeasurementStore.getState().history.filter((m: any) => m.type === 'area').length + 1}`,
+                type: data.type === 'distance' ? ('distance' as const) : ('area' as const),
                 value: data.type === 'distance' ? data.distance : data.area,
                 perimeter: data.type === 'area' ? data.perimeter : undefined,
                 geometry: feature.geometry,
+                isDrawing: false,
                 created_at: new Date().toISOString()
-              });
+              };
+              useMeasurementStore.getState().addCompletedMeasurement(completedMeasurement);
 
-              renderMeasurementLabels(feature);
+              // Delete the temporary active drawing from Mapbox Draw since it is now saved in history and rendered by Maplibre GL
+              if (drawRef.current) {
+                console.log('[DEBUG] handleDrawCreate deleting active drawing feature from Draw:', feature.id);
+                drawRef.current.delete(feature.id as any);
+              }
+              
+              // Stop measuring and deactivate button on sidebar tab upon completion
+              setTimeout(() => {
+                useMeasurementStore.getState().stopMeasuring();
+              }, 50);
             } catch (err) {
               console.error('Error fetching backend measurement:', err);
               updateMeasurementCalculations();
@@ -1558,18 +1669,44 @@ export default function MapViewer() {
               const response = await api.post('/measure', { geometry: feature.geometry });
               const data = response.data;
 
-              const current = useMeasurementStore.getState().currentMeasurement;
-              useMeasurementStore.getState().setCurrentMeasurement({
-                id: (feature.id as string) || current?.id || Math.random().toString(36).substring(7),
-                name: current?.name || '',
-                type: data.type === 'distance' ? 'distance' : 'area',
+              // Ensure completed status is preserved if editing a completed shape
+              if (drawRef.current) {
+                const inHistory = useMeasurementStore.getState().history.some((m: any) => String(m.id) === String(feature.id));
+                if (inHistory) {
+                  drawRef.current.setFeatureProperty(feature.id as any, 'isCompleted', 'true');
+                }
+              }
+
+              const updatedMeasurement = {
+                id: feature.id ? String(feature.id) : Math.random().toString(36).substring(7),
+                name: '', // Will be replaced/kept
+                type: data.type === 'distance' ? ('distance' as const) : ('area' as const),
                 value: data.type === 'distance' ? data.distance : data.area,
                 perimeter: data.type === 'area' ? data.perimeter : undefined,
                 geometry: feature.geometry,
-                created_at: current?.created_at || new Date().toISOString()
-              });
+                isDrawing: false,
+                created_at: new Date().toISOString()
+              };
 
-              renderMeasurementLabels(feature);
+              const inHistory = useMeasurementStore.getState().history.some((m: any) => String(m.id) === updatedMeasurement.id);
+              if (inHistory) {
+                useMeasurementStore.setState((state: any) => ({
+                  history: state.history.map((m: any) => {
+                    if (m.id === updatedMeasurement.id) {
+                      return {
+                        ...updatedMeasurement,
+                        name: m.name,
+                        created_at: m.created_at
+                      };
+                    }
+                    return m;
+                  })
+                }));
+              } else {
+                useMeasurementStore.getState().setCurrentMeasurement(updatedMeasurement);
+              }
+
+              updateMeasurementCalculations();
             } catch (err) {
               console.error('Error updating backend measurement:', err);
               updateMeasurementCalculations();
@@ -1639,7 +1776,11 @@ export default function MapViewer() {
           useMapStore.getState().setSearchPin(null);
         }
         const isMeasuring = useMeasurementStore.getState().isMeasuring;
-        if (isMeasuring) {
+        if (isMeasuring && drawRef.current) {
+          const mode = drawRef.current.getMode();
+          if (mode === 'simple_select' || mode === 'direct_select') {
+            return;
+          }
           ensureMeasurementProperties();
           updateMeasurementCalculations();
         }
@@ -1689,24 +1830,28 @@ export default function MapViewer() {
           return;
         }
 
+        const isMeasuring = useMeasurementStore.getState().isMeasuring;
+        if (isMeasuring) {
+          useMeasurementStore.getState().stopMeasuring();
+          console.log('[Draw] Measurement cancelled and stopped via Canvas Right Click');
+          return;
+        }
+
+        const editingAOIId = useAOIStore.getState().editingAOIId;
+        
         let isDrawingMode = false;
         if (drawRef.current) {
           const mode = drawRef.current.getMode();
-          if (mode.startsWith('draw_')) {
+          if (mode.startsWith('draw_') || (editingAOIId && mode === 'direct_select')) {
             isDrawingMode = true;
             drawRef.current.changeMode('simple_select');
             drawRef.current.deleteAll();
             
-            const isMeasuring = useMeasurementStore.getState().isMeasuring;
-            if (isMeasuring) {
-              useMeasurementStore.getState().stopMeasuring();
-              clearMeasurementMarkers();
-            } else {
-              useAOIStore.getState().setDrawing(false);
-              useAOIStore.getState().setDrawType(null);
-              useAOIStore.getState().setTempGeometry(null);
-            }
-            console.log('[Draw] Drawing cancelled via Canvas Right Click');
+            useAOIStore.getState().setDrawing(false);
+            useAOIStore.getState().setDrawType(null);
+            useAOIStore.getState().setTempGeometry(null);
+            useAOIStore.getState().setEditingAOI(null);
+            console.log('[Draw] AOI Drawing/Editing cancelled via Canvas Right Click');
           }
         }
         
@@ -1749,62 +1894,89 @@ export default function MapViewer() {
         if (map.current.getStyle()) {
           // STAC Overlay
           const stacItem = useSTACStore.getState().selectedItem;
-          if (stacItem && !map.current.getSource('stac-source')) {
+          if (stacItem && (!map.current.getSource('stac-source') || !map.current.getLayer('stac-overlay'))) {
             console.log('[MapViewer] Restoring STAC overlay on styledata');
             updateStacOverlayRef.current();
           }
 
           // AOIs Layer
-          if (!map.current.getSource('aois-source')) {
+          if (!map.current.getSource('aois-source') || !map.current.getLayer('aois-fill') || !map.current.getLayer('aois-outline')) {
             console.log('[MapViewer] Restoring AOIs layer on styledata');
-            updateAOIsLayerRef.current(map.current);
+            updateAOIsLayerRef.current(map.current, true);
           }
 
-          // Measurements Layer
-          if (!map.current.getSource('measurements-history-source')) {
-            console.log('[MapViewer] Restoring measurements layer on styledata');
-            updateMeasurementsLayerRef.current(map.current);
+          // Completed Measurements Layer
+          if (!map.current.getSource('completed-measurements-source') || !map.current.getLayer('completed-measurements-fill') || !map.current.getLayer('completed-measurements-line')) {
+            console.log('[MapViewer] Restoring completed measurements layer on styledata');
+            updateCompletedMeasurementsLayerRef.current(map.current, true);
           }
 
           // AI Detections Layer
-          if (!map.current.getSource('ai-detections-source')) {
+          if (!map.current.getSource('ai-detections-source') || !map.current.getLayer('ai-detections-fill') || !map.current.getLayer('ai-detections-outline') || !map.current.getLayer('ai-detections-label')) {
             console.log('[MapViewer] Restoring AI detections layer on styledata');
-            updateDetectionsLayerRef.current(map.current);
+            updateDetectionsLayerRef.current(map.current, true);
           }
 
-          // Restore Mapbox Draw features if missing after style load
-          if (drawRef.current) {
-            const editingId = useAOIStore.getState().editingAOIId;
-            const tempGeo = useAOIStore.getState().tempGeometry;
-            if (editingId || tempGeo) {
-              const drawFeatures = drawRef.current.getAll().features;
-              if (drawFeatures.length === 0) {
-                console.log('[MapViewer] Restoring Mapbox Draw features on styledata');
-                if (editingId) {
-                  const currentAOIs = useAOIStore.getState().aois;
-                  const editingAOI = currentAOIs.find((a) => a.id === editingId);
-                  if (editingAOI) {
-                    drawRef.current.deleteAll();
-                    const featureIds = drawRef.current.add(editingAOI.geometry);
-                    const featureId = Array.isArray(featureIds) ? featureIds[0] : featureIds;
-                    drawRef.current.changeMode('direct_select', { featureId: featureId as any });
-                  }
-                } else if (tempGeo) {
-                  drawRef.current.deleteAll();
-                  drawRef.current.add(tempGeo);
-                }
-              }
-            }
-          }
-
-          // Ensure proper layer order: base-map < stac-overlay < custom-vector-layers < gl-draw-layers
+          // Ensure proper layer order
           arrangeLayersRef.current(map.current);
         }
       });
 
-      // Synchronize initial bounding box on load
+      // Synchronize initial bounding box on load and initialize base raster layers
       map.current.once('load', () => {
         if (!map.current) return;
+
+        const rasterSources = {
+          'osm-tiles': {
+            type: 'raster',
+            tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+            tileSize: 256,
+            attribution: '© OpenStreetMap contributors',
+          },
+          'google-satellite': {
+            type: 'raster',
+            tiles: ['https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}'],
+            tileSize: 256,
+            attribution: '© Google Maps',
+          },
+          'sentinel-2-tiles': {
+            type: 'raster',
+            tiles: ['https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2023_3857/default/GoogleMapsCompatible/{z}/{y}/{x}.jpg'],
+            tileSize: 256,
+            attribution: '© Copernicus Sentinel-2 / EOX Cloudless 2023',
+          },
+          'planet-basemap-tiles': {
+            type: 'raster',
+            tiles: ['/api/stac/planet/tiles/global_monthly_2025_06_mosaic/{z}/{x}/{y}.png'],
+            tileSize: 256,
+            attribution: '© Planet Labs / Education & Research Program',
+          },
+        };
+
+        Object.entries(rasterSources).forEach(([sourceId, sourceConfig]) => {
+          if (!map.current) return;
+          if (!map.current.getSource(sourceId)) {
+            map.current.addSource(sourceId, sourceConfig as any);
+          }
+          if (!map.current.getLayer(sourceId)) {
+            map.current.addLayer({
+              id: sourceId,
+              type: 'raster',
+              source: sourceId,
+              layout: {
+                visibility: 'none',
+              },
+              paint: {
+                'raster-opacity': 1.0,
+              },
+            });
+          }
+        });
+
+        // Set initial base layer visibility
+        const currentSelectedLayer = useMapStore.getState().selectedLayer;
+        syncBaseLayerVisibility(map.current, currentSelectedLayer);
+
         const rawBounds = map.current.getBounds();
         useSTACStore.getState().setBbox([
           rawBounds.getWest(),
@@ -1812,6 +1984,9 @@ export default function MapViewer() {
           rawBounds.getEast(),
           rawBounds.getNorth(),
         ]);
+
+        updateCompletedMeasurementsLayerRef.current(map.current);
+        arrangeLayersRef.current(map.current);
       });
     }
 
@@ -1849,24 +2024,8 @@ export default function MapViewer() {
   // Listen to layer changes from the Zustand store
   useEffect(() => {
     if (!map.current) return;
-
-    const isBase = selectedLayer in BASE_STYLES;
-    const targetBase = isBase ? selectedLayer : activeBaseLayer.current;
-
-    // Camera coordinates and zoom are 100% preserved. No flyTo movements.
-    if (activeBaseLayer.current !== targetBase) {
-      activeBaseLayer.current = targetBase;
-      map.current.setStyle(BASE_STYLES[targetBase]);
-    } else {
-      // If the base style hasn't changed, we can update the overlay immediately using ref helpers
-      if (map.current.isStyleLoaded()) {
-        updateRemoteSensingOverlayRef.current();
-        updateStacOverlayRef.current();
-        updateAOIsLayerRef.current(map.current);
-        updateMeasurementsLayerRef.current(map.current);
-        updateDetectionsLayerRef.current(map.current);
-      }
-    }
+    syncBaseLayerVisibility(map.current, selectedLayer);
+    arrangeLayersRef.current(map.current);
   }, [selectedLayer]);
 
   // Listen to detections and selectedObject changes to update the map layers
@@ -1879,16 +2038,14 @@ export default function MapViewer() {
 
   // Listen to isMeasuring and measureType changes to trigger Mapbox Draw modes for measurements
   useEffect(() => {
-    if (!drawRef.current || !map.current) return;
+    if (!drawRef.current || !map.current || activeTab !== 'measure') return;
+
     if (isMeasuring && measureType !== 'none') {
       // Deactivate AOI drawing/editing states to avoid conflict
       useAOIStore.getState().setDrawing(false);
       useAOIStore.getState().setDrawType(null);
       useAOIStore.getState().setEditingAOI(null);
       useAOIStore.getState().selectAOI(null);
-
-      // Clear previous draw features
-      drawRef.current.deleteAll();
 
       // Change draw mode based on measure type
       if (measureType === 'distance') {
@@ -1910,29 +2067,87 @@ export default function MapViewer() {
     } else if (!isMeasuring) {
       const currentMode = drawRef.current.getMode();
       if (currentMode !== 'simple_select' && currentMode !== 'direct_select') {
+        deleteActiveDrawingFeature();
         drawRef.current.changeMode('simple_select');
       }
-      drawRef.current.deleteAll();
       clearMeasurementMarkers();
-    }
-  }, [isMeasuring, measureType]);
 
-  // Clean draw features and markers when active tab changes and is not 'measure'
+      // Keep completed measurements from history on the map
+      const historyFeatures = history.map((m) => ({
+        type: 'Feature' as const,
+        id: m.id,
+        geometry: m.geometry,
+        properties: {
+          isMeasurement: 'true',
+          isCompleted: 'true',
+        },
+      }));
+      renderMeasurementLabels(historyFeatures);
+    }
+  }, [isMeasuring, measureType, activeTab]);
+
+  // Sync Mapbox Draw features with completed measurements (history) and activeTab
+  // Sync Mapbox Draw features with completed measurements (history) and activeTab
   useEffect(() => {
-    if (activeTab !== 'measure' && isMeasuring) {
-      stopMeasuring();
+    if (!map.current) return;
+
+    // Update the completed measurements layer in Maplibre GL
+    updateCompletedMeasurementsLayer(map.current);
+
+    if (activeTab === 'measure') {
+      const historyFeatures = history.map((m) => ({
+        type: 'Feature' as const,
+        id: m.id,
+        geometry: m.geometry,
+        properties: {
+          isMeasurement: 'true',
+          isCompleted: 'true',
+        },
+      }));
+
+      // Find active drawing feature in Mapbox Draw (if any)
+      let activeFeature = null;
+      const isMeasuringStore = useMeasurementStore.getState().isMeasuring;
+      if (isMeasuringStore && drawRef.current) {
+        const all = drawRef.current.getAll();
+        const historyIds = history.map((m) => String(m.id));
+        activeFeature = all.features.find(
+          (f) =>
+            (f.properties?.isMeasurement === 'true' || f.properties?.user_isMeasurement === 'true') &&
+            !historyIds.includes(String(f.id))
+        );
+      }
+
+      const featuresToLabel = [
+        ...historyFeatures,
+        ...(activeFeature ? [activeFeature] : []),
+      ];
+
+      renderMeasurementLabels(
+        featuresToLabel,
+        undefined,
+        activeFeature?.id ? String(activeFeature.id) : undefined
+      );
+    } else {
+      // If we are not on the measure tab, clear everything measurement-related
       if (drawRef.current) {
         drawRef.current.deleteAll();
       }
       clearMeasurementMarkers();
     }
-  }, [activeTab, isMeasuring]);
+  }, [activeTab, history, hoveredMeasurementId]);
 
-  // Listen to history changes to update the map history layer
+  // Stop measuring when activeTab changes away from 'measure'
   useEffect(() => {
-    if (!map.current) return;
-    updateMeasurementsLayer(map.current);
-  }, [history]);
+    if (activeTab !== 'measure') {
+      const isMeasuring = useMeasurementStore.getState().isMeasuring;
+      if (isMeasuring) {
+        useMeasurementStore.getState().stopMeasuring();
+      }
+    }
+  }, [activeTab]);
+
+
 
   // Listen to isDrawing and drawType changes to trigger Mapbox Draw modes
   useEffect(() => {

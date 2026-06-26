@@ -74,7 +74,14 @@ export const useAOIStore = create<AOIState>((set) => ({
 
   selectAOI: (id) => {
     if (id === null) {
-      set({ selectedAOIIds: [], selectedAOIId: null });
+      set({ 
+        selectedAOIIds: [], 
+        selectedAOIId: null, 
+        isDrawing: false, 
+        drawType: null, 
+        tempGeometry: null,
+        editingAOIId: null 
+      });
     } else {
       set((state) => {
         const isAlreadySelected = state.selectedAOIIds.includes(id);
@@ -83,7 +90,11 @@ export const useAOIStore = create<AOIState>((set) => ({
           : [...state.selectedAOIIds, id];
         return {
           selectedAOIIds: nextIds,
-          selectedAOIId: nextIds.length > 0 ? nextIds[nextIds.length - 1] : null
+          selectedAOIId: nextIds.length > 0 ? nextIds[nextIds.length - 1] : null,
+          isDrawing: false,
+          drawType: null,
+          tempGeometry: null,
+          editingAOIId: null
         };
       });
     }
@@ -98,6 +109,10 @@ export const useAOIStore = create<AOIState>((set) => ({
         aois: [newAOI, ...state.aois],
         selectedAOIIds: [...state.selectedAOIIds, newAOI.id],
         selectedAOIId: newAOI.id,
+        isDrawing: false,
+        drawType: null,
+        tempGeometry: null,
+        editingAOIId: null,
         isLoading: false,
       }));
       return newAOI;
@@ -162,6 +177,10 @@ export const useAOIStore = create<AOIState>((set) => ({
         aois: [newAOI, ...state.aois],
         selectedAOIIds: [...state.selectedAOIIds, newAOI.id],
         selectedAOIId: newAOI.id,
+        isDrawing: false,
+        drawType: null,
+        tempGeometry: null,
+        editingAOIId: null,
         isLoading: false,
       }));
       return newAOI;
@@ -177,7 +196,13 @@ export const useAOIStore = create<AOIState>((set) => ({
   setDrawType: (drawType) => set({ drawType }),
   setTempGeometry: (tempGeometry) => set({ tempGeometry }),
   setEditingAOI: (editingAOIId) => set({ editingAOIId }),
-  setActiveTab: (activeTab) => set({ activeTab }),
+  setActiveTab: (activeTab) => set({ 
+    activeTab, 
+    isDrawing: false, 
+    drawType: null, 
+    tempGeometry: null,
+    editingAOIId: null 
+  }),
   clearError: () => set({ error: null }),
   setShowAllAOIs: (showAllAOIs) => set({ showAllAOIs }),
 }));

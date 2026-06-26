@@ -11,7 +11,6 @@ import {
   X, 
   Loader2, 
   Info, 
-  Search,
   Circle
 } from 'lucide-react';
 import { useAOIStore, type AOI } from '../store/useAOIStore';
@@ -39,7 +38,6 @@ export default function AOIManagerPanel() {
     setTempGeometry,
     setEditingAOI,
     clearError,
-    setActiveTab,
     setShowAllAOIs
   } = useAOIStore();
 
@@ -77,7 +75,6 @@ export default function AOIManagerPanel() {
 
   // Handle Draw triggers
   const startDrawPolygon = () => {
-    selectAOI(null);
     setEditingAOI(null);
     setTempGeometry(null);
     setDrawing(true);
@@ -85,7 +82,6 @@ export default function AOIManagerPanel() {
   };
 
   const startDrawRectangle = () => {
-    selectAOI(null);
     setEditingAOI(null);
     setTempGeometry(null);
     setDrawing(true);
@@ -93,7 +89,6 @@ export default function AOIManagerPanel() {
   };
 
   const startDrawCircle = () => {
-    selectAOI(null);
     setEditingAOI(null);
     setTempGeometry(null);
     setDrawing(true);
@@ -173,12 +168,7 @@ export default function AOIManagerPanel() {
     }
   };
 
-  // Handle STAC Search Shortcut
-  const handleSearchImagesInAOI = (aoi: AOI) => {
-    selectAOI(aoi.id);
-    // Switch to STAC Search Tab
-    setActiveTab('search');
-  };
+
 
   // Toggle Edit Geometry and handle Save when exiting edit mode
   const toggleEditGeometry = async (aoi: AOI) => {
@@ -198,6 +188,8 @@ export default function AOIManagerPanel() {
       setTempGeometry(null);
     } else {
       // Starting edit mode
+      setDrawing(false);
+      setDrawType(null);
       setEditingAOI(aoi.id);
       setTempGeometry(aoi.geometry);
     }
@@ -499,19 +491,7 @@ export default function AOIManagerPanel() {
                     </span>
                   </div>
 
-                  {/* Search Satellite Images Button Shortcut */}
-                  {selectedAOIId === aoi.id && !isEditingText && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleSearchImagesInAOI(aoi);
-                      }}
-                      className="w-full h-8 bg-sky-500 hover:bg-sky-400 text-slate-950 text-[10px] font-bold rounded-lg cursor-pointer flex items-center justify-center space-x-1.5 transition-all mt-1 shadow-sm"
-                    >
-                      <Search className="w-3 h-3" />
-                      <span>Tìm kiếm ảnh vệ tinh tại AOI này</span>
-                    </button>
-                  )}
+
                 </div>
               );
             })}
