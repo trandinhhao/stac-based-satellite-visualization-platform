@@ -875,12 +875,7 @@ export default function MapViewer() {
               '#f59e0b',
               '#10b981'
             ],
-            'fill-opacity': [
-              'case',
-              ['==', ['get', 'id'], hoveredMeasurementId || ''],
-              0.25,
-              0.12
-            ],
+            'fill-opacity': 0,
           },
         });
 
@@ -915,12 +910,7 @@ export default function MapViewer() {
             '#f59e0b',
             '#10b981'
           ]);
-          mapInstance.setPaintProperty(fillLayerId, 'fill-opacity', [
-            'case',
-            ['==', ['get', 'id'], hoveredMeasurementId || ''],
-            0.25,
-            0.12
-          ]);
+          mapInstance.setPaintProperty(fillLayerId, 'fill-opacity', 0);
         }
         if (mapInstance.getLayer(lineLayerId)) {
           mapInstance.setPaintProperty(lineLayerId, 'line-color', [
@@ -1447,7 +1437,7 @@ export default function MapViewer() {
             'filter': ['all', ['==', '$type', 'Polygon'], ['==', 'user_isMeasurement', 'true']],
             'paint': {
               'fill-color': '#10b981',
-              'fill-opacity': 0.12
+              'fill-opacity': 0
             }
           },
           {

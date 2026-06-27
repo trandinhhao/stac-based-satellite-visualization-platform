@@ -23,6 +23,7 @@ interface MeasurementState {
   setCurrentMeasurement: (measurement: Measurement | null) => void;
   addCompletedMeasurement: (measurement: Measurement) => void;
   deleteMeasurement: (id: string) => void;
+  updateMeasurementName: (id: string, name: string) => void;
   clearHistory: () => void;
   setHoveredMeasurementId: (id: string | null) => void;
 }
@@ -42,6 +43,9 @@ export const useMeasurementStore = create<MeasurementState>((set) => ({
   })),
   deleteMeasurement: (id) => set((state) => ({
     history: state.history.filter((m) => m.id !== id)
+  })),
+  updateMeasurementName: (id, name) => set((state) => ({
+    history: state.history.map((m) => m.id === id ? { ...m, name } : m)
   })),
   clearHistory: () => set({ history: [] }),
   setHoveredMeasurementId: (hoveredMeasurementId) => set({ hoveredMeasurementId })

@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { 
   Ruler, 
   Hexagon, 
-  X
+  X,
+  Edit2
 } from 'lucide-react';
 import * as turf from '@turf/turf';
 import { useMeasurementStore } from '../store/useMeasurementStore';
@@ -16,11 +17,32 @@ export default function MeasurementPanel() {
     startMeasuring,
     stopMeasuring,
     deleteMeasurement,
+    updateMeasurementName,
     setHoveredMeasurementId,
   } = useMeasurementStore();
 
   // Selected units
   const [areaUnit, setAreaUnit] = useState<'m2' | 'km2' | 'ha'>('ha');
+
+  // Editing state for measurement names
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState<string>('');
+
+  const handleStartEdit = (id: string, name: string) => {
+    setEditingId(id);
+    setEditingName(name);
+  };
+
+  const handleSaveEdit = (id: string) => {
+    if (editingName.trim()) {
+      updateMeasurementName(id, editingName.trim());
+    }
+    setEditingId(null);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingId(null);
+  };
 
   // Unit conversion helpers
   const formatDistance = (meters: any) => {
@@ -195,24 +217,59 @@ export default function MeasurementPanel() {
                 key={m.id}
                 onMouseEnter={() => setHoveredMeasurementId(m.id)}
                 onMouseLeave={() => setHoveredMeasurementId(null)}
-                className="p-3 bg-slate-950/40 border border-slate-850 hover:border-slate-800 rounded-xl space-y-2 transition-all relative group animate-in slide-in-from-top-4 duration-200 cursor-pointer"
+                className="p-3 bg-slate-950/40 border border-transparent hover:border-white/40 rounded-xl space-y-2 transition-all relative group animate-in slide-in-from-top-4 duration-200 cursor-pointer"
               >
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-1.5">
+                  <div className="flex items-center space-x-1.5 flex-1 min-w-0 mr-2">
                     {m.type === 'distance' ? (
-                      <Ruler className="w-3.5 h-3.5 text-emerald-400" />
+                      <Ruler className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                     ) : (
-                      <Hexagon className="w-3.5 h-3.5 text-emerald-400" />
+                      <Hexagon className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                     )}
-                    <span className="text-[11px] font-bold text-slate-300">{m.name}</span>
+                    {editingId === m.id ? (
+                      <input
+                        type="text"
+                        value={editingName}
+                        onChange={(e) => setEditingName(e.target.value)}
+                        onBlur={() => handleSaveEdit(m.id)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleSaveEdit(m.id);
+                          if (e.key === 'Escape') handleCancelEdit();
+                        }}
+                        autoFocus
+                        className="bg-slate-900 text-white text-[11px] font-bold px-1.5 py-0.5 rounded border border-emerald-500 focus:outline-none w-full"
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    ) : (
+                      <div className="flex items-center space-x-1.5 min-w-0 group/name">
+                        <span className="text-[11px] font-bold text-slate-300 truncate" title={m.name}>
+                          {m.name}
+                        </span>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleStartEdit(m.id, m.name);
+                          }}
+                          className="opacity-0 group-hover:opacity-60 hover:opacity-100 text-slate-400 hover:text-emerald-400 p-0.5 transition-opacity duration-150"
+                          title="Đổi tên phép đo"
+                        >
+                          <Edit2 className="w-3 h-3" />
+                        </button>
+                      </div>
+                    )}
                   </div>
-                  <button
-                    onClick={() => deleteMeasurement(m.id)}
-                    className="text-slate-500 hover:text-rose-400 p-0.5 rounded transition-colors cursor-pointer"
-                    title="Xóa kết quả đo này"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
+                  {editingId !== m.id && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        deleteMeasurement(m.id);
+                      }}
+                      className="text-slate-500 hover:text-rose-400 p-0.5 rounded transition-colors cursor-pointer shrink-0"
+                      title="Xóa kết quả đo này"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                 </div>
 
                 <div className="flex items-baseline justify-between text-xs font-semibold text-white">
