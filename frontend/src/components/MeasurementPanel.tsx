@@ -217,7 +217,7 @@ export default function MeasurementPanel() {
                 key={m.id}
                 onMouseEnter={() => setHoveredMeasurementId(m.id)}
                 onMouseLeave={() => setHoveredMeasurementId(null)}
-                className="p-3 bg-slate-950/40 border border-transparent hover:border-white/40 rounded-xl space-y-2 transition-all relative group animate-in slide-in-from-top-4 duration-200 cursor-pointer"
+                className="p-3 bg-slate-950/40 border border-slate-950/0 hover:border-white/40 rounded-xl space-y-2 transition-all relative group animate-in slide-in-from-top-4 duration-200 cursor-pointer"
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-1.5 flex-1 min-w-0 mr-2">
@@ -242,7 +242,14 @@ export default function MeasurementPanel() {
                       />
                     ) : (
                       <div className="flex items-center space-x-1.5 min-w-0 group/name">
-                        <span className="text-[11px] font-bold text-slate-300 truncate" title={m.name}>
+                        <span 
+                          className="text-[11px] font-bold text-slate-300 truncate cursor-pointer hover:text-emerald-400 transition-colors" 
+                          title="Nhấp để đổi tên phép đo"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleStartEdit(m.id, m.name);
+                          }}
+                        >
                           {m.name}
                         </span>
                         <button
@@ -250,7 +257,7 @@ export default function MeasurementPanel() {
                             e.stopPropagation();
                             handleStartEdit(m.id, m.name);
                           }}
-                          className="opacity-0 group-hover:opacity-60 hover:opacity-100 text-slate-400 hover:text-emerald-400 p-0.5 transition-opacity duration-150"
+                          className="text-slate-400 hover:text-emerald-400 p-0.5 transition-colors cursor-pointer shrink-0"
                           title="Đổi tên phép đo"
                         >
                           <Edit2 className="w-3 h-3" />

@@ -39,12 +39,24 @@ interface STACState {
   selectedItem: STACItem | null;
   filters: STACFilters;
   bbox: [number, number, number, number] | null;
+  
+  // Temporary drawn boundary for STAC search
+  stacTempGeometry: any | null;
+  isDrawingSTAC: boolean;
+  drawTypeSTAC: 'polygon' | 'rectangle' | 'circle' | null;
+  isEditingSTAC: boolean;
+
   setCollections: (collections: STACCollection[]) => void;
   setSearchResults: (results: STACItem[]) => void;
   setSelectedItem: (item: STACItem | null) => void;
   setFilters: (filters: Partial<STACFilters>) => void;
   setBbox: (bbox: [number, number, number, number] | null) => void;
   resetFilters: () => void;
+
+  setStacTempGeometry: (geometry: any | null) => void;
+  setIsDrawingSTAC: (isDrawing: boolean) => void;
+  setDrawTypeSTAC: (drawType: 'polygon' | 'rectangle' | 'circle' | null) => void;
+  setIsEditingSTAC: (isEditing: boolean) => void;
 }
 
 const DEFAULT_FILTERS: STACFilters = {
@@ -60,6 +72,12 @@ export const useSTACStore = create<STACState>((set) => ({
   selectedItem: null,
   filters: DEFAULT_FILTERS,
   bbox: null,
+  
+  stacTempGeometry: null,
+  isDrawingSTAC: false,
+  drawTypeSTAC: null,
+  isEditingSTAC: false,
+
   setCollections: (collections) => set({ collections }),
   setSearchResults: (searchResults) => {
     const sorted = [...searchResults].sort((a, b) => {
@@ -76,4 +94,9 @@ export const useSTACStore = create<STACState>((set) => ({
     })),
   setBbox: (bbox) => set({ bbox }),
   resetFilters: () => set({ filters: DEFAULT_FILTERS }),
+
+  setStacTempGeometry: (stacTempGeometry) => set({ stacTempGeometry }),
+  setIsDrawingSTAC: (isDrawingSTAC) => set({ isDrawingSTAC }),
+  setDrawTypeSTAC: (drawTypeSTAC) => set({ drawTypeSTAC }),
+  setIsEditingSTAC: (isEditingSTAC) => set({ isEditingSTAC }),
 }));

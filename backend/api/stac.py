@@ -154,4 +154,3 @@ def get_planet_scene_thumbnail(scene_id: str):
         raise HTTPException(status_code=e.code, detail=f"Planet API error: {e.reason}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-

@@ -144,7 +144,7 @@ export default function SearchLocation() {
           }`}
         >
           <MapPin className="w-3.5 h-3.5" />
-          <span>Địa danh</span>
+          <span>Địa điểm</span>
         </button>
         <button
           onClick={() => setSearchMethod('coords')}
@@ -162,6 +162,9 @@ export default function SearchLocation() {
       {searchMethod === 'name' ? (
         /* SECTION 1: Tìm kiếm theo địa danh */
         <div className="space-y-2">
+          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
+            TÌM KIẾM THEO ĐỊA ĐIỂM
+          </label>
           <div ref={containerRef} className="relative w-full">
             <div className="relative flex items-center">
               <input
@@ -236,9 +239,12 @@ export default function SearchLocation() {
       ) : (
         /* SECTION 2: Tìm kiếm theo tọa độ */
         <div className="space-y-2.5">
+          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
+            TÌM KIẾM THEO TỌA ĐỘ
+          </label>
           <div className="grid grid-cols-2 gap-2.5">
             <div className="space-y-1">
-              <span className="text-[10px] text-slate-400 block px-1">Vĩ độ (Latitude)</span>
+              <span className="text-[11px] font-bold text-slate-350 block px-1">Vĩ độ (Latitude)</span>
               <input
                 type="text"
                 value={latInput}
@@ -249,7 +255,7 @@ export default function SearchLocation() {
               />
             </div>
             <div className="space-y-1">
-              <span className="text-[10px] text-slate-400 block px-1">Kinh độ (Longitude)</span>
+              <span className="text-[11px] font-bold text-slate-350 block px-1">Kinh độ (Longitude)</span>
               <input
                 type="text"
                 value={lngInput}
@@ -264,13 +270,12 @@ export default function SearchLocation() {
           {coordError && (
             <p className="text-[10px] text-rose-400 px-1 font-semibold">{coordError}</p>
           )}
-
           <button
             onClick={handleCoordinateSearch}
             className="w-full h-10 bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold rounded-xl transition-all duration-200 flex items-center justify-center space-x-2 shadow-lg shadow-sky-950/40 cursor-pointer"
           >
             <Compass className="w-4 h-4" />
-            <span>Chuyển đến tọa độ</span>
+            <span>Chuyển đến</span>
           </button>
         </div>
       )}

@@ -37,27 +37,31 @@ const RectangleMode: any = {
     };
   },
   onClick: function (state: any, e: any) {
+    if (e.originalEvent && e.originalEvent.button !== 0) return;
     if (!state.startPoint) {
       state.startPoint = [e.lngLat.lng, e.lngLat.lat];
       state.rectangle.setProperty('isRectangle', true);
-      state.rectangle.updateCoordinate('0.0', e.lngLat.lng, e.lngLat.lat);
-      state.rectangle.updateCoordinate('0.1', e.lngLat.lng, e.lngLat.lat);
-      state.rectangle.updateCoordinate('0.2', e.lngLat.lng, e.lngLat.lat);
-      state.rectangle.updateCoordinate('0.3', e.lngLat.lng, e.lngLat.lat);
-      state.rectangle.updateCoordinate('0.4', e.lngLat.lng, e.lngLat.lat);
+      state.rectangle.setCoordinates([[
+        state.startPoint,
+        state.startPoint,
+        state.startPoint,
+        state.startPoint,
+        state.startPoint
+      ]]);
     } else {
       const startLng = state.startPoint[0];
       const startLat = state.startPoint[1];
       const currentLng = e.lngLat.lng;
       const currentLat = e.lngLat.lat;
 
-      // Close the loop with 5 coordinates
       state.rectangle.setProperty('isRectangle', true);
-      state.rectangle.updateCoordinate('0.0', startLng, startLat);
-      state.rectangle.updateCoordinate('0.1', currentLng, startLat);
-      state.rectangle.updateCoordinate('0.2', currentLng, currentLat);
-      state.rectangle.updateCoordinate('0.3', startLng, currentLat);
-      state.rectangle.updateCoordinate('0.4', startLng, startLat);
+      state.rectangle.setCoordinates([[
+        [startLng, startLat],
+        [currentLng, startLat],
+        [currentLng, currentLat],
+        [startLng, currentLat],
+        [startLng, startLat]
+      ]]);
 
       this.changeMode('simple_select', { featureIds: [state.rectangle.id] });
       this.map.fire('draw.create', {
@@ -71,11 +75,13 @@ const RectangleMode: any = {
       const currentLng = e.lngLat.lng;
       const currentLat = e.lngLat.lat;
 
-      state.rectangle.updateCoordinate('0.0', startLng, startLat);
-      state.rectangle.updateCoordinate('0.1', currentLng, startLat);
-      state.rectangle.updateCoordinate('0.2', currentLng, currentLat);
-      state.rectangle.updateCoordinate('0.3', startLng, currentLat);
-      state.rectangle.updateCoordinate('0.4', startLng, startLat);
+      state.rectangle.setCoordinates([[
+        [startLng, startLat],
+        [currentLng, startLat],
+        [currentLng, currentLat],
+        [startLng, currentLat],
+        [startLng, startLat]
+      ]]);
     }
   },
   onKeyUp: function (state: any, e: any) {
@@ -155,16 +161,48 @@ const CircleMode: any = {
     return {
       circle,
       centerPoint: null,
+      centerMarker: null,
     };
   },
   onClick: function (state: any, e: any) {
+    if (e.originalEvent && e.originalEvent.button !== 0) return;
     if (!state.centerPoint) {
       state.centerPoint = [e.lngLat.lng, e.lngLat.lat];
+      
+      // Render the center point instantly using a Maplibre Marker
+      try {
+        const markerEl = document.createElement('div');
+        markerEl.style.width = '12px';
+        markerEl.style.height = '12px';
+        markerEl.style.backgroundColor = '#ef4444'; // Red center point
+        markerEl.style.border = '2px solid #ffffff'; // White border
+        markerEl.style.borderRadius = '50%';
+        markerEl.style.pointerEvents = 'none';
+        
+        state.centerMarker = new maplibregl.Marker({ element: markerEl })
+          .setLngLat(state.centerPoint)
+          .addTo(this.map);
+      } catch (err) {
+        console.error('Error creating maplibre marker:', err);
+      }
+
       state.circle.setProperty('isCircle', true);
       state.circle.setProperty('circleCenter', state.centerPoint);
       const coords = createGeodesicCircle(state.centerPoint, 0.0001);
       state.circle.setCoordinates(coords);
     } else {
+      // Clean up the temporary center marker
+      if (state.centerMarker) {
+        state.centerMarker.remove();
+        state.centerMarker = null;
+      }
+      
+      // Update coordinates to the exact click position of the second click
+      const currentLngLat: [number, number] = [e.lngLat.lng, e.lngLat.lat];
+      const radiusInKm = getDistanceInKm(state.centerPoint, currentLngLat);
+      const coords = createGeodesicCircle(state.centerPoint, radiusInKm);
+      state.circle.setCoordinates(coords);
+      
       state.circle.setProperty('isCircle', true);
       state.circle.setProperty('circleCenter', state.centerPoint);
       this.changeMode('simple_select', { featureIds: [state.circle.id] });
@@ -183,34 +221,32 @@ const CircleMode: any = {
   },
   onKeyUp: function (state: any, e: any) {
     if (e.keyCode === 27) {
+      if (state.centerMarker) {
+        state.centerMarker.remove();
+        state.centerMarker = null;
+      }
       this.deleteFeature([state.circle.id], { silent: true });
       this.changeMode('simple_select');
     }
   },
+  onStop: function (state: any) {
+    if (state.centerMarker) {
+      state.centerMarker.remove();
+      state.centerMarker = null;
+    }
+  },
   toDisplayFeatures: function (state: any, geojson: any, display: any) {
-    const isActive = geojson.id === state.circle.id;
+    const isActive = geojson.id === state.circle.id || 
+                     geojson.properties?.isCircle === true || 
+                     geojson.properties?.user_isCircle === true ||
+                     (!geojson.id && geojson.geometry?.type === 'Polygon');
+    
     geojson.properties.active = isActive ? 'true' : 'false';
+
     if (!isActive) return display(geojson);
 
     // Display the circle boundary polygon
     display(geojson);
-
-    // Display the circle center point
-    if (state.centerPoint) {
-      display({
-        type: 'Feature',
-        id: `${geojson.id}_center`,
-        properties: {
-          meta: 'circle_center',
-          parent: geojson.id,
-          active: 'true',
-        },
-        geometry: {
-          type: 'Point',
-          coordinates: state.centerPoint,
-        },
-      });
-    }
   },
 };
 
@@ -230,54 +266,444 @@ function getPolygonCentroid(geojson: any): [number, number] | null {
   return null;
 }
 
+// Mathematical helper to detect if a polygon geometry represents a circle
+function isPolygonCircle(coordinates: number[][][]) {
+  const ring = coordinates[0];
+  if (!ring || ring.length !== 65) return false;
+  // Calculate centroid
+  let sumLng = 0;
+  let sumLat = 0;
+  const points = ring.slice(0, -1);
+  points.forEach((c) => {
+    sumLng += c[0];
+    sumLat += c[1];
+  });
+  const center: [number, number] = [sumLng / points.length, sumLat / points.length];
+  
+  // Verify that all points are at approximately the same distance from center
+  const distances = points.map(p => getDistanceInKm(center, p as [number, number]));
+  const averageDistance = distances.reduce((a, b) => a + b, 0) / distances.length;
+  if (averageDistance === 0) return false;
+  const tolerance = 0.05; // 5% tolerance
+  
+  return distances.every(d => Math.abs(d - averageDistance) / averageDistance < tolerance);
+}
+
 // Custom simple_select mode to display circle center
 const customSimpleSelectMode: any = {
   ...MapboxDraw.modes.simple_select,
+  clickOnFeature: function (state: any, e: any) {
+    const activeTab = useAOIStore.getState().activeTab;
+    const isEditingSTAC = useSTACStore.getState().isEditingSTAC;
+    if (activeTab === 'search' && !isEditingSTAC) {
+      // Prevent transition to direct_select when not explicitly editing
+      return;
+    }
+    const baseMode = MapboxDraw.modes.simple_select as any;
+    if (baseMode.clickOnFeature) {
+      baseMode.clickOnFeature.call(this, state, e);
+    }
+  },
   toDisplayFeatures: function (state: any, geojson: any, display: any) {
     MapboxDraw.modes.simple_select.toDisplayFeatures.call(this, state, geojson, display);
-    const isCircle = geojson.properties.isCircle || geojson.properties.user_isCircle;
-    if (isCircle) {
-      const centerCoords = getPolygonCentroid(geojson) || 
-        (geojson.properties.circleCenter ? (typeof geojson.properties.circleCenter === 'string' ? JSON.parse(geojson.properties.circleCenter) : geojson.properties.circleCenter) : null) ||
-        (geojson.properties.user_circleCenter ? (typeof geojson.properties.user_circleCenter === 'string' ? JSON.parse(geojson.properties.user_circleCenter) : geojson.properties.user_circleCenter) : null);
-      if (centerCoords) {
-        display({
-          type: 'Feature',
-          id: `${geojson.id}_center`,
-          properties: {
-            meta: 'circle_center',
-            parent: geojson.id,
-            active: geojson.properties.active,
-          },
-          geometry: {
-            type: 'Point',
-            coordinates: centerCoords,
-          },
-        });
-      }
-    }
+    // Circle center is rendered as a DOM Marker (managed in customDirectSelectMode onSetup/onStop/onDrag),
+    // so we do NOT emit a GL feature for it here. This prevents WebGL ghosting.
   }
 };
 
 // Custom direct_select mode to display circle center and lock editing constraints
 const customDirectSelectMode: any = {
   ...MapboxDraw.modes.direct_select,
+  onSetup: function (opts: any) {
+    // Call the base onSetup first to get the standard state
+    const state = (MapboxDraw.modes.direct_select as any).onSetup.call(this, opts);
+    // If the feature being edited is a circle, create a persistent DOM marker for the center
+    const isCircle = state.feature && (
+      state.feature.getProperty?.('isCircle') ||
+      state.feature.properties?.isCircle ||
+      state.feature.properties?.user_isCircle
+    );
+    if (isCircle && this.map) {
+      let centerCoords = state.feature.getProperty?.('circleCenter') || state.feature.properties?.circleCenter || state.feature.properties?.user_circleCenter;
+      if (!centerCoords) {
+        centerCoords = getPolygonCentroid({ geometry: { coordinates: state.feature.getCoordinates?.() || state.feature.geometry?.coordinates } });
+      }
+      if (centerCoords) {
+        const coords = typeof centerCoords === 'string' ? JSON.parse(centerCoords) : centerCoords;
+        const markerEl = document.createElement('div');
+        markerEl.style.width = '12px';
+        markerEl.style.height = '12px';
+        markerEl.style.backgroundColor = '#ef4444';
+        markerEl.style.border = '2px solid #ffffff';
+        markerEl.style.borderRadius = '50%';
+        markerEl.style.pointerEvents = 'none';
+        markerEl.style.zIndex = '10';
+        markerEl.setAttribute('data-circle-center-marker', 'true');
+        try {
+          state.circleCenterMarker = new maplibregl.Marker({ element: markerEl, anchor: 'center' })
+            .setLngLat(coords)
+            .addTo(this.map);
+        } catch (err) {
+          // ignore
+        }
+      }
+    }
+    return state;
+  },
+  onStop: function (state: any) {
+    // Remove the DOM marker when leaving direct_select mode
+    if (state.circleCenterMarker) {
+      try { state.circleCenterMarker.remove(); } catch (e) {}
+      state.circleCenterMarker = null;
+    }
+    if ((MapboxDraw.modes.direct_select as any).onStop) {
+      (MapboxDraw.modes.direct_select as any).onStop.call(this, state);
+    }
+  },
+  clickNoTarget: function (state: any, e: any) {
+    const activeTab = useAOIStore.getState().activeTab;
+    const isEditingSTAC = useSTACStore.getState().isEditingSTAC;
+    if (activeTab === 'search' && isEditingSTAC) {
+      // Prevent exiting direct_select mode on map outclick when editing in STAC Search tab
+      return;
+    }
+    const baseDirectSelect = MapboxDraw.modes.direct_select as any;
+    if (baseDirectSelect.clickNoTarget) {
+      baseDirectSelect.clickNoTarget.call(this, state, e);
+    }
+  },
+  clickInactive: function (state: any, e: any) {
+    const activeTab = useAOIStore.getState().activeTab;
+    const isEditingSTAC = useSTACStore.getState().isEditingSTAC;
+    if (activeTab === 'search' && isEditingSTAC) {
+      // Prevent exiting direct_select mode on outclick on other features when editing in STAC Search tab
+      return;
+    }
+    const baseDirectSelect = MapboxDraw.modes.direct_select as any;
+    if (baseDirectSelect.clickInactive) {
+      baseDirectSelect.clickInactive.call(this, state, e);
+    }
+  },
+  onClick: function (state: any, e: any) {
+    const activeTab = useAOIStore.getState().activeTab;
+    const isEditingSTAC = useSTACStore.getState().isEditingSTAC;
+    const isCircle = state.feature && (state.feature.getProperty?.('isCircle') || state.feature.properties?.isCircle || state.feature.properties?.user_isCircle);
+    
+    if ((activeTab === 'search' && isEditingSTAC) || isCircle) {
+      // Prevent exiting edit mode on click entirely when editing in STAC Search or editing a circle
+      return;
+    }
+    const baseDirectSelect = MapboxDraw.modes.direct_select as any;
+    if (baseDirectSelect.onClick) {
+      baseDirectSelect.onClick.call(this, state, e);
+    }
+  },
+  onTap: function (state: any, e: any) {
+    const activeTab = useAOIStore.getState().activeTab;
+    const isEditingSTAC = useSTACStore.getState().isEditingSTAC;
+    const isCircle = state.feature && (state.feature.getProperty?.('isCircle') || state.feature.properties?.isCircle || state.feature.properties?.user_isCircle);
+    
+    if ((activeTab === 'search' && isEditingSTAC) || isCircle) {
+      // Prevent exiting edit mode on tap entirely when editing in STAC Search or editing a circle
+      return;
+    }
+    const baseDirectSelect = MapboxDraw.modes.direct_select as any;
+    if (baseDirectSelect.onTap) {
+      baseDirectSelect.onTap.call(this, state, e);
+    }
+  },
+  onMouseDown: function (state: any, e: any) {
+    return this.handleStartDragCenter(state, e, false);
+  },
+  onTouchStart: function (state: any, e: any) {
+    return this.handleStartDragCenter(state, e, true);
+  },
+  handleStartDragCenter: function (state: any, e: any, isTouch = false) {
+    if (typeof window !== 'undefined') {
+      if (!(window as any).circleDragLogs) (window as any).circleDragLogs = [];
+      (window as any).circleDragLogs.push(`handleStartDragCenter: isTouch=${isTouch}, has_e_point=${!!e.point}, has_map=${!!this.map}`);
+      console.log('handleStartDragCenter:', e, this.map);
+    }
+    // Since center is now a DOM Marker (not a GL feature), detect center click by
+    // projecting the circle center lngLat to screen pixels and checking proximity.
+    let isCenterClicked = false;
+    const circleFeatureForCheck = state.feature;
+    if (circleFeatureForCheck && e.point && this.map) {
+      const isCircleFeature = circleFeatureForCheck.getProperty?.('isCircle') ||
+        circleFeatureForCheck.properties?.isCircle ||
+        circleFeatureForCheck.properties?.user_isCircle;
+      if (isCircleFeature) {
+        // Get center coords from property or compute centroid
+        let centerCoordsRaw = circleFeatureForCheck.getProperty?.('circleCenter') ||
+          circleFeatureForCheck.properties?.circleCenter ||
+          circleFeatureForCheck.properties?.user_circleCenter;
+        if (!centerCoordsRaw) {
+          const coords = circleFeatureForCheck.getCoordinates?.()?.[0] || circleFeatureForCheck.geometry?.coordinates?.[0];
+          if (coords && coords.length > 1) {
+            const pts = coords.slice(0, -1);
+            let sLng = 0, sLat = 0;
+            pts.forEach((c: any) => { sLng += c[0]; sLat += c[1]; });
+            centerCoordsRaw = [sLng / pts.length, sLat / pts.length];
+          }
+        }
+        if (centerCoordsRaw) {
+          const center = typeof centerCoordsRaw === 'string' ? JSON.parse(centerCoordsRaw) : centerCoordsRaw;
+          try {
+            const centerPixel = this.map.project([center[0], center[1]]);
+            const dx = e.point.x - centerPixel.x;
+            const dy = e.point.y - centerPixel.y;
+            const distPx = Math.sqrt(dx * dx + dy * dy);
+            // Hit area: 20px radius (generously covers the 12px diameter DOM marker)
+            isCenterClicked = distPx <= 20;
+          } catch (err) {
+            // ignore projection errors
+          }
+        }
+      }
+    }
+
+    if (isCenterClicked) {
+      const circleFeature = state.feature;
+      if (typeof window !== 'undefined') {
+        (window as any).circleDragLogs.push(`circleFeature: hasCircleFeature=${!!circleFeature}`);
+      }
+      if (!circleFeature) return;
+
+      // Extract center coords with mathematical fallback
+      let circleCenter = circleFeature.getProperty?.('circleCenter') || circleFeature.properties?.circleCenter || circleFeature.properties?.user_circleCenter;
+      if (!circleCenter) {
+        // Mathematical fallback: average coordinates to find centroid
+        const coords = circleFeature.getCoordinates?.()?.[0] || circleFeature.geometry?.coordinates?.[0];
+        if (coords && coords.length > 1) {
+          const points = coords.slice(0, -1);
+          let sumLng = 0;
+          let sumLat = 0;
+          points.forEach((c: any) => {
+            sumLng += c[0];
+            sumLat += c[1];
+          });
+          circleCenter = [sumLng / points.length, sumLat / points.length];
+        }
+      }
+
+      if (typeof window !== 'undefined') {
+        (window as any).circleDragLogs.push(`circleCenterResolved=${JSON.stringify(circleCenter)}`);
+      }
+      if (!circleCenter) return;
+
+      state.draggingCenter = true;
+      state.circleFeature = circleFeature;
+      state.dragStartLocation = e.lngLat;
+      state.centerStartCoords = typeof circleCenter === 'string' ? JSON.parse(circleCenter) : [...circleCenter];
+      
+      // Cache the initial radius at the start of drag to keep it constant
+      const coords = circleFeature.getCoordinates?.()?.[0] || circleFeature.geometry?.coordinates?.[0];
+      if (coords && coords.length > 0) {
+        state.circleRadius = getDistanceInKm(state.centerStartCoords, coords[0]);
+      } else {
+        state.circleRadius = 1; // Default fallback in km
+      }
+      
+      // Call built-in startDragging to let Mapbox Draw set e.canDragMove = true and disable map pan
+      this.startDragging(state, e);
+      
+      if (e.originalEvent) {
+        e.originalEvent.stopPropagation();
+      }
+      return;
+    }
+
+    // Check if user clicked near the circle boundary ring to start a resize drag
+    if (!isCenterClicked && circleFeatureForCheck && e.point && this.map) {
+      const isCircleFeature2 = circleFeatureForCheck.getProperty?.('isCircle') ||
+        circleFeatureForCheck.properties?.isCircle ||
+        circleFeatureForCheck.properties?.user_isCircle;
+      if (isCircleFeature2) {
+        let centerRaw2 = circleFeatureForCheck.getProperty?.('circleCenter') ||
+          circleFeatureForCheck.properties?.circleCenter ||
+          circleFeatureForCheck.properties?.user_circleCenter;
+        if (!centerRaw2) {
+          const coords2 = circleFeatureForCheck.getCoordinates?.()?.[0] || circleFeatureForCheck.geometry?.coordinates?.[0];
+          if (coords2 && coords2.length > 1) {
+            const pts2 = coords2.slice(0, -1);
+            let sLng2 = 0, sLat2 = 0;
+            pts2.forEach((c: any) => { sLng2 += c[0]; sLat2 += c[1]; });
+            centerRaw2 = [sLng2 / pts2.length, sLat2 / pts2.length];
+          }
+        }
+        if (centerRaw2) {
+          const center2 = typeof centerRaw2 === 'string' ? JSON.parse(centerRaw2) : centerRaw2;
+          try {
+            const centerPixel2 = this.map.project([center2[0], center2[1]]);
+            const clickDist = Math.sqrt(
+              Math.pow(e.point.x - centerPixel2.x, 2) + Math.pow(e.point.y - centerPixel2.y, 2)
+            );
+            // Get radius in pixels from a boundary vertex
+            const ringCoords = circleFeatureForCheck.getCoordinates?.()?.[0] || circleFeatureForCheck.geometry?.coordinates?.[0];
+            if (ringCoords && ringCoords.length > 0) {
+              const boundaryPixel = this.map.project([ringCoords[0][0], ringCoords[0][1]]);
+              const radiusPx = Math.sqrt(
+                Math.pow(boundaryPixel.x - centerPixel2.x, 2) + Math.pow(boundaryPixel.y - centerPixel2.y, 2)
+              );
+              // Hit area: within 18px of the boundary ring
+              if (Math.abs(clickDist - radiusPx) <= 18) {
+                state.resizingBoundary = true;
+                state.circleFeature = circleFeatureForCheck;
+                state.circleCenterForResize = center2;
+                this.startDragging(state, e);
+                if (e.originalEvent) e.originalEvent.stopPropagation();
+                return;
+              }
+            }
+          } catch (err) {
+            // ignore
+          }
+        }
+      }
+    }
+
+    const baseDirectSelect = MapboxDraw.modes.direct_select as any;
+    if (isTouch) {
+      if (baseDirectSelect.onTouchStart) {
+        baseDirectSelect.onTouchStart.call(this, state, e);
+      }
+    } else {
+      if (baseDirectSelect.onMouseDown) {
+        baseDirectSelect.onMouseDown.call(this, state, e);
+      }
+    }
+  },
+  onDrag: function (state: any, e: any) {
+    // Handle center drag
+    if (state.draggingCenter && state.circleFeature) {
+      const currentLngLat = e.lngLat;
+      const deltaLng = currentLngLat.lng - state.dragStartLocation.lng;
+      const deltaLat = currentLngLat.lat - state.dragStartLocation.lat;
+      
+      const newCenter: [number, number] = [
+        state.centerStartCoords[0] + deltaLng,
+        state.centerStartCoords[1] + deltaLat
+      ];
+      
+      // Rebuild polygon coordinates using new center and the cached constant radius
+      const newCoords = createGeodesicCircle(newCenter, state.circleRadius);
+      
+      state.circleFeature.setCoordinates(newCoords);
+      state.circleFeature.setProperty('circleCenter', newCenter);
+      state.circleFeature.setProperty('user_circleCenter', newCenter);
+      
+      // Update DOM marker position directly — no WebGL ghosting
+      if (state.circleCenterMarker) {
+        try { state.circleCenterMarker.setLngLat(newCenter); } catch (err) {}
+      }
+      
+      if (typeof state.circleFeature.changed === 'function') {
+        state.circleFeature.changed();
+      }
+      if (e.originalEvent) {
+        e.originalEvent.stopPropagation();
+      }
+      
+      // Let base mode run to update its internal drag properties, but pass dummy event so it doesn't move the polygon body again
+      const baseDirectSelect = MapboxDraw.modes.direct_select as any;
+      if (baseDirectSelect.onDrag) {
+        baseDirectSelect.onDrag.call(this, state, { ...e, lngLat: state.dragStartLocation });
+      }
+      return;
+    }
+
+    // Handle boundary resize drag
+    if (state.resizingBoundary && state.circleFeature && state.circleCenterForResize) {
+      const center = state.circleCenterForResize;
+      const currentLngLat: [number, number] = [e.lngLat.lng, e.lngLat.lat];
+      const newRadius = Math.max(0.05, getDistanceInKm(center, currentLngLat));
+      const newCoords = createGeodesicCircle(center, newRadius);
+      state.circleFeature.setCoordinates(newCoords);
+      if (typeof state.circleFeature.changed === 'function') {
+        state.circleFeature.changed();
+      }
+      if (e.originalEvent) e.originalEvent.stopPropagation();
+      return;
+    }
+
+    const baseDirectSelect = MapboxDraw.modes.direct_select as any;
+    if (baseDirectSelect.onDrag) {
+      baseDirectSelect.onDrag.call(this, state, e);
+    }
+  },
+  onMouseUp: function (state: any, e: any) {
+    return this.handleStopDragCenter(state, e, false);
+  },
+  onTouchEnd: function (state: any, e: any) {
+    return this.handleStopDragCenter(state, e, true);
+  },
+  handleStopDragCenter: function (state: any, e: any, isTouch = false) {
+    if (state.draggingCenter) {
+      state.draggingCenter = false;
+      this.stopDragging(state);
+      this.fireUpdate();
+      return;
+    }
+    if (state.resizingBoundary) {
+      state.resizingBoundary = false;
+      state.circleCenterForResize = null;
+      this.stopDragging(state);
+      this.fireUpdate();
+      return;
+    }
+    const baseDirectSelect = MapboxDraw.modes.direct_select as any;
+    if (isTouch) {
+      if (baseDirectSelect.onTouchEnd) {
+        baseDirectSelect.onTouchEnd.call(this, state, e);
+      }
+    } else {
+      if (baseDirectSelect.onMouseUp) {
+        baseDirectSelect.onMouseUp.call(this, state, e);
+      }
+    }
+  },
+  dragFeature: function (state: any, e: any, delta: any) {
+    const feature = state.feature;
+    const isCircle = feature.getProperty?.('isCircle') || feature.properties?.isCircle || feature.properties?.user_isCircle;
+    if (isCircle) {
+      // Disable dragging the circle by clicking inside its body.
+      // The user explicitly requested that the circle can ONLY be moved by dragging the red center dot (handled in onDrag).
+      return;
+    }
+    const baseDirectSelect = MapboxDraw.modes.direct_select as any;
+    if (baseDirectSelect.dragFeature) {
+      baseDirectSelect.dragFeature.call(this, state, e, delta);
+    }
+  },
   dragVertex: function (state: any, e: any, delta: any) {
     const feature = state.feature;
-    const isCircle = feature.properties?.isCircle || feature.properties?.user_isCircle;
-    const isRectangle = feature.properties?.isRectangle || feature.properties?.user_isRectangle;
+    const isCircle = feature.getProperty?.('isCircle') || feature.properties?.isCircle || feature.properties?.user_isCircle;
+    const isRectangle = feature.getProperty?.('isRectangle') || feature.properties?.isRectangle || feature.properties?.user_isRectangle;
     
     if (isCircle) {
-      const circleCenter = feature.getProperty('circleCenter') || feature.properties?.circleCenter || feature.properties?.user_circleCenter;
+      const circleCenter = feature.getProperty?.('circleCenter') || feature.properties?.circleCenter || feature.properties?.user_circleCenter;
       if (circleCenter) {
         const centerCoords = typeof circleCenter === 'string' ? JSON.parse(circleCenter) : circleCenter;
         const currentLngLat: [number, number] = [e.lngLat.lng, e.lngLat.lat];
+        // Dragging boundary handle (index 0): resize the circle
         const radiusInKm = getDistanceInKm(centerCoords, currentLngLat);
         const coords = createGeodesicCircle(centerCoords, radiusInKm);
         feature.setCoordinates(coords);
+        if (typeof feature.changed === 'function') {
+          feature.changed();
+        }
       }
     } else if (isRectangle) {
-      const dragIndex = state.draggedVertexIndex;
+      let dragIndex: number | undefined = undefined;
+      if (state.selectedCoordPaths && state.selectedCoordPaths.length > 0) {
+        const path = state.selectedCoordPaths[0]; // e.g. "0.2"
+        const parts = path.split('.');
+        if (parts.length > 1) {
+          dragIndex = parseInt(parts[1], 10);
+          if (dragIndex === 4) dragIndex = 0;
+        }
+      }
+
       if (dragIndex !== undefined && dragIndex >= 0 && dragIndex < 4) {
         const coords = feature.getCoordinates()[0];
         if (coords && coords.length >= 5) {
@@ -287,7 +713,7 @@ const customDirectSelectMode: any = {
           const dragLng = e.lngLat.lng;
           const dragLat = e.lngLat.lat;
 
-          const newCoords = [...coords];
+          const newCoords = coords.slice(0, 5);
           newCoords[dragIndex] = [dragLng, dragLat];
           
           const adj1 = (dragIndex + 1) % 4;
@@ -300,8 +726,11 @@ const customDirectSelectMode: any = {
             newCoords[adj1] = [dragLng, oppLat];
             newCoords[adj2] = [oppLng, dragLat];
           }
-          newCoords[4] = newCoords[0];
+          newCoords[4] = [...newCoords[0]];
           feature.setCoordinates([newCoords]);
+          if (typeof feature.changed === 'function') {
+            feature.changed();
+          }
         }
       }
     } else {
@@ -329,26 +758,8 @@ const customDirectSelectMode: any = {
 
     MapboxDraw.modes.direct_select.toDisplayFeatures.call(this, state, geojson, customDisplay);
 
-    if (isCircle) {
-      const centerCoords = getPolygonCentroid(geojson) || 
-        (geojson.properties.circleCenter ? (typeof geojson.properties.circleCenter === 'string' ? JSON.parse(geojson.properties.circleCenter) : geojson.properties.circleCenter) : null) ||
-        (geojson.properties.user_circleCenter ? (typeof geojson.properties.user_circleCenter === 'string' ? JSON.parse(geojson.properties.user_circleCenter) : geojson.properties.user_circleCenter) : null);
-      if (centerCoords) {
-        display({
-          type: 'Feature',
-          id: `${geojson.id}_center`,
-          properties: {
-            meta: 'circle_center',
-            parent: geojson.id,
-            active: geojson.properties.active,
-          },
-          geometry: {
-            type: 'Point',
-            coordinates: centerCoords,
-          },
-        });
-      }
-    }
+    // Circle center is rendered as a DOM Marker (managed in onSetup/onStop/onDrag),
+    // so we do NOT emit a GL feature for it here. This prevents WebGL ghosting.
   }
 };
 
@@ -1292,7 +1703,7 @@ export default function MapViewer() {
             'filter': ['all', ['==', '$type', 'Polygon'], ['!=', 'user_isMeasurement', 'true']],
             'paint': {
               'fill-color': '#f59e0b',
-              'fill-opacity': 0.12
+              'fill-opacity': 0
             }
           },
           // ACTIVE STROKE - DRAWING POLYGON (Dashed yellow stroke during drawing)
@@ -1640,10 +2051,33 @@ export default function MapViewer() {
           } else if (feature.geometry.type === 'Polygon') {
             const editingId = useAOIStore.getState().editingAOIId;
             if (!editingId) {
-              // We are drawing a new AOI. Set tempGeometry. Do NOT delete, keep it on the map.
-              useAOIStore.getState().setTempGeometry(feature.geometry);
-              useAOIStore.getState().setDrawing(false);
-              useAOIStore.getState().setDrawType(null);
+              const currentActiveTab = useAOIStore.getState().activeTab;
+              if (currentActiveTab === 'search') {
+                useSTACStore.getState().setStacTempGeometry(feature.geometry);
+                useSTACStore.getState().setIsDrawingSTAC(false);
+                useSTACStore.getState().setDrawTypeSTAC(null);
+                // Do NOT enter edit mode automatically
+                useSTACStore.getState().setIsEditingSTAC(false);
+                if (drawRef.current) {
+                  setTimeout(() => {
+                    if (drawRef.current) {
+                      drawRef.current.changeMode('simple_select');
+                    }
+                  }, 50);
+                }
+              } else if (currentActiveTab === 'aoi') {
+                // We are drawing a new AOI. Set tempGeometry. Do NOT delete, keep it on the map.
+                useAOIStore.getState().setTempGeometry(feature.geometry);
+                useAOIStore.getState().setDrawing(false);
+                useAOIStore.getState().setDrawType(null);
+                if (drawRef.current) {
+                  setTimeout(() => {
+                    if (drawRef.current) {
+                      drawRef.current.changeMode('simple_select');
+                    }
+                  }, 50);
+                }
+              }
             }
           }
         }
@@ -1703,7 +2137,10 @@ export default function MapViewer() {
             }
           } else if (feature.geometry.type === 'Polygon') {
             // Recalculate circleCenter for circle features so properties remain in sync
-            const isCircle = feature.properties?.isCircle || feature.properties?.user_isCircle;
+            const isCircle = feature.properties?.isCircle || 
+                             feature.properties?.user_isCircle || 
+                             (feature.geometry.coordinates && isPolygonCircle(feature.geometry.coordinates));
+            
             if (isCircle && drawRef.current) {
               const coords = feature.geometry.coordinates[0];
               if (coords && coords.length > 1) {
@@ -1717,29 +2154,39 @@ export default function MapViewer() {
                 const centerLng = sumLng / points.length;
                 const centerLat = sumLat / points.length;
                 
-                const drawFeature = drawRef.current.get(feature.id);
-                if (drawFeature) {
-                  if (!drawFeature.properties) {
-                    drawFeature.properties = {};
+                const currentActiveTab = useAOIStore.getState().activeTab;
+                if (currentActiveTab === 'search') {
+                  const drawFeature = drawRef.current.get(feature.id);
+                  if (drawFeature) {
+                    drawFeature.properties = drawFeature.properties || {};
+                    drawFeature.properties.circleCenter = [centerLng, centerLat];
                   }
-                  drawFeature.properties.circleCenter = [centerLng, centerLat];
-                  drawFeature.properties.user_circleCenter = [centerLng, centerLat];
-                  drawRef.current.add(drawFeature);
                 }
               }
             }
-            // Update tempGeometry in store with the latest drag/edit coordinates for both drawing and editing
-            useAOIStore.getState().setTempGeometry(feature.geometry);
+            // Update tempGeometry or stacTempGeometry in store with the latest drag/edit coordinates for both drawing and editing
+            const currentActiveTab = useAOIStore.getState().activeTab;
+            if (currentActiveTab === 'search') {
+              useSTACStore.getState().setStacTempGeometry(feature.geometry);
+            } else if (currentActiveTab === 'aoi') {
+              useAOIStore.getState().setTempGeometry(feature.geometry);
+            }
           }
         }
       };
 
       const handleDrawDelete = () => {
         const isMeasuring = useMeasurementStore.getState().isMeasuring;
+        const currentActiveTab = useAOIStore.getState().activeTab;
         if (isMeasuring) {
           useMeasurementStore.getState().setCurrentMeasurement(null);
           clearMeasurementMarkers();
-        } else {
+        } else if (currentActiveTab === 'search') {
+          useSTACStore.getState().setStacTempGeometry(null);
+          useSTACStore.getState().setIsEditingSTAC(false);
+          useSTACStore.getState().setIsDrawingSTAC(false);
+          useSTACStore.getState().setDrawTypeSTAC(null);
+        } else if (currentActiveTab === 'aoi') {
           // If user deletes the shape, clear temp geometry.
           useAOIStore.getState().setTempGeometry(null);
         }
@@ -1828,20 +2275,30 @@ export default function MapViewer() {
         }
 
         const editingAOIId = useAOIStore.getState().editingAOIId;
+        const isDrawingSTAC = useSTACStore.getState().isDrawingSTAC;
+        const isEditingSTAC = useSTACStore.getState().isEditingSTAC;
         
         let isDrawingMode = false;
         if (drawRef.current) {
           const mode = drawRef.current.getMode();
-          if (mode.startsWith('draw_') || (editingAOIId && mode === 'direct_select')) {
+          if (mode.startsWith('draw_') || (editingAOIId && mode === 'direct_select') || isDrawingSTAC || isEditingSTAC) {
             isDrawingMode = true;
             drawRef.current.changeMode('simple_select');
             drawRef.current.deleteAll();
             
+            // Cancel AOI state
             useAOIStore.getState().setDrawing(false);
             useAOIStore.getState().setDrawType(null);
             useAOIStore.getState().setTempGeometry(null);
             useAOIStore.getState().setEditingAOI(null);
-            console.log('[Draw] AOI Drawing/Editing cancelled via Canvas Right Click');
+
+            // Cancel STAC state
+            useSTACStore.getState().setIsDrawingSTAC(false);
+            useSTACStore.getState().setDrawTypeSTAC(null);
+            useSTACStore.getState().setIsEditingSTAC(false);
+            useSTACStore.getState().setStacTempGeometry(null);
+            
+            console.log('[Draw] STAC/AOI Drawing/Editing cancelled via Canvas Right Click');
           }
         }
         
@@ -2026,6 +2483,12 @@ export default function MapViewer() {
 
   const tempGeometry = useAOIStore((state) => state.tempGeometry);
 
+  // STAC search drawing states
+  const isDrawingSTAC = useSTACStore((state) => state.isDrawingSTAC);
+  const drawTypeSTAC = useSTACStore((state) => state.drawTypeSTAC);
+  const stacTempGeometry = useSTACStore((state) => state.stacTempGeometry);
+  const isEditingSTAC = useSTACStore((state) => state.isEditingSTAC);
+
   // Listen to isMeasuring and measureType changes to trigger Mapbox Draw modes for measurements
   useEffect(() => {
     if (!drawRef.current || !map.current || activeTab !== 'measure') return;
@@ -2142,29 +2605,200 @@ export default function MapViewer() {
   // Listen to isDrawing and drawType changes to trigger Mapbox Draw modes
   useEffect(() => {
     if (!drawRef.current || !map.current) return;
+    const drawInstance = drawRef.current;
+
     if (isDrawing && drawType) {
-      if (drawType === 'polygon') {
-        drawRef.current.changeMode('draw_polygon');
-      } else if (drawType === 'rectangle') {
-        drawRef.current.changeMode('draw_rectangle');
-      } else if (drawType === 'circle') {
-        drawRef.current.changeMode('draw_circle');
-      }
-    } else if (!isDrawing && !editingAOIId) {
-      const currentMode = drawRef.current.getMode();
+      // Clear previous shapes first
+      try {
+        const currentMode = drawInstance.getMode();
+        if (currentMode === 'direct_select') {
+          drawInstance.trash();
+        }
+        drawInstance.changeMode('simple_select');
+      } catch (e) {}
+
+      try {
+        const all = drawInstance.getAll();
+        if (all && all.features) {
+          all.features.forEach((f) => {
+            if (f.id) {
+              try {
+                drawInstance.delete(f.id as string);
+              } catch (e) {}
+            }
+          });
+        }
+      } catch (e) {}
+
+      try {
+        drawInstance.deleteAll();
+      } catch (e) {}
+
+      setTimeout(() => {
+        if (!drawRef.current) return;
+        const latestIsDrawing = useAOIStore.getState().isDrawing;
+        const latestDrawType = useAOIStore.getState().drawType;
+        if (latestIsDrawing) {
+          if (latestDrawType === 'polygon') {
+            drawRef.current.changeMode('draw_polygon');
+          } else if (latestDrawType === 'rectangle') {
+            drawRef.current.changeMode('draw_rectangle');
+          } else if (latestDrawType === 'circle') {
+            drawRef.current.changeMode('draw_circle');
+          }
+        }
+      }, 50);
+    } else if (isDrawingSTAC && drawTypeSTAC) {
+      // Deactivate AOI drawing/editing states to avoid conflict
+      useAOIStore.getState().setDrawing(false);
+      useAOIStore.getState().setDrawType(null);
+      useAOIStore.getState().setEditingAOI(null);
+      useAOIStore.getState().selectAOI(null);
+
+      // Clear previous STAC drawings first to allow clean redrawing
+      try {
+        const currentMode = drawInstance.getMode();
+        if (currentMode === 'direct_select') {
+          drawInstance.trash();
+        }
+        drawInstance.changeMode('simple_select');
+      } catch (e) {}
+
+      try {
+        const all = drawInstance.getAll();
+        if (all && all.features) {
+          all.features.forEach((f) => {
+            if (f.id) {
+              try {
+                drawInstance.delete(f.id as string);
+              } catch (e) {}
+            }
+          });
+        }
+      } catch (e) {}
+
+      try {
+        drawInstance.deleteAll();
+      } catch (e) {}
+
+      setTimeout(() => {
+        if (!drawRef.current) return;
+        const latestIsDrawingSTAC = useSTACStore.getState().isDrawingSTAC;
+        const latestDrawTypeSTAC = useSTACStore.getState().drawTypeSTAC;
+        if (latestIsDrawingSTAC) {
+          if (latestDrawTypeSTAC === 'polygon') {
+            drawRef.current.changeMode('draw_polygon');
+          } else if (latestDrawTypeSTAC === 'rectangle') {
+            drawRef.current.changeMode('draw_rectangle');
+          } else if (latestDrawTypeSTAC === 'circle') {
+            drawRef.current.changeMode('draw_circle');
+          }
+        }
+      }, 50);
+    } else if (!isDrawing && !editingAOIId && !isDrawingSTAC && !isEditingSTAC) {
+      const currentMode = drawInstance.getMode();
       if (currentMode !== 'simple_select' && currentMode !== 'direct_select') {
-        drawRef.current.changeMode('simple_select');
+        drawInstance.changeMode('simple_select');
       }
     }
-  }, [isDrawing, drawType, editingAOIId]);
+  }, [isDrawing, drawType, editingAOIId, isDrawingSTAC, drawTypeSTAC, isEditingSTAC]);
 
-  // Clean draw features when tempGeometry is reset to null externally (saved or cancelled)
+  // Clean draw features when tempGeometry or stacTempGeometry is reset to null externally (saved or cancelled)
   useEffect(() => {
     if (!drawRef.current) return;
-    if (!tempGeometry && !isDrawing && !editingAOIId) {
-      drawRef.current.deleteAll();
+    const drawInstance = drawRef.current;
+
+    if (!tempGeometry && !isDrawing && !editingAOIId && !stacTempGeometry && !isDrawingSTAC && !isEditingSTAC) {
+      try {
+        const currentMode = drawInstance.getMode();
+        if (currentMode === 'direct_select') {
+          drawInstance.trash();
+        }
+        drawInstance.changeMode('simple_select');
+      } catch (e: any) {}
+
+      setTimeout(() => {
+        try {
+          const all = drawInstance.getAll();
+          if (all && all.features) {
+            all.features.forEach((f) => {
+              if (f.id) {
+                try {
+                  drawInstance.delete(f.id as string);
+                } catch (e: any) {}
+              }
+            });
+          }
+        } catch (e: any) {}
+
+        try {
+          drawInstance.deleteAll();
+        } catch (e: any) {}
+      }, 50);
     }
-  }, [tempGeometry, isDrawing, editingAOIId]);
+  }, [tempGeometry, isDrawing, editingAOIId, stacTempGeometry, isDrawingSTAC, isEditingSTAC]);
+
+  // Clean STAC draw states when switching away from search tab
+  useEffect(() => {
+    if (activeTab !== 'search') {
+      const stacStore = useSTACStore.getState();
+      stacStore.setStacTempGeometry(null);
+      stacStore.setIsDrawingSTAC(false);
+      stacStore.setDrawTypeSTAC(null);
+      stacStore.setIsEditingSTAC(false);
+    }
+  }, [activeTab]);
+
+  // Listen to isEditingSTAC to switch Mapbox Draw mode between direct_select and simple_select
+  useEffect(() => {
+    if (!drawRef.current) return;
+    const drawInstance = drawRef.current;
+    const currentActiveTab = useAOIStore.getState().activeTab;
+    if (currentActiveTab !== 'search') return;
+
+    if (isEditingSTAC) {
+      try {
+        const allFeatures = drawInstance.getAll();
+        const stacFeature = allFeatures.features.find(
+          (f: any) => !f.properties?.isMeasurement && !f.properties?.user_isMeasurement
+        );
+        if (stacFeature && stacFeature.id) {
+          // Reconstruct circle properties if the polygon geometry is identified as a circle
+          const geom = stacFeature.geometry;
+          if (geom && geom.type === 'Polygon' && geom.coordinates) {
+            if (isPolygonCircle(geom.coordinates)) {
+              const centroid = getPolygonCentroid({ geometry: geom });
+              if (centroid) {
+                drawInstance.setFeatureProperty(stacFeature.id as string, 'isCircle', true);
+                drawInstance.setFeatureProperty(stacFeature.id as string, 'circleCenter', centroid);
+                drawInstance.setFeatureProperty(stacFeature.id as string, 'user_isCircle', true);
+                drawInstance.setFeatureProperty(stacFeature.id as string, 'user_circleCenter', centroid);
+              }
+            }
+          }
+          drawInstance.changeMode('direct_select', { featureId: stacFeature.id as any });
+        }
+      } catch (e) {}
+    } else {
+      try {
+        const currentMode = drawInstance.getMode();
+        if (currentMode === 'direct_select') {
+          drawInstance.changeMode('simple_select');
+        }
+        
+        // Retrieve final geometry on save
+        const allFeatures = drawInstance.getAll();
+        const stacFeature = allFeatures.features.find(
+          (f: any) => !f.properties?.isMeasurement && !f.properties?.user_isMeasurement
+        );
+        if (stacFeature) {
+          useSTACStore.getState().setStacTempGeometry(stacFeature.geometry);
+          // Deselect
+          drawInstance.changeMode('simple_select');
+        }
+      } catch (e) {}
+    }
+  }, [isEditingSTAC]);
 
   // Listen to editingAOIId changes to load selected AOI into Mapbox Draw for editing
   // ONLY depend on editingAOIId to prevent resetting map nodes while dragging/updating
@@ -2177,6 +2811,19 @@ export default function MapViewer() {
         drawRef.current.deleteAll();
         const featureIds = drawRef.current.add(editingAOI.geometry);
         const featureId = Array.isArray(featureIds) ? featureIds[0] : featureIds;
+        
+        // Reconstruct circle properties if the polygon geometry is identified as a circle
+        const coordinates = editingAOI.geometry.coordinates;
+        if (isPolygonCircle(coordinates)) {
+          const centroid = getPolygonCentroid({ geometry: editingAOI.geometry });
+          if (centroid) {
+            drawRef.current.setFeatureProperty(featureId as string, 'isCircle', true);
+            drawRef.current.setFeatureProperty(featureId as string, 'circleCenter', centroid);
+            drawRef.current.setFeatureProperty(featureId as string, 'user_isCircle', true);
+            drawRef.current.setFeatureProperty(featureId as string, 'user_circleCenter', centroid);
+          }
+        }
+        
         drawRef.current.changeMode('direct_select', { featureId: featureId as any });
       }
     } else {
@@ -2260,11 +2907,12 @@ export default function MapViewer() {
       map.current.flyTo({
         center: center,
         zoom: zoom,
+        padding: { left: isDrawerOpen ? 400 : 0, right: 0, top: 0, bottom: 0 },
         essential: true,
         duration: 1500,
       });
     }
-  }, [center, zoom]);
+  }, [center, zoom, isDrawerOpen]);
 
   // Listen to searchPin changes and place/remove marker
   useEffect(() => {

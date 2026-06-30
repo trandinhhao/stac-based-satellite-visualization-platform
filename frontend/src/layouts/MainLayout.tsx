@@ -1,5 +1,5 @@
-import { useEffect, useRef, lazy, Suspense } from 'react';
-import { Compass, Layers, Search, Hexagon, Ruler, Columns, Clock, Cpu, Loader2, ChevronLeft, Globe } from 'lucide-react';
+import { useEffect, useRef, lazy, Suspense, useState } from 'react';
+import { Compass, Layers, Search, Hexagon, Ruler, Columns, Clock, Cpu, Loader2, ChevronLeft, Globe, Info, MapPin, X } from 'lucide-react';
 import MapViewer from '../components/MapViewer';
 import SearchLocation from '../components/SearchLocation';
 import CompareViewer from '../features/comparison/components/CompareViewer';
@@ -29,6 +29,18 @@ export default function MainLayout() {
     .map((a) => a.name)
     .join(', ');
   
+  const [showHelpPanel, setShowHelpPanel] = useState(false);
+  const [helpType, setHelpType] = useState<'location' | 'stac' | 'aoi' | 'measure' | null>(null);
+
+  const toggleHelp = (type: 'location' | 'stac' | 'aoi' | 'measure') => {
+    if (helpType === type) {
+      setShowHelpPanel(!showHelpPanel);
+    } else {
+      setHelpType(type);
+      setShowHelpPanel(true);
+    }
+  };
+
   const prevTabRef = useRef(activeTab);
 
   // Automatically open the drawer whenever activeTab changes programmatically
@@ -36,8 +48,32 @@ export default function MainLayout() {
     if (activeTab !== prevTabRef.current) {
       setIsDrawerOpen(true);
       prevTabRef.current = activeTab;
+      setShowHelpPanel(false);
+      setHelpType(null);
     }
   }, [activeTab]);
+
+  useEffect(() => {
+    if (!isDrawerOpen) {
+      setShowHelpPanel(false);
+      setHelpType(null);
+    }
+  }, [isDrawerOpen]);
+
+  // Support closing help modal via Escape key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setShowHelpPanel(false);
+      }
+    };
+    if (showHelpPanel) {
+      window.addEventListener('keydown', handleKeyDown);
+    }
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [showHelpPanel]);
 
   const handleTabClick = (tab: 'location' | 'search' | 'aoi' | 'measure' | 'comparison' | 'jobs' | 'ai') => {
     if (activeTab === tab) {
@@ -181,14 +217,14 @@ export default function MainLayout() {
 
         {/* Collapsible Drawer Panel */}
         <div
-          className={`bg-slate-900/85 backdrop-blur-md border border-slate-800/85 rounded-2xl shadow-2xl flex flex-col pointer-events-auto transition-all duration-300 ease-in-out h-full overflow-hidden ${
-            isDrawerOpen ? 'w-96 opacity-100 translate-x-0 ml-3' : 'w-0 opacity-0 -translate-x-4 border-none pointer-events-none ml-0'
+          className={`bg-slate-900/90 backdrop-blur-md border border-slate-800/85 rounded-2xl shadow-2xl flex flex-col pointer-events-auto transition-all duration-300 ease-in-out h-full overflow-hidden ${
+            isDrawerOpen ? 'w-80 opacity-100 translate-x-0 ml-3' : 'w-0 opacity-0 -translate-x-4 border-none pointer-events-none ml-0'
           }`}
         >
           {/* Inner fixed-width container preventing content warping during resizing animation */}
-          <div className="w-96 h-full flex flex-col min-h-0">
+          <div className="w-80 h-full flex flex-col min-h-0">
             {/* Drawer Header */}
-            <div className="p-4 border-b border-slate-800/85 flex items-center justify-between flex-shrink-0">
+            <div className="p-4 border-b border-slate-700/60 flex items-center justify-between flex-shrink-0">
               <div className="flex items-center space-x-2">
                 {activeTab === 'location' && <Search className="w-4 h-4 text-sky-400" />}
                 {activeTab === 'search' && <Globe className="w-4 h-4 text-sky-400" />}
@@ -206,6 +242,22 @@ export default function MainLayout() {
                   {activeTab === 'jobs' && 'Tiến trình tác vụ nền'}
                   {activeTab === 'ai' && 'Nhận diện đối tượng AI'}
                 </h2>
+                
+                {/* Help button for current tab if help is supported */}
+                {['location', 'search'].includes(activeTab) && (
+                  <button
+                    type="button"
+                    onClick={() => toggleHelp(activeTab === 'location' ? 'location' : 'stac')}
+                    className={`p-1 rounded-lg hover:bg-slate-800/60 transition-all cursor-pointer flex items-center justify-center ${
+                      showHelpPanel && ((activeTab === 'location' && helpType === 'location') || (activeTab === 'search' && helpType === 'stac'))
+                        ? 'text-sky-400 font-bold'
+                        : 'text-slate-400 hover:text-slate-200'
+                    }`}
+                    title="Xem hướng dẫn nhanh"
+                  >
+                    <Info className="w-3.5 h-3.5" />
+                  </button>
+                )}
               </div>
               <button
                 onClick={() => setIsDrawerOpen(false)}
@@ -225,71 +277,31 @@ export default function MainLayout() {
                 </div>
               }>
                 {activeTab === 'location' && (
-                  <div className="p-3.5 bg-slate-950/40 border border-slate-800/60 rounded-xl space-y-2">
-                    <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider px-1">
-                      Tìm kiếm địa điểm & tọa độ
-                    </h3>
-                    <SearchLocation />
-                  </div>
+                  <SearchLocation />
                 )}
 
                 {activeTab === 'search' && (
-                  <div className="p-3.5 bg-slate-950/40 border border-slate-800/60 rounded-xl space-y-2">
-                    <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider px-1">
-                      Tìm kiếm ảnh vệ tinh (STAC)
-                    </h3>
-                    <STACSearchPanel />
-                  </div>
+                  <STACSearchPanel />
                 )}
 
                 {activeTab === 'aoi' && (
-                  /* Section 2: AOI Manager Panel */
-                  <div className="p-3.5 bg-slate-950/40 border border-slate-800/60 rounded-xl space-y-2">
-                    <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider px-1">
-                      Quản lý Vùng quan tâm (AOI)
-                    </h3>
-                    <AOIManagerPanel />
-                  </div>
+                  <AOIManagerPanel />
                 )}
 
                 {activeTab === 'measure' && (
-                  /* Section 2: Measurement Panel */
-                  <div className="p-3.5 bg-slate-950/40 border border-slate-800/60 rounded-xl space-y-2">
-                    <h3 className="text-xs font-bold text-emerald-400 uppercase tracking-wider px-1">
-                      Công cụ đo đạc địa lý
-                    </h3>
-                    <MeasurementPanel />
-                  </div>
+                  <MeasurementPanel />
                 )}
 
                 {activeTab === 'comparison' && (
-                  /* Section 2: Compare Panel */
-                  <div className="p-3.5 bg-slate-950/40 border border-slate-800/60 rounded-xl space-y-2">
-                    <h3 className="text-xs font-bold text-emerald-400 uppercase tracking-wider px-1">
-                      Đối chiếu ảnh vệ tinh
-                    </h3>
-                    <ComparePanel />
-                  </div>
+                  <ComparePanel />
                 )}
 
                 {activeTab === 'jobs' && (
-                  /* Section 2: Job Dashboard Panel */
-                  <div className="p-3.5 bg-slate-950/40 border border-slate-800/60 rounded-xl space-y-2">
-                    <h3 className="text-xs font-bold text-sky-400 uppercase tracking-wider px-1">
-                      Tiến trình Tác vụ Nền
-                    </h3>
-                    <JobDashboard />
-                  </div>
+                  <JobDashboard />
                 )}
 
                 {activeTab === 'ai' && (
-                  /* Section 2: AI Detection Panel */
-                  <div className="p-3.5 bg-slate-950/40 border border-slate-800/60 rounded-xl space-y-2">
-                    <h3 className="text-xs font-bold text-sky-400 uppercase tracking-wider px-1">
-                      Nhận diện đối tượng AI
-                    </h3>
-                    <DetectionPanel />
-                  </div>
+                  <DetectionPanel />
                 )}
               </Suspense>
             </div>
@@ -339,6 +351,110 @@ export default function MainLayout() {
       <div className="absolute bottom-4 left-4 z-10">
         <MapLayersSwitcher />
       </div>
+
+      {/* Help Modal Overlay (Sprint 10 Centered Modal) */}
+      {showHelpPanel && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-sm px-4 pointer-events-auto"
+          onClick={() => setShowHelpPanel(false)}
+        >
+          <div 
+            className="w-full max-w-md bg-slate-900 border border-slate-700/60 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[80vh] animate-in fade-in zoom-in-95 duration-200 pointer-events-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="p-4 border-b border-slate-700/60 flex items-center justify-between flex-shrink-0">
+              <div className="flex items-center space-x-2">
+                <Info className="w-4 h-4 text-sky-400" />
+                <h2 className="text-sm font-semibold text-slate-200">
+                  {helpType === 'location' && 'Hướng dẫn Tìm kiếm Vị trí'}
+                  {helpType === 'stac' && 'Hướng dẫn Tìm kiếm STAC'}
+                </h2>
+              </div>
+              <button
+                onClick={() => setShowHelpPanel(false)}
+                className="p-1.5 hover:bg-slate-800/60 rounded-lg text-slate-400 hover:text-slate-200 transition-colors cursor-pointer"
+                title="Đóng hướng dẫn"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 p-4 space-y-4 overflow-y-auto min-h-0">
+              {helpType === 'location' && (
+                <div className="space-y-4 text-[11px] leading-relaxed">
+                  <div className="p-3.5 bg-slate-950/50 border border-slate-850 rounded-xl space-y-2">
+                    <h4 className="font-bold text-sky-400 flex items-center space-x-1.5">
+                      <MapPin className="w-4 h-4 text-sky-400" />
+                      <span>Tìm kiếm theo Địa điểm</span>
+                    </h4>
+                    <p className="text-slate-300">
+                      Định vị nhanh bản đồ dựa trên tên địa danh (địa chỉ, thành phố, danh lam thắng cảnh).
+                    </p>
+                    <ul className="list-disc pl-4 space-y-1 text-[10px] text-slate-400">
+                      <li>Nhập từ khóa tìm kiếm (tối thiểu 2 ký tự).</li>
+                      <li>Hệ thống hiển thị danh sách kết quả gợi ý.</li>
+                      <li>Click vào kết quả gợi ý để bản đồ tự động di chuyển đến vị trí và cắm ghim.</li>
+                    </ul>
+                  </div>
+
+                  <div className="p-3.5 bg-slate-950/50 border border-slate-850 rounded-xl space-y-2">
+                    <h4 className="font-bold text-sky-400 flex items-center space-x-1.5">
+                      <Compass className="w-4 h-4 text-sky-400" />
+                      <span>Tìm kiếm theo Tọa độ</span>
+                    </h4>
+                    <p className="text-slate-300">
+                      Định vị chính xác điểm trên bản đồ bằng vĩ độ và kinh độ (WGS84).
+                    </p>
+                    <ul className="list-disc pl-4 space-y-1 text-[10px] text-slate-400">
+                      <li><strong>Vĩ độ (Lat):</strong> Từ -90 đến 90.</li>
+                      <li><strong>Kinh độ (Lng):</strong> Từ -180 đến 180.</li>
+                      <li>Ví dụ: Hà Nội có Vĩ độ <code>21.028</code>, Kinh độ <code>105.834</code>.</li>
+                      <li>Nhập tọa độ rồi bấm <strong>Chuyển đến</strong> để định vị bản đồ.</li>
+                    </ul>
+                  </div>
+                </div>
+              )}
+
+              {helpType === 'stac' && (
+                <div className="space-y-4 text-[11px] leading-relaxed">
+                  <div className="p-3.5 bg-slate-950/50 border border-slate-850 rounded-xl space-y-2">
+                    <h4 className="font-bold text-sky-400 flex items-center space-x-1.5">
+                      <Globe className="w-4 h-4 text-sky-400" />
+                      <span>Tìm kiếm ảnh vệ tinh (STAC)</span>
+                    </h4>
+                    <p className="text-slate-300">
+                      Tìm kiếm và tải dữ liệu ảnh từ các kho lưu trữ chuẩn STAC (SpatioTemporal Asset Catalog).
+                    </p>
+                  </div>
+
+                  <div className="p-3.5 bg-slate-950/50 border border-slate-850 rounded-xl space-y-2">
+                    <h5 className="font-bold text-slate-200">1. Chọn bộ sưu tập & Thời gian</h5>
+                    <p className="text-slate-400">
+                      Chọn Collection vệ tinh phù hợp (Sentinel-2, Planet...) và khoảng thời gian chụp ảnh cần lọc.
+                    </p>
+                  </div>
+
+                  <div className="p-3.5 bg-slate-950/50 border border-slate-850 rounded-xl space-y-2">
+                    <h5 className="font-bold text-slate-200">2. Xác định vùng quét (Spatial Scope)</h5>
+                    <p className="text-slate-450">
+                      <strong>Tạo mới vùng:</strong> Chọn vẽ Đa giác, Hình chữ nhật, hoặc Hình tròn.
+                    </p>
+                    <ul className="list-disc pl-4 mt-1 space-y-1 text-[10px] text-slate-400">
+                      <li><strong>Click chuột phải</strong> vào bản đồ để hủy vẽ/sửa nhanh.</li>
+                      <li><strong>Kéo tâm đỏ</strong> để di chuyển hình tròn; <strong>kéo đường viền</strong> để thay đổi bán kính.</li>
+                    </ul>
+                    <p className="text-slate-400 mt-2">
+                      <strong>Vùng AOI:</strong> Chọn sử dụng một hoặc nhiều ranh giới vùng quan tâm đã được lưu trong tài khoản.
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

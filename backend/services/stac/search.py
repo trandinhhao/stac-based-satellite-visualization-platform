@@ -80,6 +80,96 @@ def sign_item_assets(item: dict) -> dict:
             
     return item
 
+def point_on_segment(p, a, b):
+    px, py = p
+    ax, ay = a
+    bx, by = b
+    cross_product = (py - ay) * (bx - ax) - (px - ax) * (by - ay)
+    if abs(cross_product) > 1e-9:
+        return False
+    return min(ax, bx) <= px <= max(ax, bx) and min(ay, by) <= py <= max(ay, by)
+
+def point_in_polygon(x, y, poly):
+    n = len(poly)
+    inside = False
+    p1x, p1y = poly[0]
+    for i in range(n + 1):
+        p2x, p2y = poly[i % n]
+        if y > min(p1y, p2y):
+            if y <= max(p1y, p2y):
+                if x <= max(p1x, p2x):
+                    if p1y != p2y:
+                        xints = (y - p1y) * (p2x - p1x) / (p2y - p1y) + p1x
+                    if p1x == p2x or x <= xints:
+                        inside = not inside
+        p1x, p1y = p2x, p2y
+    return inside
+
+def is_point_in_polygon(x, y, poly_rings):
+    if not poly_rings:
+        return False
+    outer_ring = poly_rings[0]
+    for i in range(len(outer_ring)):
+        if point_on_segment((x, y), outer_ring[i], outer_ring[(i + 1) % len(outer_ring)]):
+            return True
+    if not point_in_polygon(x, y, outer_ring):
+        return False
+    for hole in poly_rings[1:]:
+        for i in range(len(hole)):
+            if point_on_segment((x, y), hole[i], hole[(i + 1) % len(hole)]):
+                return True
+        if point_in_polygon(x, y, hole):
+            return False
+    return True
+
+def ccw(A, B, C):
+    return (C[1] - A[1]) * (B[0] - A[0]) > (B[1] - A[1]) * (C[0] - A[0])
+
+def intersect(A, B, C, D):
+    return ccw(A, C, D) != ccw(B, C, D) and ccw(A, B, C) != ccw(A, B, D)
+
+def extract_polygons(geom):
+    if not geom:
+        return []
+    g_type = geom.get("type")
+    coords = geom.get("coordinates", [])
+    if g_type == "Polygon":
+        return [coords]
+    elif g_type == "MultiPolygon":
+        return coords
+    return []
+
+def geometry_contains(outer_geom, inner_geom):
+    outer_polys = extract_polygons(outer_geom)
+    inner_polys = extract_polygons(inner_geom)
+    if not outer_polys or not inner_polys:
+        return False
+    for inner_poly in inner_polys:
+        if not inner_poly:
+            continue
+        inner_outer_ring = inner_poly[0]
+        for pt in inner_outer_ring:
+            point_inside_any_outer = False
+            for outer_poly in outer_polys:
+                if is_point_in_polygon(pt[0], pt[1], outer_poly):
+                    point_inside_any_outer = True
+                    break
+            if not point_inside_any_outer:
+                return False
+        for i in range(len(inner_outer_ring)):
+            a = inner_outer_ring[i]
+            b = inner_outer_ring[(i + 1) % len(inner_outer_ring)]
+            for outer_poly in outer_polys:
+                for ring in outer_poly:
+                    for j in range(len(ring)):
+                        c = ring[j]
+                        d = ring[(j + 1) % len(ring)]
+                        if intersect(a, b, c, d):
+                            if a == c or a == d or b == c or b == d:
+                                continue
+                            return False
+    return True
+
 def search_stac_images(query_params: dict):
     # 1. Prepare search payload
     payload = {}
@@ -93,8 +183,12 @@ def search_stac_images(query_params: dict):
     if "intersects" in query_params:
         payload["intersects"] = query_params["intersects"]
         
-    # Default limit
-    payload["limit"] = query_params.get("limit", 15)  # Limit to 15 for faster signing response
+    requested_limit = query_params.get("limit", 15)
+    # Request more items to allow post-filtering for containment
+    if "intersects" in query_params:
+        payload["limit"] = 100
+    else:
+        payload["limit"] = requested_limit
 
     # 2. Check Redis cache
     cache_key = f"stac_search_{hash_dict(payload)}"
@@ -140,6 +234,15 @@ def search_stac_images(query_params: dict):
             with urllib.request.urlopen(req) as resp:
                 results = json.loads(resp.read().decode('utf-8'))
                 
+            # Filter results to ensure they completely contain the intersects geometry
+            if "intersects" in query_params and results.get("features"):
+                filtered_features = []
+                for feat in results["features"]:
+                    feat_geom = feat.get("geometry")
+                    if feat_geom and geometry_contains(feat_geom, query_params["intersects"]):
+                        filtered_features.append(feat)
+                results["features"] = filtered_features[:requested_limit]
+                
             # Sign the assets of the returned items in parallel
             features = results.get("features", [])
             if features:
@@ -167,6 +270,15 @@ def search_stac_images(query_params: dict):
             with urllib.request.urlopen(req) as resp:
                 results = json.loads(resp.read().decode('utf-8'))
                 
+            # Filter results to ensure they completely contain the intersects geometry
+            if "intersects" in query_params and results.get("features"):
+                filtered_features = []
+                for feat in results["features"]:
+                    feat_geom = feat.get("geometry")
+                    if feat_geom and geometry_contains(feat_geom, query_params["intersects"]):
+                        filtered_features.append(feat)
+                results["features"] = filtered_features[:requested_limit]
+
             features = results.get("features", [])
             for item in features:
                 if "assets" not in item:
@@ -187,6 +299,15 @@ def search_stac_images(query_params: dict):
         else:
             print(f"[Redis] Cache MISS for STAC search: {cache_key}, querying local stac-fastapi...")
             results = stac_client.post("/search", payload)
+            
+            # Filter results to ensure they completely contain the intersects geometry
+            if "intersects" in query_params and results.get("features"):
+                filtered_features = []
+                for feat in results["features"]:
+                    feat_geom = feat.get("geometry")
+                    if feat_geom and geometry_contains(feat_geom, query_params["intersects"]):
+                        filtered_features.append(feat)
+                results["features"] = filtered_features[:requested_limit]
 
         # 4. Cache results
         redis_cache.set(cache_key, results, CACHE_TTL_SEARCH)

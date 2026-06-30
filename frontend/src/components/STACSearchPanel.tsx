@@ -1,41 +1,145 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { Search, Calendar, Image as ImageIcon, Info, Cloud, Cpu, ArrowRight, Eye, RefreshCw } from 'lucide-react';
+import { 
+  Search, 
+  Image as ImageIcon, 
+  Info, 
+  Cloud, 
+  Cpu, 
+  ArrowRight, 
+  Eye, 
+  RefreshCw,
+  Hexagon,
+  Square,
+  Circle,
+  Trash2,
+  Edit,
+  Save,
+  Calendar
+} from 'lucide-react';
 import { useSTACStore } from '../store/useSTACStore';
 import type { STACCollection, STACItem } from '../store/useSTACStore';
 import { useAOIStore } from '../store/useAOIStore';
 import { useCompareStore } from '../features/comparison/store/useCompareStore';
 import { api } from '../services/api';
-
 export default function STACSearchPanel() {
   const {
     collections,
     searchResults,
     selectedItem,
     filters,
-    bbox,
+    stacTempGeometry,
+    isDrawingSTAC,
+    drawTypeSTAC,
+    isEditingSTAC,
     setCollections,
     setSearchResults,
     setSelectedItem,
     setFilters,
+    setStacTempGeometry,
+    setIsDrawingSTAC,
+    setDrawTypeSTAC,
+    setIsEditingSTAC
   } = useSTACStore();
 
   const selectedAOIIds = useAOIStore((state) => state.selectedAOIIds);
   const aois = useAOIStore((state) => state.aois);
   const selectedAOIs = aois.filter((aoi) => selectedAOIIds.includes(aoi.id));
   const setActiveTab = useAOIStore((state) => state.setActiveTab);
+  const isDrawerOpen = useAOIStore((state) => state.isDrawerOpen);
+  const activeTab = useAOIStore((state) => state.activeTab);
   const { selectImageA, selectImageB } = useCompareStore();
 
-  const [spatialScope, setSpatialScope] = useState<'viewport' | 'aoi'>('viewport');
+  const [spatialScope, setSpatialScope] = useState<'draw' | 'aoi'>('draw');
+
+  // Programmatic calendar toggle states & refs to fix reopen on click issue
+  const [isStartOpen, setIsStartOpen] = useState(false);
+  const [isEndOpen, setIsEndOpen] = useState(false);
+  const startInputRef = useRef<HTMLInputElement>(null);
+  const endInputRef = useRef<HTMLInputElement>(null);
+
+  const handleStartToggle = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (isStartOpen) {
+      startInputRef.current?.blur();
+      setIsStartOpen(false);
+    } else {
+      startInputRef.current?.showPicker();
+      setIsStartOpen(true);
+    }
+  };
+
+  const handleEndToggle = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (isEndOpen) {
+      endInputRef.current?.blur();
+      setIsEndOpen(false);
+    } else {
+      endInputRef.current?.showPicker();
+      setIsEndOpen(true);
+    }
+  };
 
   // Sync spatial scope selection when selected AOI updates
   useEffect(() => {
     if (selectedAOIs.length > 0) {
       setSpatialScope('aoi');
     } else if (spatialScope === 'aoi') {
-      setSpatialScope('viewport');
+      setSpatialScope('draw');
     }
   }, [selectedAOIIds]);
+
+  // Reset STAC temp geometry when switching away from 'draw' to 'aoi'
+  useEffect(() => {
+    if (spatialScope === 'aoi') {
+      clearDrawnArea();
+    }
+  }, [spatialScope]);
+
+  // Cleanup drawn geometry when drawer is closed or active tab changes away from 'search'
+  useEffect(() => {
+    if (!isDrawerOpen || activeTab !== 'search') {
+      // Clear temp geometry in store, which triggers Mapbox Draw cleanup in MapViewer
+      useSTACStore.getState().setStacTempGeometry(null);
+      useSTACStore.getState().setIsDrawingSTAC(false);
+      useSTACStore.getState().setDrawTypeSTAC(null);
+      useSTACStore.getState().setIsEditingSTAC(false);
+    }
+  }, [isDrawerOpen, activeTab]);
+
+  // STAC Draw Triggers
+  const startDrawPolygon = () => {
+    setStacTempGeometry(null);
+    setIsDrawingSTAC(true);
+    setDrawTypeSTAC('polygon');
+    setIsEditingSTAC(false);
+  };
+
+  const startDrawRectangle = () => {
+    setStacTempGeometry(null);
+    setIsDrawingSTAC(true);
+    setDrawTypeSTAC('rectangle');
+    setIsEditingSTAC(false);
+  };
+
+  const startDrawCircle = () => {
+    setStacTempGeometry(null);
+    setIsDrawingSTAC(true);
+    setDrawTypeSTAC('circle');
+    setIsEditingSTAC(false);
+  };
+
+  const cancelDrawing = () => {
+    setIsDrawingSTAC(false);
+    setDrawTypeSTAC(null);
+  };
+
+  const clearDrawnArea = () => {
+    setStacTempGeometry(null);
+    setIsDrawingSTAC(false);
+    setDrawTypeSTAC(null);
+    setIsEditingSTAC(false);
+  };
 
   // 1. Query Collections List
   const { isLoading: isLoadingCollections } = useQuery<STACCollection[]>({
@@ -45,7 +149,7 @@ export default function STACSearchPanel() {
       setCollections(response.data);
       return response.data;
     },
-    staleTime: 30 * 60 * 1000, // Cache collections list for 30 minutes
+    staleTime: 30 * 60 * 1000,
   });
 
   // 2. Search Mutation
@@ -73,9 +177,12 @@ export default function STACSearchPanel() {
       datetime: datetimeStr,
     };
 
-    if (spatialScope === 'viewport') {
-      if (!bbox) return;
-      payload.bbox = bbox;
+    if (spatialScope === 'draw') {
+      if (!stacTempGeometry) {
+        alert('Vui lòng tự vẽ một vùng tìm kiếm trên bản đồ trước!');
+        return;
+      }
+      payload.intersects = stacTempGeometry;
     } else if (spatialScope === 'aoi') {
       if (selectedAOIs.length === 0) return;
       if (selectedAOIs.length === 1) {
@@ -91,7 +198,10 @@ export default function STACSearchPanel() {
     searchMutation.mutate(payload);
   };
 
-
+  const isSearchDisabled = 
+    searchMutation.isPending || 
+    (spatialScope === 'draw' && (!stacTempGeometry || isEditingSTAC)) ||
+    (spatialScope === 'aoi' && selectedAOIs.length === 0);
 
   const formatDate = (dateStr: string) => {
     try {
@@ -143,28 +253,50 @@ export default function STACSearchPanel() {
         {/* Date Filter (Range) */}
         <div className="space-y-1.5">
           <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
-            Thời gian chụp ảnh vệ tinh (Từ ngày - Đến ngày)
+            Thời gian chụp ảnh (Từ ngày - Đến ngày)
           </label>
           <div className="grid grid-cols-2 gap-2">
             <div className="relative flex items-center">
               <input
+                ref={startInputRef}
                 type="date"
                 value={filters.startDate}
-                onChange={(e) => setFilters({ startDate: e.target.value })}
-                className="w-full h-10 pl-9 pr-2 bg-slate-950/40 border border-slate-800/80 focus:border-sky-500/80 rounded-xl text-[11px] text-slate-300 outline-none transition-all"
+                onChange={(e) => {
+                  setFilters({ startDate: e.target.value });
+                  setIsStartOpen(false);
+                }}
+                onBlur={() => setIsStartOpen(false)}
+                className="w-full h-10 pl-3.5 pr-9 bg-slate-950/40 border border-slate-800/80 focus:border-sky-500/80 rounded-xl text-[11px] text-slate-300 outline-none transition-all cursor-pointer"
                 title="Từ ngày"
               />
-              <Calendar className="absolute left-3 w-4 h-4 text-slate-500 pointer-events-none" />
+              <button
+                type="button"
+                onMouseDown={handleStartToggle}
+                className="absolute right-3 text-slate-500 hover:text-slate-300 cursor-pointer flex items-center justify-center"
+              >
+                <Calendar className="w-4 h-4" />
+              </button>
             </div>
             <div className="relative flex items-center">
               <input
+                ref={endInputRef}
                 type="date"
                 value={filters.endDate}
-                onChange={(e) => setFilters({ endDate: e.target.value })}
-                className="w-full h-10 pl-9 pr-2 bg-slate-950/40 border border-slate-800/80 focus:border-sky-500/80 rounded-xl text-[11px] text-slate-300 outline-none transition-all"
+                onChange={(e) => {
+                  setFilters({ endDate: e.target.value });
+                  setIsEndOpen(false);
+                }}
+                onBlur={() => setIsEndOpen(false)}
+                className="w-full h-10 pl-3.5 pr-9 bg-slate-950/40 border border-slate-800/80 focus:border-sky-500/80 rounded-xl text-[11px] text-slate-300 outline-none transition-all cursor-pointer"
                 title="Đến ngày"
               />
-              <Calendar className="absolute left-3 w-4 h-4 text-slate-500 pointer-events-none" />
+              <button
+                type="button"
+                onMouseDown={handleEndToggle}
+                className="absolute right-3 text-slate-500 hover:text-slate-300 cursor-pointer flex items-center justify-center"
+              >
+                <Calendar className="w-4 h-4" />
+              </button>
             </div>
           </div>
         </div>
@@ -177,14 +309,14 @@ export default function STACSearchPanel() {
           <div className="grid grid-cols-2 gap-1.5">
             <button
               type="button"
-              onClick={() => setSpatialScope('viewport')}
+              onClick={() => setSpatialScope('draw')}
               className={`h-8 px-2 rounded-lg text-[10px] font-bold transition-all border cursor-pointer ${
-                spatialScope === 'viewport'
+                spatialScope === 'draw'
                   ? 'bg-sky-500/20 border-sky-500/50 text-sky-400'
                   : 'bg-slate-950/40 border-slate-800/80 hover:bg-slate-800/40 text-slate-400'
               }`}
             >
-              Khung nhìn
+              Tạo mới vùng
             </button>
             <button
               type="button"
@@ -211,13 +343,127 @@ export default function STACSearchPanel() {
               </span>
             </div>
           )}
+
+          {/* Custom Drawing Options when "Tạo mới vùng" is active */}
+          {spatialScope === 'draw' && (
+            <div className="space-y-2 mt-2 p-2.5 bg-slate-950/40 border border-slate-900 rounded-xl animate-in slide-in-from-top duration-200">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                  Vùng tìm kiếm
+                </span>
+                {stacTempGeometry && (
+                  <div className="flex items-center space-x-3">
+                    {/* Sửa hình / Lưu */}
+                    <button
+                      type="button"
+                      onClick={() => setIsEditingSTAC(!isEditingSTAC)}
+                      className={`text-[10px] font-bold flex items-center space-x-1 cursor-pointer transition-colors ${
+                        isEditingSTAC
+                           ? 'text-emerald-400 hover:text-emerald-300 animate-pulse'
+                           : 'text-sky-400 hover:text-sky-300'
+                      }`}
+                    >
+                      {isEditingSTAC ? (
+                        <>
+                          <Save className="w-3 h-3" />
+                          <span>Lưu</span>
+                        </>
+                      ) : (
+                        <>
+                          <Edit className="w-3 h-3" />
+                          <span>Sửa hình</span>
+                        </>
+                      )}
+                    </button>
+
+                    {/* Xóa vùng */}
+                    <button
+                      type="button"
+                      onClick={clearDrawnArea}
+                      className="text-[10px] font-bold text-rose-400 hover:text-rose-300 flex items-center space-x-1 cursor-pointer transition-colors"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                      <span>Xóa vùng</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-3">
+                {stacTempGeometry ? (
+                  <div className="text-[10px] font-semibold flex items-center space-x-1 animate-in fade-in duration-200">
+                    {isEditingSTAC ? (
+                      <span className="text-amber-400 flex items-center">
+                        <span className="w-1.5 h-1.5 bg-amber-400 rounded-full mr-1.5 animate-pulse" />
+                        Đang sửa hình dạng...
+                      </span>
+                    ) : (
+                      <span className="text-emerald-400 flex items-center">
+                        <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full mr-1.5" />
+                        Đã lưu vùng tìm kiếm
+                      </span>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-[10px] font-semibold flex items-center animate-in fade-in duration-200">
+                    <span className="text-sky-400/90 flex items-center">
+                      <span className="w-1.5 h-1.5 bg-sky-400 rounded-full mr-1.5 animate-pulse" />
+                      Chọn công cụ để vẽ vùng tìm ảnh STAC trên bản đồ
+                    </span>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-3 gap-1.5">
+                  <button
+                    type="button"
+                    onClick={isDrawingSTAC && drawTypeSTAC === 'polygon' ? cancelDrawing : startDrawPolygon}
+                    className={`h-8 rounded-lg text-[10px] font-bold flex items-center justify-center space-x-1 border transition-all cursor-pointer ${
+                      isDrawingSTAC && drawTypeSTAC === 'polygon'
+                        ? 'bg-amber-500/20 border-amber-500/50 text-amber-300'
+                        : 'bg-slate-900 hover:bg-slate-800 border-slate-850 hover:border-slate-800 text-slate-300'
+                    }`}
+                    title={isDrawingSTAC && drawTypeSTAC === 'polygon' ? 'Hủy chế độ vẽ' : 'Vẽ đa giác tự do'}
+                  >
+                    <Hexagon className="w-3.5 h-3.5 text-sky-400" />
+                    <span>{isDrawingSTAC && drawTypeSTAC === 'polygon' ? 'Hủy vẽ' : 'Đa giác'}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={isDrawingSTAC && drawTypeSTAC === 'rectangle' ? cancelDrawing : startDrawRectangle}
+                    className={`h-8 rounded-lg text-[10px] font-bold flex items-center justify-center space-x-1 border transition-all cursor-pointer ${
+                      isDrawingSTAC && drawTypeSTAC === 'rectangle'
+                        ? 'bg-amber-500/20 border-amber-500/50 text-amber-300'
+                        : 'bg-slate-900 hover:bg-slate-800 border-slate-850 hover:border-slate-800 text-slate-300'
+                    }`}
+                    title={isDrawingSTAC && drawTypeSTAC === 'rectangle' ? 'Hủy chế độ vẽ' : 'Vẽ hình chữ nhật'}
+                  >
+                    <Square className="w-3.5 h-3.5 text-sky-400" />
+                    <span>{isDrawingSTAC && drawTypeSTAC === 'rectangle' ? 'Hủy vẽ' : 'Chữ nhật'}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={isDrawingSTAC && drawTypeSTAC === 'circle' ? cancelDrawing : startDrawCircle}
+                    className={`h-8 rounded-lg text-[10px] font-bold flex items-center justify-center space-x-1 border transition-all cursor-pointer ${
+                      isDrawingSTAC && drawTypeSTAC === 'circle'
+                        ? 'bg-amber-500/20 border-amber-500/50 text-amber-300'
+                        : 'bg-slate-900 hover:bg-slate-800 border-slate-850 hover:border-slate-800 text-slate-300'
+                    }`}
+                    title={isDrawingSTAC && drawTypeSTAC === 'circle' ? 'Hủy chế độ vẽ' : 'Vẽ hình tròn'}
+                  >
+                    <Circle className="w-3.5 h-3.5 text-sky-400" />
+                    <span>{isDrawingSTAC && drawTypeSTAC === 'circle' ? 'Hủy vẽ' : 'Hình tròn'}</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Search Action Button */}
         <button
           onClick={handleSearch}
-          disabled={searchMutation.isPending}
-          className="w-full h-11 bg-sky-500 hover:bg-sky-400 active:scale-[0.98] disabled:bg-sky-500/50 rounded-xl text-xs font-bold text-white shadow-lg shadow-sky-500/10 cursor-pointer flex items-center justify-center space-x-2 transition-all duration-150"
+          disabled={isSearchDisabled}
+          className="w-full h-11 bg-sky-500 hover:bg-sky-400 active:scale-[0.98] disabled:bg-slate-800/80 disabled:text-slate-400 disabled:border disabled:border-slate-700/40 disabled:shadow-none disabled:cursor-not-allowed rounded-xl text-xs font-bold text-white shadow-lg shadow-sky-500/10 cursor-pointer flex items-center justify-center space-x-2 transition-all duration-150"
         >
           {searchMutation.isPending ? (
             <>
