@@ -363,8 +363,9 @@ const customDirectSelectMode: any = {
   clickNoTarget: function (state: any, e: any) {
     const activeTab = useAOIStore.getState().activeTab;
     const isEditingSTAC = useSTACStore.getState().isEditingSTAC;
-    if (activeTab === 'search' && isEditingSTAC) {
-      // Prevent exiting direct_select mode on map outclick when editing in STAC Search tab
+    const isEditingAOI = useAOIStore.getState().isEditingAOI;
+    if ((activeTab === 'search' && isEditingSTAC) || (activeTab === 'aoi' && isEditingAOI)) {
+      // Prevent exiting direct_select mode on map outclick when editing
       return;
     }
     const baseDirectSelect = MapboxDraw.modes.direct_select as any;
@@ -375,8 +376,9 @@ const customDirectSelectMode: any = {
   clickInactive: function (state: any, e: any) {
     const activeTab = useAOIStore.getState().activeTab;
     const isEditingSTAC = useSTACStore.getState().isEditingSTAC;
-    if (activeTab === 'search' && isEditingSTAC) {
-      // Prevent exiting direct_select mode on outclick on other features when editing in STAC Search tab
+    const isEditingAOI = useAOIStore.getState().isEditingAOI;
+    if ((activeTab === 'search' && isEditingSTAC) || (activeTab === 'aoi' && isEditingAOI)) {
+      // Prevent exiting direct_select mode on outclick on other features when editing
       return;
     }
     const baseDirectSelect = MapboxDraw.modes.direct_select as any;
@@ -387,10 +389,11 @@ const customDirectSelectMode: any = {
   onClick: function (state: any, e: any) {
     const activeTab = useAOIStore.getState().activeTab;
     const isEditingSTAC = useSTACStore.getState().isEditingSTAC;
+    const isEditingAOI = useAOIStore.getState().isEditingAOI;
     const isCircle = state.feature && (state.feature.getProperty?.('isCircle') || state.feature.properties?.isCircle || state.feature.properties?.user_isCircle);
     
-    if ((activeTab === 'search' && isEditingSTAC) || isCircle) {
-      // Prevent exiting edit mode on click entirely when editing in STAC Search or editing a circle
+    if ((activeTab === 'search' && isEditingSTAC) || (activeTab === 'aoi' && isEditingAOI) || isCircle) {
+      // Prevent exiting edit mode on click entirely when editing or editing a circle
       return;
     }
     const baseDirectSelect = MapboxDraw.modes.direct_select as any;
@@ -401,10 +404,11 @@ const customDirectSelectMode: any = {
   onTap: function (state: any, e: any) {
     const activeTab = useAOIStore.getState().activeTab;
     const isEditingSTAC = useSTACStore.getState().isEditingSTAC;
+    const isEditingAOI = useAOIStore.getState().isEditingAOI;
     const isCircle = state.feature && (state.feature.getProperty?.('isCircle') || state.feature.properties?.isCircle || state.feature.properties?.user_isCircle);
     
-    if ((activeTab === 'search' && isEditingSTAC) || isCircle) {
-      // Prevent exiting edit mode on tap entirely when editing in STAC Search or editing a circle
+    if ((activeTab === 'search' && isEditingSTAC) || (activeTab === 'aoi' && isEditingAOI) || isCircle) {
+      // Prevent exiting edit mode on tap entirely when editing or editing a circle
       return;
     }
     const baseDirectSelect = MapboxDraw.modes.direct_select as any;
@@ -802,6 +806,7 @@ export default function MapViewer() {
   const isDrawing = useAOIStore((state) => state.isDrawing);
   const drawType = useAOIStore((state) => state.drawType);
   const editingAOIId = useAOIStore((state) => state.editingAOIId);
+  const isEditingAOI = useAOIStore((state) => state.isEditingAOI);
   const activeTab = useAOIStore((state) => state.activeTab);
   const isDrawerOpen = useAOIStore((state) => state.isDrawerOpen);
   const showAllAOIs = useAOIStore((state) => state.showAllAOIs);
@@ -1150,13 +1155,10 @@ export default function MapViewer() {
       if (item) {
         const visualAsset = item.assets.visual;
         if (visualAsset) {
-          const href = visualAsset.href;
-          const isGlobal = href.includes('blob.core.windows.net') || href.includes('planetarycomputer');
-          
           let tileUrl = '';
           if (item.collection === 'PSScene') {
             tileUrl = `/api/stac/planet/tiles/PSScene/${item.id}/{z}/{x}/{y}.png`;
-          } else if (isGlobal) {
+          } else {
             // Route directly to Microsoft Planetary Computer Tile API
             if (item.collection === 'sentinel-2-l2a') {
               tileUrl = `https://planetarycomputer.microsoft.com/api/data/v1/item/tiles/WebMercatorQuad/{z}/{x}/{y}@1x?collection=sentinel-2-l2a&item=${item.id}&assets=visual&asset_bidx=visual%7C1%2C2%2C3&nodata=0&format=png`;
@@ -1169,16 +1171,6 @@ export default function MapViewer() {
             } else {
               tileUrl = `https://planetarycomputer.microsoft.com/api/data/v1/item/tiles/WebMercatorQuad/{z}/{x}/{y}@1x?collection=${item.collection}&item=${item.id}&assets=visual&format=png`;
             }
-          } else {
-            // Local offline sample files via local TiTiler
-            const isSAR = item.collection === 'sentinel-1-grd';
-            const isLandsat = item.collection === 'landsat-8-c2-l2' || item.collection === 'landsat-9-c2-l2';
-            
-            let colormap = '';
-            if (isSAR) colormap = '&colormap_name=bone';
-            else if (isLandsat) colormap = '&colormap_name=terrain';
-
-            tileUrl = `/cog/tiles/{z}/{x}/{y}.png?url=${encodeURIComponent(href)}${colormap}`;
           }
 
           console.log(`[STAC] Rendering tile overlay for item "${item.id}":`, tileUrl);
@@ -1379,7 +1371,12 @@ export default function MapViewer() {
               },
             }))
         : aois
-            .filter((aoi) => selectedAOIIds.includes(aoi.id))
+            .filter((aoi) => {
+              const isSelected = selectedAOIIds.includes(aoi.id);
+              if (!isSelected) return false;
+              if (!editingAOIId) return true;
+              return String(aoi.id).toLowerCase().trim() !== String(editingAOIId).toLowerCase().trim();
+            })
             .map((aoi) => ({
               type: 'Feature',
               id: aoi.id,
@@ -2169,7 +2166,11 @@ export default function MapViewer() {
             if (currentActiveTab === 'search') {
               useSTACStore.getState().setStacTempGeometry(feature.geometry);
             } else if (currentActiveTab === 'aoi') {
-              useAOIStore.getState().setTempGeometry(feature.geometry);
+              const editingAOIId = useAOIStore.getState().editingAOIId;
+              const tempGeometry = useAOIStore.getState().tempGeometry;
+              if (editingAOIId !== null || tempGeometry !== null) {
+                useAOIStore.getState().setTempGeometry(feature.geometry);
+              }
             }
           }
         }
@@ -2291,6 +2292,7 @@ export default function MapViewer() {
             useAOIStore.getState().setDrawType(null);
             useAOIStore.getState().setTempGeometry(null);
             useAOIStore.getState().setEditingAOI(null);
+            useAOIStore.getState().setIsEditingAOI(false);
 
             // Cancel STAC state
             useSTACStore.getState().setIsDrawingSTAC(false);
@@ -2491,13 +2493,14 @@ export default function MapViewer() {
 
   // Listen to isMeasuring and measureType changes to trigger Mapbox Draw modes for measurements
   useEffect(() => {
-    if (!drawRef.current || !map.current || activeTab !== 'measure') return;
+    if (!drawRef.current || !map.current || activeTab !== 'measure' || !isDrawerOpen) return;
 
     if (isMeasuring && measureType !== 'none') {
       // Deactivate AOI drawing/editing states to avoid conflict
       useAOIStore.getState().setDrawing(false);
       useAOIStore.getState().setDrawType(null);
       useAOIStore.getState().setEditingAOI(null);
+      useAOIStore.getState().setIsEditingAOI(false);
       useAOIStore.getState().selectAOI(null);
 
       // Change draw mode based on measure type
@@ -2537,7 +2540,7 @@ export default function MapViewer() {
       }));
       renderMeasurementLabels(historyFeatures);
     }
-  }, [isMeasuring, measureType, activeTab]);
+  }, [isMeasuring, measureType, activeTab, isDrawerOpen]);
 
   // Sync Mapbox Draw features with completed measurements (history) and activeTab
   // Sync Mapbox Draw features with completed measurements (history) and activeTab
@@ -2547,7 +2550,7 @@ export default function MapViewer() {
     // Update the completed measurements layer in Maplibre GL
     updateCompletedMeasurementsLayer(map.current);
 
-    if (activeTab === 'measure') {
+    if (activeTab === 'measure' && isDrawerOpen) {
       const historyFeatures = history.map((m) => ({
         type: 'Feature' as const,
         id: m.id,
@@ -2582,23 +2585,24 @@ export default function MapViewer() {
         activeFeature?.id ? String(activeFeature.id) : undefined
       );
     } else {
-      // If we are not on the measure tab, clear everything measurement-related
+      // If we are not on the measure tab or drawer is closed, clear everything measurement-related
       if (drawRef.current) {
         drawRef.current.deleteAll();
       }
       clearMeasurementMarkers();
     }
-  }, [activeTab, history, hoveredMeasurementId]);
+  }, [activeTab, isDrawerOpen, history, hoveredMeasurementId]);
 
-  // Stop measuring when activeTab changes away from 'measure'
+  // Stop measuring and clear measurement history when activeTab changes away from 'measure' or drawer is closed
   useEffect(() => {
-    if (activeTab !== 'measure') {
+    if (activeTab !== 'measure' || !isDrawerOpen) {
       const isMeasuring = useMeasurementStore.getState().isMeasuring;
       if (isMeasuring) {
         useMeasurementStore.getState().stopMeasuring();
       }
+      useMeasurementStore.getState().clearHistory();
     }
-  }, [activeTab]);
+  }, [activeTab, isDrawerOpen]);
 
 
 
@@ -2653,6 +2657,7 @@ export default function MapViewer() {
       useAOIStore.getState().setDrawing(false);
       useAOIStore.getState().setDrawType(null);
       useAOIStore.getState().setEditingAOI(null);
+      useAOIStore.getState().setIsEditingAOI(false);
       useAOIStore.getState().selectAOI(null);
 
       // Clear previous STAC drawings first to allow clean redrawing
@@ -2800,8 +2805,8 @@ export default function MapViewer() {
     }
   }, [isEditingSTAC]);
 
-  // Listen to editingAOIId changes to load selected AOI into Mapbox Draw for editing
-  // ONLY depend on editingAOIId to prevent resetting map nodes while dragging/updating
+  // Listen to editingAOIId changes to LOAD the AOI geometry into Mapbox Draw
+  // (does not enter direct_select — that is controlled by isEditingAOI below)
   useEffect(() => {
     if (!drawRef.current || !map.current) return;
     if (editingAOIId) {
@@ -2824,12 +2829,54 @@ export default function MapViewer() {
           }
         }
         
-        drawRef.current.changeMode('direct_select', { featureId: featureId as any });
+        // Stay in simple_select — isEditingAOI effect will switch to direct_select
+        drawRef.current.changeMode('simple_select');
       }
     } else {
       drawRef.current.deleteAll();
     }
   }, [editingAOIId]);
+
+  // Listen to isEditingAOI to switch Mapbox Draw mode between direct_select and simple_select
+  // Mirrors the isEditingSTAC flow for AOI geometry editing
+  useEffect(() => {
+    if (!drawRef.current) return;
+    const drawInstance = drawRef.current;
+    const currentActiveTab = useAOIStore.getState().activeTab;
+    if (currentActiveTab !== 'aoi') return;
+
+    if (isEditingAOI) {
+      try {
+        const allFeatures = drawInstance.getAll();
+        const aoiFeature = allFeatures.features.find(
+          (f: any) => !f.properties?.isMeasurement && !f.properties?.user_isMeasurement
+        );
+        if (aoiFeature && aoiFeature.id) {
+          // Reconstruct circle properties if needed
+          const geom = aoiFeature.geometry;
+          if (geom && geom.type === 'Polygon' && geom.coordinates) {
+            if (isPolygonCircle(geom.coordinates)) {
+              const centroid = getPolygonCentroid({ geometry: geom });
+              if (centroid) {
+                drawInstance.setFeatureProperty(aoiFeature.id as string, 'isCircle', true);
+                drawInstance.setFeatureProperty(aoiFeature.id as string, 'circleCenter', centroid);
+                drawInstance.setFeatureProperty(aoiFeature.id as string, 'user_isCircle', true);
+                drawInstance.setFeatureProperty(aoiFeature.id as string, 'user_circleCenter', centroid);
+              }
+            }
+          }
+          drawInstance.changeMode('direct_select', { featureId: aoiFeature.id as any });
+        }
+      } catch (e) {}
+    } else {
+      try {
+        const currentMode = drawInstance.getMode();
+        if (currentMode === 'direct_select') {
+          drawInstance.changeMode('simple_select');
+        }
+      } catch (e) {}
+    }
+  }, [isEditingAOI]);
 
   // Update AOIs layers when list, selection or editing state changes
   useEffect(() => {

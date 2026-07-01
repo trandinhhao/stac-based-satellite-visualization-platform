@@ -25,6 +25,7 @@ interface AOIState {
   drawType: 'polygon' | 'rectangle' | 'circle' | null;
   tempGeometry: AOIGeometry | null;
   editingAOIId: string | null;
+  isEditingAOI: boolean;
   isLoading: boolean;
   error: string | null;
   activeTab: 'location' | 'search' | 'aoi' | 'measure' | 'comparison' | 'jobs' | 'ai';
@@ -42,6 +43,7 @@ interface AOIState {
   setDrawType: (drawType: 'polygon' | 'rectangle' | 'circle' | null) => void;
   setTempGeometry: (geometry: AOIGeometry | null) => void;
   setEditingAOI: (id: string | null) => void;
+  setIsEditingAOI: (isEditing: boolean) => void;
   setActiveTab: (tab: 'location' | 'search' | 'aoi' | 'measure' | 'comparison' | 'jobs' | 'ai') => void;
   clearError: () => void;
   setShowAllAOIs: (showAll: boolean) => void;
@@ -55,6 +57,7 @@ export const useAOIStore = create<AOIState>((set) => ({
   drawType: null,
   tempGeometry: null,
   editingAOIId: null,
+  isEditingAOI: false,
   isLoading: false,
   error: null,
   activeTab: 'search',
@@ -196,12 +199,14 @@ export const useAOIStore = create<AOIState>((set) => ({
   setDrawType: (drawType) => set({ drawType }),
   setTempGeometry: (tempGeometry) => set({ tempGeometry }),
   setEditingAOI: (editingAOIId) => set({ editingAOIId }),
+  setIsEditingAOI: (isEditingAOI) => set({ isEditingAOI }),
   setActiveTab: (activeTab) => set({ 
     activeTab, 
     isDrawing: false, 
     drawType: null, 
     tempGeometry: null,
-    editingAOIId: null 
+    editingAOIId: null,
+    isEditingAOI: false
   }),
   clearError: () => set({ error: null }),
   setShowAllAOIs: (showAllAOIs) => set({ showAllAOIs }),

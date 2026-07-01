@@ -37,6 +37,7 @@ interface STACState {
   collections: STACCollection[];
   searchResults: STACItem[];
   selectedItem: STACItem | null;
+  selectedSTACItems: STACItem[];
   filters: STACFilters;
   bbox: [number, number, number, number] | null;
   
@@ -49,6 +50,7 @@ interface STACState {
   setCollections: (collections: STACCollection[]) => void;
   setSearchResults: (results: STACItem[]) => void;
   setSelectedItem: (item: STACItem | null) => void;
+  setSelectedSTACItems: (items: STACItem[] | ((prev: STACItem[]) => STACItem[])) => void;
   setFilters: (filters: Partial<STACFilters>) => void;
   setBbox: (bbox: [number, number, number, number] | null) => void;
   resetFilters: () => void;
@@ -70,6 +72,7 @@ export const useSTACStore = create<STACState>((set) => ({
   collections: [],
   searchResults: [],
   selectedItem: null,
+  selectedSTACItems: [],
   filters: DEFAULT_FILTERS,
   bbox: null,
   
@@ -88,6 +91,9 @@ export const useSTACStore = create<STACState>((set) => ({
     set({ searchResults: sorted });
   },
   setSelectedItem: (selectedItem) => set({ selectedItem }),
+  setSelectedSTACItems: (selectedSTACItems) => set((state) => ({ 
+    selectedSTACItems: typeof selectedSTACItems === 'function' ? selectedSTACItems(state.selectedSTACItems) : selectedSTACItems 
+  })),
   setFilters: (updatedFilters) =>
     set((state) => ({
       filters: { ...state.filters, ...updatedFilters },

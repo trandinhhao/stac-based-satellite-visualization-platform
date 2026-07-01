@@ -9,6 +9,7 @@ import { useCompareStore } from '../features/comparison/store/useCompareStore';
 import { useWebSocketStore } from '../store/useWebSocketStore';
 import { NotificationToast } from '../components/NotificationToast';
 import MapLayersSwitcher from '../components/MapLayersSwitcher';
+import { useSTACStore } from '../store/useSTACStore';
 
 // Lazy-loaded components for panel tabs to reduce initial bundle size (Sprint 9 Code Splitting)
 const STACSearchPanel = lazy(() => import('../components/STACSearchPanel'));
@@ -28,6 +29,26 @@ export default function MainLayout() {
     .filter((a) => selectedAOIIds.includes(a.id))
     .map((a) => a.name)
     .join(', ');
+  
+  const selectedSTACItems = useSTACStore((state) => state.selectedSTACItems);
+  const setSelectedSTACItems = useSTACStore((state) => state.setSelectedSTACItems);
+  const selectedItem = useSTACStore((state) => state.selectedItem);
+  const setSelectedItem = useSTACStore((state) => state.setSelectedItem);
+
+  const formatSTACDate = (dateStr: string) => {
+    try {
+      const d = new Date(dateStr);
+      return d.toLocaleDateString('vi-VN', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+    } catch {
+      return dateStr;
+    }
+  };
   
   const [showHelpPanel, setShowHelpPanel] = useState(false);
   const [helpType, setHelpType] = useState<'location' | 'stac' | 'aoi' | 'measure' | null>(null);
@@ -243,13 +264,22 @@ export default function MainLayout() {
                   {activeTab === 'ai' && 'Nhận diện đối tượng AI'}
                 </h2>
                 
-                {/* Help button for current tab if help is supported */}
-                {['location', 'search'].includes(activeTab) && (
+                {['location', 'search', 'aoi', 'measure'].includes(activeTab) && (
                   <button
                     type="button"
-                    onClick={() => toggleHelp(activeTab === 'location' ? 'location' : 'stac')}
+                    onClick={() => {
+                      if (activeTab === 'location') toggleHelp('location');
+                      else if (activeTab === 'search') toggleHelp('stac');
+                      else if (activeTab === 'aoi') toggleHelp('aoi');
+                      else if (activeTab === 'measure') toggleHelp('measure');
+                    }}
                     className={`p-1 rounded-lg hover:bg-slate-800/60 transition-all cursor-pointer flex items-center justify-center ${
-                      showHelpPanel && ((activeTab === 'location' && helpType === 'location') || (activeTab === 'search' && helpType === 'stac'))
+                      showHelpPanel && (
+                        (activeTab === 'location' && helpType === 'location') || 
+                        (activeTab === 'search' && helpType === 'stac') ||
+                        (activeTab === 'aoi' && helpType === 'aoi') ||
+                        (activeTab === 'measure' && helpType === 'measure')
+                      )
                         ? 'text-sky-400 font-bold'
                         : 'text-slate-400 hover:text-slate-200'
                     }`}
@@ -332,7 +362,7 @@ export default function MainLayout() {
         {/* Selected AOI Indicator */}
         {selectedAOIIds.length > 0 && (
           <div 
-            className="flex items-center space-x-1.5 bg-slate-900/90 backdrop-blur-md border border-sky-500/30 hover:border-sky-500/50 px-3 py-1.5 rounded-lg shadow-xl text-[10px] text-sky-400 animate-in slide-in-from-top-2 duration-200 font-mono max-w-[280px]"
+            className="flex items-center space-x-1.5 bg-slate-900/90 backdrop-blur-md border border-sky-500/30 hover:border-sky-500/50 px-3 py-1.5 rounded-lg shadow-xl text-[10px] text-sky-400 animate-in slide-in-from-top-2 duration-200 font-mono max-w-[400px]"
             title={selectedAOINames}
           >
             <span className="w-1.5 h-1.5 rounded-full bg-sky-500 animate-pulse flex-shrink-0"></span>
@@ -342,6 +372,57 @@ export default function MainLayout() {
             </span>
           </div>
         )}
+
+        {/* Selected STAC Indicators */}
+        {selectedSTACItems.map((item) => {
+          const platform = item.properties.platform || 'Sentinel';
+          const infoText = `${platform} | ${formatSTACDate(item.properties.datetime)}`;
+          
+          const isMapOverlayActive = selectedItem?.id === item.id;
+          return (
+            <div 
+              key={item.id}
+              onClick={() => {
+                if (isMapOverlayActive) {
+                  setSelectedItem(null);
+                } else {
+                  setSelectedItem(item);
+                }
+              }}
+              className={`flex items-center justify-between space-x-2 backdrop-blur-md border pl-3 pr-2 py-1.5 rounded-lg text-[10px] animate-in slide-in-from-top-2 duration-200 font-mono max-w-[400px] cursor-pointer transition-all duration-300 ${
+                isMapOverlayActive
+                  ? 'border-sky-400 bg-gradient-to-r from-sky-950/80 to-blue-900/70 text-sky-200 shadow-[0_0_15px_rgba(56,189,248,0.4)] scale-[1.02]'
+                  : 'border-slate-800/80 hover:border-sky-500/30 bg-slate-900/80 hover:bg-slate-900/90 text-slate-400'
+              }`}
+              title={item.id}
+            >
+              <div className="flex items-center space-x-1.5 min-w-0 flex-1">
+                <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+                  isMapOverlayActive 
+                    ? 'bg-sky-400 shadow-[0_0_6px_#38bdf8] animate-pulse' 
+                    : 'bg-slate-600'
+                }`}></span>
+                <span className={`flex-shrink-0 ${isMapOverlayActive ? 'font-black text-sky-300' : 'font-semibold text-slate-500'}`}>STAC:</span>
+                <span className={`truncate ${isMapOverlayActive ? 'text-white font-extrabold' : 'text-slate-300'}`}>
+                  {infoText}
+                </span>
+              </div>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedSTACItems(selectedSTACItems.filter(i => i.id !== item.id));
+                  if (isMapOverlayActive) {
+                    setSelectedItem(null);
+                  }
+                }}
+                className="flex-shrink-0 text-slate-400 hover:text-red-400 hover:bg-slate-800 p-0.5 rounded transition-all cursor-pointer flex items-center justify-center"
+                title="Bỏ chọn"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </div>
+          );
+        })}
       </div>
 
       {/* 5. Global Real-time Neon/Glassmorphic Notifications */}
@@ -369,6 +450,8 @@ export default function MainLayout() {
                 <h2 className="text-sm font-semibold text-slate-200">
                   {helpType === 'location' && 'Hướng dẫn Tìm kiếm Vị trí'}
                   {helpType === 'stac' && 'Hướng dẫn Tìm kiếm STAC'}
+                  {helpType === 'aoi' && 'Hướng dẫn Quản lý AOI'}
+                  {helpType === 'measure' && 'Hướng dẫn Đo đạc địa lý'}
                 </h2>
               </div>
               <button
@@ -448,6 +531,65 @@ export default function MainLayout() {
                     <p className="text-slate-400 mt-2">
                       <strong>Vùng AOI:</strong> Chọn sử dụng một hoặc nhiều ranh giới vùng quan tâm đã được lưu trong tài khoản.
                     </p>
+                  </div>
+                </div>
+              )}
+
+              {helpType === 'aoi' && (
+                <div className="space-y-4 text-[11px] leading-relaxed">
+                  <div className="p-3.5 bg-slate-950/50 border border-slate-850 rounded-xl space-y-2">
+                    <h4 className="font-bold text-sky-400 flex items-center space-x-1.5">
+                      <Hexagon className="w-4 h-4 text-sky-400" />
+                      <span>Quản lý Vùng quan tâm (AOI)</span>
+                    </h4>
+                    <p className="text-slate-300">
+                      Tạo và quản lý các Vùng quan tâm (Area of Interest - AOI) để tìm kiếm ảnh vệ tinh hoặc phân tích AI.
+                    </p>
+                  </div>
+
+                  <div className="p-3.5 bg-slate-950/50 border border-slate-850 rounded-xl space-y-2">
+                    <h5 className="font-bold text-slate-200">1. Tạo mới vùng AOI</h5>
+                    <p className="text-slate-400">
+                      Vẽ Đa giác, Hình chữ nhật, hoặc Hình tròn trực tiếp trên bản đồ. Hoặc sử dụng chức năng nhập tệp để tải lên file GeoJSON (`.geojson`) ranh giới của bạn.
+                    </p>
+                  </div>
+
+                  <div className="p-3.5 bg-slate-950/50 border border-slate-850 rounded-xl space-y-2">
+                    <h5 className="font-bold text-slate-200">2. Quản lý danh sách</h5>
+                    <p className="text-slate-400">
+                      Các vùng đã tạo sẽ được hiển thị dạng danh sách gọn gàng. Click hộp chọn để hiển thị ranh giới trên bản đồ. Double click hoặc nhấn nút tìm kiếm tương ứng để truy vấn dữ liệu ảnh STAC.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {helpType === 'measure' && (
+                <div className="space-y-4 text-[11px] leading-relaxed">
+                  <div className="p-3.5 bg-slate-950/50 border border-slate-850 rounded-xl space-y-2">
+                    <h4 className="font-bold text-emerald-400 flex items-center space-x-1.5">
+                      <Ruler className="w-4 h-4 text-emerald-400" />
+                      <span>Đo đạc khoảng cách và diện tích</span>
+                    </h4>
+                    <p className="text-slate-300">
+                      Tính toán khoảng cách đường đi hoặc diện tích vùng đa giác trực tiếp trên bản đồ nền.
+                    </p>
+                  </div>
+
+                  <div className="p-3.5 bg-slate-950/50 border border-slate-850 rounded-xl space-y-2">
+                    <h5 className="font-bold text-slate-200">1. Chọn chế độ đo</h5>
+                    <p className="text-slate-400">
+                      Chọn <strong>Đo khoảng cách</strong> hoặc <strong>Đo diện tích</strong> ở panel bên trái để bắt đầu vẽ.
+                    </p>
+                  </div>
+
+                  <div className="p-3.5 bg-slate-950/50 border border-slate-850 rounded-xl space-y-2">
+                    <h5 className="font-bold text-slate-200">2. Thao tác vẽ và đo đạc</h5>
+                    <ul className="list-disc pl-4 space-y-1 text-[10px] text-slate-400">
+                      <li>Nhấp chuột trái trên bản đồ để thêm các điểm mốc đo.</li>
+                      <li>Double-click (hoặc nhấp lại điểm đầu tiên) để kết thúc và lưu phép đo.</li>
+                      <li>Click chuột phải để hủy điểm đo hiện tại.</li>
+                      <li>Kết quả đo sẽ hiển thị nhãn số liệu trực tiếp trên bản đồ và lưu lại trong danh sách lịch sử.</li>
+                    </ul>
                   </div>
                 </div>
               )}

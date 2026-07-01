@@ -2,7 +2,6 @@ import { useEffect, useState, useRef } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { 
   Search, 
-  Image as ImageIcon, 
   Info, 
   Cloud, 
   Cpu, 
@@ -15,18 +14,40 @@ import {
   Trash2,
   Edit,
   Save,
-  Calendar
+  Calendar,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import { useSTACStore } from '../store/useSTACStore';
 import type { STACCollection, STACItem } from '../store/useSTACStore';
 import { useAOIStore } from '../store/useAOIStore';
-import { useCompareStore } from '../features/comparison/store/useCompareStore';
 import { api } from '../services/api';
+
+const COLLECTION_ORDER = [
+  'sentinel-2-l2a',
+  'sentinel-1-grd',
+  'landsat-8-c2-l2',
+  'landsat-9-c2-l2',
+  'PSScene'
+];
+
+const getPreviewUrl = (item: STACItem) => {
+  const thumb = item.assets.thumbnail?.href;
+  if (thumb) {
+    if (thumb.startsWith('http') || thumb.startsWith('/cog/')) {
+      return thumb;
+    }
+  }
+  const visual = item.assets.visual?.href || '';
+  return `/cog/preview.png?url=${encodeURIComponent(visual)}`;
+};
+
 export default function STACSearchPanel() {
   const {
     collections,
     searchResults,
     selectedItem,
+    selectedSTACItems,
     filters,
     stacTempGeometry,
     isDrawingSTAC,
@@ -35,6 +56,7 @@ export default function STACSearchPanel() {
     setCollections,
     setSearchResults,
     setSelectedItem,
+    setSelectedSTACItems,
     setFilters,
     setStacTempGeometry,
     setIsDrawingSTAC,
@@ -45,12 +67,30 @@ export default function STACSearchPanel() {
   const selectedAOIIds = useAOIStore((state) => state.selectedAOIIds);
   const aois = useAOIStore((state) => state.aois);
   const selectedAOIs = aois.filter((aoi) => selectedAOIIds.includes(aoi.id));
-  const setActiveTab = useAOIStore((state) => state.setActiveTab);
   const isDrawerOpen = useAOIStore((state) => state.isDrawerOpen);
-  const activeTab = useAOIStore((state) => state.activeTab);
-  const { selectImageA, selectImageB } = useCompareStore();
 
   const [spatialScope, setSpatialScope] = useState<'draw' | 'aoi'>('draw');
+  const [searchAOIIds, setSearchAOIIds] = useState<string[]>([]);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Sync searchAOIIds to ensure only valid globally selected AOI IDs are kept.
+  // New selections start as unchecked by default.
+  useEffect(() => {
+    setSearchAOIIds((prev) => prev.filter(id => selectedAOIIds.includes(id)));
+  }, [selectedAOIIds]);
+
+  useEffect(() => {
+    const handleOutsideClick = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, []);
+
+  const activeSearchAOIs = selectedAOIs.filter(aoi => searchAOIIds.includes(aoi.id));
 
   // Programmatic calendar toggle states & refs to fix reopen on click issue
   const [isStartOpen, setIsStartOpen] = useState(false);
@@ -96,16 +136,25 @@ export default function STACSearchPanel() {
     }
   }, [spatialScope]);
 
-  // Cleanup drawn geometry when drawer is closed or active tab changes away from 'search'
+  // Cleanup drawn geometry when drawer is closed
   useEffect(() => {
-    if (!isDrawerOpen || activeTab !== 'search') {
-      // Clear temp geometry in store, which triggers Mapbox Draw cleanup in MapViewer
+    if (!isDrawerOpen) {
+      clearDrawnArea();
+    }
+  }, [isDrawerOpen]);
+
+  // Cleanup when tab switches (component unmounts)
+  useEffect(() => {
+    return () => {
       useSTACStore.getState().setStacTempGeometry(null);
       useSTACStore.getState().setIsDrawingSTAC(false);
       useSTACStore.getState().setDrawTypeSTAC(null);
       useSTACStore.getState().setIsEditingSTAC(false);
-    }
-  }, [isDrawerOpen, activeTab]);
+      useSTACStore.getState().setSearchResults([]);
+      useSTACStore.getState().setSelectedItem(null);
+      useSTACStore.getState().setSelectedSTACItems([]);
+    };
+  }, []);
 
   // STAC Draw Triggers
   const startDrawPolygon = () => {
@@ -139,6 +188,9 @@ export default function STACSearchPanel() {
     setIsDrawingSTAC(false);
     setDrawTypeSTAC(null);
     setIsEditingSTAC(false);
+    setSearchResults([]);
+    setSelectedItem(null);
+    setSelectedSTACItems([]);
   };
 
   // 1. Query Collections List
@@ -164,6 +216,15 @@ export default function STACSearchPanel() {
   });
 
   const handleSearch = () => {
+    if (filters.startDate && filters.endDate) {
+      const start = new Date(filters.startDate);
+      const end = new Date(filters.endDate);
+      if (start > end) {
+        alert('Ngày kết thúc không thể trước ngày bắt đầu! Vui lòng chọn lại.');
+        return;
+      }
+    }
+
     const datetimeStr = filters.startDate && filters.endDate
       ? `${filters.startDate}/${filters.endDate}`
       : filters.startDate
@@ -184,13 +245,16 @@ export default function STACSearchPanel() {
       }
       payload.intersects = stacTempGeometry;
     } else if (spatialScope === 'aoi') {
-      if (selectedAOIs.length === 0) return;
-      if (selectedAOIs.length === 1) {
-        payload.intersects = selectedAOIs[0].geometry;
+      if (activeSearchAOIs.length === 0) {
+        alert('Vui lòng tích chọn ít nhất một vùng AOI ở dưới để tìm kiếm!');
+        return;
+      }
+      if (activeSearchAOIs.length === 1) {
+        payload.intersects = activeSearchAOIs[0].geometry;
       } else {
         payload.intersects = {
           type: 'MultiPolygon',
-          coordinates: selectedAOIs.map(aoi => aoi.geometry.coordinates)
+          coordinates: activeSearchAOIs.map(aoi => aoi.geometry.coordinates)
         };
       }
     }
@@ -201,7 +265,7 @@ export default function STACSearchPanel() {
   const isSearchDisabled = 
     searchMutation.isPending || 
     (spatialScope === 'draw' && (!stacTempGeometry || isEditingSTAC)) ||
-    (spatialScope === 'aoi' && selectedAOIs.length === 0);
+    (spatialScope === 'aoi' && activeSearchAOIs.length === 0);
 
   const formatDate = (dateStr: string) => {
     try {
@@ -234,17 +298,29 @@ export default function STACSearchPanel() {
                 Đang tải danh sách...
               </div>
             ) : (
-              <select
-                value={filters.selectedCollection}
-                onChange={(e) => setFilters({ selectedCollection: e.target.value })}
-                className="w-full h-10 px-3 bg-slate-950/60 border border-slate-800/80 focus:border-sky-500/80 rounded-xl text-xs text-slate-300 outline-none cursor-pointer appearance-none transition-all"
-              >
-                {collections.map((col) => (
-                  <option key={col.id} value={col.id} className="bg-slate-900 text-slate-300">
-                    {col.title}
-                  </option>
-                ))}
-              </select>
+              (() => {
+                const orderedCollections = [...collections].sort((a, b) => {
+                  const idxA = COLLECTION_ORDER.indexOf(a.id);
+                  const idxB = COLLECTION_ORDER.indexOf(b.id);
+                  if (idxA === -1 && idxB === -1) return 0;
+                  if (idxA === -1) return 1;
+                  if (idxB === -1) return -1;
+                  return idxA - idxB;
+                });
+                return (
+                  <select
+                    value={filters.selectedCollection}
+                    onChange={(e) => setFilters({ selectedCollection: e.target.value })}
+                    className="w-full h-10 px-3 bg-slate-950/60 border border-slate-800/80 focus:border-sky-500/80 rounded-xl text-xs text-slate-300 outline-none cursor-pointer appearance-none transition-all"
+                  >
+                    {orderedCollections.map((col) => (
+                      <option key={col.id} value={col.id} className="bg-slate-900 text-slate-300">
+                        {col.title}
+                      </option>
+                    ))}
+                  </select>
+                );
+              })()
             )}
             <div className="absolute right-3.5 top-3.5 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-slate-400 pointer-events-none" />
           </div>
@@ -329,18 +405,90 @@ export default function STACSearchPanel() {
                   ? 'bg-slate-950/20 border-slate-900/20 text-slate-600 cursor-not-allowed opacity-40'
                   : 'bg-slate-950/40 border-slate-800/80 hover:bg-slate-800/40 text-slate-400'
               }`}
-              title={selectedAOIs.length === 0 ? "Chọn một AOI trong Quản lý AOI để kích hoạt" : selectedAOIs.length === 1 ? `Vùng AOI: ${selectedAOIs[0].name}` : `Đã chọn ${selectedAOIs.length} vùng AOI`}
+              title={
+                selectedAOIs.length === 0 
+                  ? "Chọn một AOI trong Quản lý AOI để kích hoạt" 
+                  : `Đã chọn ${selectedAOIs.length} vùng AOI để cấu hình`
+              }
             >
               <span>Vùng AOI</span>
               {selectedAOIs.length > 0 && <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />}
             </button>
           </div>
           {spatialScope === 'aoi' && selectedAOIs.length > 0 && (
-            <div className="text-[10px] text-emerald-400 px-0.5 mt-1.5 flex items-center space-x-1 animate-in fade-in duration-200">
-              <span>✓ Đang áp dụng AOI:</span>
-              <span className="font-bold underline">
-                {selectedAOIs.length === 1 ? selectedAOIs[0].name : `Đã chọn ${selectedAOIs.length} vùng`}
+            <div className="relative mt-2" ref={dropdownRef}>
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5 mb-1.5">
+                Vùng AOI áp dụng tìm kiếm
               </span>
+              
+              {/* Trigger Button */}
+              <button
+                type="button"
+                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                className="w-full h-9 px-3 bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700/80 rounded-lg text-xs text-slate-200 font-medium flex items-center justify-between cursor-pointer transition-all"
+              >
+                <span>
+                  {activeSearchAOIs.length > 0 
+                    ? `Đã chọn ${activeSearchAOIs.length}/${selectedAOIs.length} vùng` 
+                    : `Chưa chọn vùng nào (0/${selectedAOIs.length})`}
+                </span>
+                {isDropdownOpen ? (
+                  <ChevronUp className="w-4 h-4 text-slate-400" />
+                ) : (
+                  <ChevronDown className="w-4 h-4 text-slate-400" />
+                )}
+              </button>
+
+              {/* Dropdown Menu */}
+              {isDropdownOpen && (
+                <div className="absolute left-0 right-0 mt-1.5 z-30 p-1.5 bg-slate-950/95 backdrop-blur-md border border-slate-800/90 rounded-lg shadow-2xl space-y-1 animate-in fade-in slide-in-from-top-1 duration-150">
+                  <div className="space-y-0.5 max-h-36 overflow-y-auto pr-1">
+                    {selectedAOIs.map((aoi) => {
+                      const isChecked = searchAOIIds.includes(aoi.id);
+                      return (
+                        <label 
+                          key={aoi.id} 
+                          className="flex items-center space-x-2 p-1.5 hover:bg-slate-900/60 rounded-md transition-all cursor-pointer select-none"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => {
+                              if (isChecked) {
+                                setSearchAOIIds(searchAOIIds.filter(id => id !== aoi.id));
+                              } else {
+                                setSearchAOIIds([...searchAOIIds, aoi.id]);
+                              }
+                            }}
+                            className="w-3.5 h-3.5 rounded bg-slate-950 border-slate-850 text-sky-500 focus:ring-sky-500/20 cursor-pointer"
+                          />
+                          <span className="text-[11px] font-medium text-slate-350 truncate">
+                            {aoi.name}
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                  {selectedAOIs.length > 1 && (
+                    <div className="flex items-center justify-between pt-1.5 border-t border-slate-900 px-1 text-[9px] font-bold text-slate-500">
+                      <button
+                        type="button"
+                        onClick={() => setSearchAOIIds(selectedAOIs.map(a => a.id))}
+                        className="hover:text-sky-400 transition-colors"
+                      >
+                        Chọn tất cả
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSearchAOIIds([])}
+                        className="hover:text-rose-400 transition-colors"
+                      >
+                        Bỏ chọn tất cả
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
@@ -463,7 +611,7 @@ export default function STACSearchPanel() {
         <button
           onClick={handleSearch}
           disabled={isSearchDisabled}
-          className="w-full h-11 bg-sky-500 hover:bg-sky-400 active:scale-[0.98] disabled:bg-slate-800/80 disabled:text-slate-400 disabled:border disabled:border-slate-700/40 disabled:shadow-none disabled:cursor-not-allowed rounded-xl text-xs font-bold text-white shadow-lg shadow-sky-500/10 cursor-pointer flex items-center justify-center space-x-2 transition-all duration-150"
+          className="w-full h-11 bg-sky-500 hover:bg-sky-400 active:scale-[0.98] disabled:bg-slate-800/90 disabled:text-slate-300 disabled:border disabled:border-slate-700/60 disabled:shadow-none disabled:cursor-not-allowed rounded-xl text-xs font-bold text-white shadow-lg shadow-sky-500/10 cursor-pointer flex items-center justify-center space-x-2 transition-all duration-150"
         >
           {searchMutation.isPending ? (
             <>
@@ -485,6 +633,12 @@ export default function STACSearchPanel() {
           <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
             Kết quả ({searchResults.length})
           </span>
+          {selectedSTACItems.length > 0 && (
+            <span className="text-[9px] font-bold text-emerald-400 uppercase tracking-wider flex items-center bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-md animate-in fade-in duration-200">
+              <span className="w-1 h-1 bg-emerald-450 rounded-full mr-1.5 animate-pulse" />
+              Đã chọn {selectedSTACItems.length}
+            </span>
+          )}
         </div>
 
         {searchResults.length === 0 ? (
@@ -495,56 +649,77 @@ export default function STACSearchPanel() {
           <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
             {searchResults.map((item) => {
               const isSelected = selectedItem?.id === item.id;
-              const cloudCover = item.properties['eo:cloud_cover'] ?? 0;
+              const isChecked = selectedSTACItems.some(i => i.id === item.id);
+              const rawCloudCover = item.properties['eo:cloud_cover'] ?? 0;
+              const cloudCover = typeof rawCloudCover === 'number' 
+                ? Math.round((rawCloudCover + Number.EPSILON) * 100) / 100 
+                : 0;
               const platform = item.properties.platform || 'Sentinel';
-              
-              // Find thumbnail asset URL
-              const thumbUrl = item.assets.thumbnail?.href || '';
-
               return (
-                <div
-                  key={item.id}
-                  onClick={() => setSelectedItem(isSelected ? null : item)}
-                  className={`w-full flex items-start space-x-3 p-2.5 rounded-xl border cursor-pointer transition-all duration-200 ${
-                    isSelected
-                      ? 'bg-sky-500/10 border-sky-500/50 text-white shadow-lg'
-                      : 'bg-slate-950/20 border-slate-850 hover:bg-slate-800/20 hover:border-slate-800 text-slate-300'
-                  }`}
-                >
-                  {/* Thumbnail Image Container */}
-                  <div className="w-16 h-16 bg-slate-900 border border-slate-800 rounded-lg overflow-hidden flex-shrink-0 flex items-center justify-center relative">
-                    {thumbUrl ? (
-                      <img src={thumbUrl} alt="Visual thumb" className="w-full h-full object-cover" />
-                    ) : (
-                      <ImageIcon className="w-6 h-6 text-slate-700" />
-                    )}
-                  </div>
-
-                  {/* Metadata Summary */}
-                  <div className="flex-1 min-w-0 space-y-1">
-                    <div className="text-xs font-bold truncate text-slate-200">
-                      {item.id}
-                    </div>
-                    <div className="flex items-center space-x-3 text-[10px] text-slate-400 font-semibold">
-                      <span className="flex items-center">
-                        <Cpu className="w-3 h-3 text-sky-400 mr-1" />
-                        {platform}
-                      </span>
-                      {item.properties['eo:cloud_cover'] !== undefined && (
-                        <span className="flex items-center">
-                          <Cloud className="w-3 h-3 text-sky-400 mr-1" />
-                          {cloudCover}% mây
-                        </span>
+                <div key={item.id} className="flex items-center space-x-2 w-full">
+                  {/* Selection Checkbox */}
+                  <div 
+                    onClick={() => {
+                      if (isChecked) {
+                        setSelectedSTACItems(selectedSTACItems.filter(i => i.id !== item.id));
+                      } else {
+                        if (selectedSTACItems.length >= 5) {
+                          alert('Bạn chỉ được chọn tối đa 5 ảnh vệ tinh!');
+                          return;
+                        }
+                        setSelectedSTACItems([...selectedSTACItems, item]);
+                      }
+                    }}
+                    className="flex-shrink-0 cursor-pointer p-1 hover:bg-slate-800/40 rounded-lg transition-colors"
+                  >
+                    <div className={`w-4 h-4 rounded-md border flex items-center justify-center transition-all duration-150 ${
+                      isChecked 
+                        ? 'bg-sky-500 border-sky-500 text-white shadow-md shadow-sky-500/20' 
+                        : 'border-slate-700 hover:border-slate-600 bg-slate-950/40'
+                    }`}>
+                      {isChecked && (
+                        <svg className="w-2.5 h-2.5 stroke-white stroke-[3.5] fill-none" viewBox="0 0 24 24">
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
                       )}
                     </div>
-                    <div className="text-[10px] text-slate-400 font-mono">
-                      {formatDate(item.properties.datetime)}
-                    </div>
                   </div>
-                  
-                  {/* Indicator Icon */}
-                  <div className="flex-shrink-0 self-center">
-                    <ArrowRight className={`w-3.5 h-3.5 text-slate-500 transition-transform ${isSelected ? 'rotate-90 text-sky-400' : ''}`} />
+
+                  {/* Main Card (Selection of Detail) */}
+                  <div
+                    onClick={() => setSelectedItem(isSelected ? null : item)}
+                    className={`flex-1 min-w-0 flex items-start space-x-3 p-2.5 rounded-xl border cursor-pointer transition-all duration-200 ${
+                      isSelected
+                        ? 'bg-sky-500/10 border-sky-500/50 text-white shadow-lg'
+                        : 'bg-slate-950/20 border-slate-850 hover:bg-slate-800/20 hover:border-slate-800 text-slate-300'
+                    }`}
+                  >
+                    {/* Metadata Summary */}
+                    <div className="flex-1 min-w-0 space-y-1">
+                      <div className="text-xs font-bold truncate text-slate-200">
+                        {item.id}
+                      </div>
+                      <div className="flex items-center space-x-3 text-[10px] text-slate-400 font-semibold">
+                        <span className="flex items-center">
+                          <Cpu className="w-3 h-3 text-sky-400 mr-1" />
+                          {platform}
+                        </span>
+                        {item.properties['eo:cloud_cover'] !== undefined && (
+                          <span className="flex items-center">
+                            <Cloud className="w-3 h-3 text-sky-400 mr-1" />
+                            {cloudCover}% mây
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-[10px] text-slate-400 font-mono pl-4">
+                        {formatDate(item.properties.datetime)}
+                      </div>
+                    </div>
+                    
+                    {/* Indicator Icon */}
+                    <div className="flex-shrink-0 self-center">
+                      <ArrowRight className={`w-3.5 h-3.5 text-slate-500 transition-transform ${isSelected ? 'rotate-90 text-sky-400' : ''}`} />
+                    </div>
                   </div>
                 </div>
               );
@@ -558,7 +733,7 @@ export default function STACSearchPanel() {
         <div className="p-3.5 bg-slate-950/60 border border-sky-500/20 rounded-xl space-y-3 shadow-inner animate-in fade-in slide-in-from-bottom-2 duration-250">
           <div className="flex items-center space-x-1.5 pb-1.5 border-b border-slate-800/80">
             <Info className="w-4 h-4 text-sky-400" />
-            <h4 className="text-xs font-bold text-slate-200">Chi tiết ảnh (Metadata)</h4>
+            <h4 className="text-xs font-bold text-slate-200">Chi tiết ảnh đang hiển thị (Metadata)</h4>
           </div>
 
           <div className="space-y-2 text-[10px] font-medium text-slate-300">
@@ -577,7 +752,9 @@ export default function STACSearchPanel() {
             <div className="grid grid-cols-3 gap-1">
               <span className="text-slate-500 font-semibold">Tỉ lệ mây:</span>
               <span className="col-span-2 text-slate-200">
-                {selectedItem.properties['eo:cloud_cover'] !== undefined ? `${selectedItem.properties['eo:cloud_cover']}%` : '0%'}
+                {selectedItem.properties['eo:cloud_cover'] !== undefined 
+                  ? `${Math.round((selectedItem.properties['eo:cloud_cover'] + Number.EPSILON) * 100) / 100}%` 
+                  : '0%'}
               </span>
             </div>
             <div className="grid grid-cols-3 gap-1">
@@ -592,7 +769,7 @@ export default function STACSearchPanel() {
           <div className="pt-1.5 flex flex-col space-y-2">
             <div className="flex items-center space-x-2">
               <a
-                href={`/cog/preview.png?url=${selectedItem.assets.visual.href}`}
+                href={getPreviewUrl(selectedItem)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex-1 h-8 bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded-lg text-[10px] font-bold text-slate-300 hover:text-white flex items-center justify-center space-x-1.5 transition-all cursor-pointer"
@@ -611,29 +788,6 @@ export default function STACSearchPanel() {
                   Tải TIF
                 </a>
               )}
-            </div>
-
-            <div className="pt-2 border-t border-slate-900 grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  selectImageA(selectedItem);
-                  setActiveTab('comparison');
-                }}
-                className="h-8 bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 rounded-lg text-[10px] font-bold text-emerald-300 hover:text-emerald-200 transition-all cursor-pointer flex items-center justify-center space-x-1"
-              >
-                <span>Chọn Ảnh A (T1)</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  selectImageB(selectedItem);
-                  setActiveTab('comparison');
-                }}
-                className="h-8 bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 rounded-lg text-[10px] font-bold text-emerald-300 hover:text-emerald-200 transition-all cursor-pointer flex items-center justify-center space-x-1"
-              >
-                <span>Chọn Ảnh B (T2)</span>
-              </button>
             </div>
           </div>
         </div>

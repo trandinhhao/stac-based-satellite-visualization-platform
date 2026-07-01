@@ -18,12 +18,12 @@ import { useAOIStore, type AOI } from '../store/useAOIStore';
 export default function AOIManagerPanel() {
   const {
     aois,
-    selectedAOIId,
     selectedAOIIds,
     isDrawing,
     drawType,
     tempGeometry,
     editingAOIId,
+    isEditingAOI,
     isLoading,
     error,
     showAllAOIs,
@@ -37,6 +37,7 @@ export default function AOIManagerPanel() {
     setDrawType,
     setTempGeometry,
     setEditingAOI,
+    setIsEditingAOI,
     clearError,
     setShowAllAOIs
   } = useAOIStore();
@@ -170,42 +171,51 @@ export default function AOIManagerPanel() {
 
 
 
-  // Toggle Edit Geometry and handle Save when exiting edit mode
-  const toggleEditGeometry = async (aoi: AOI) => {
-    if (editingAOIId === aoi.id) {
-      // Ending edit mode: SAVE changes!
-      if (tempGeometry) {
-        if (!confirm('Bạn có chắc chắn muốn xác nhận chỉnh sửa hình học của vùng này?')) {
-          return;
-        }
-        try {
-          await updateAOI(aoi.id, { geometry: tempGeometry });
-        } catch (err) {
-          console.error('Lỗi khi cập nhật hình học AOI:', err);
-        }
+  // Start Edit Geometry mode (just enters mode, does NOT save yet)
+  const startEditGeometry = (aoi: AOI) => {
+    setDrawing(false);
+    setDrawType(null);
+    setTempGeometry(aoi.geometry);
+    setEditingAOI(aoi.id);
+    setIsEditingAOI(true);
+  };
+
+  // Save geometry changes
+  const saveEditGeometry = async (aoi: AOI) => {
+    if (tempGeometry) {
+      try {
+        await updateAOI(aoi.id, { geometry: tempGeometry });
+      } catch (err) {
+        console.error('Lỗi khi cập nhật hình học AOI:', err);
       }
-      setEditingAOI(null);
-      setTempGeometry(null);
-    } else {
-      // Starting edit mode
-      setDrawing(false);
-      setDrawType(null);
-      setEditingAOI(aoi.id);
-      setTempGeometry(aoi.geometry);
     }
+    setIsEditingAOI(false);
+    setEditingAOI(null);
+    setTempGeometry(null);
+  };
+
+  // Cancel geometry editing without saving
+  const cancelEditGeometry = () => {
+    setIsEditingAOI(false);
+    setEditingAOI(null);
+    setTempGeometry(null);
   };
 
   return (
     <div className="space-y-4 text-slate-200">
       {/* Action Buttons (Drawing & Importing) */}
-      <div className="grid grid-cols-3 gap-1.5">
+      <div className="space-y-1.5">
+        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
+          Tạo mới vùng
+        </label>
+        <div className="grid grid-cols-3 gap-1.5">
         <button
           type="button"
           onClick={isDrawing && drawType === 'polygon' ? cancelDrawing : startDrawPolygon}
-          className={`h-10 px-1 rounded-xl text-[10px] font-bold flex flex-col items-center justify-center space-y-0.5 transition-all border cursor-pointer ${
+          className={`h-9 px-1 rounded-lg text-[10px] font-bold flex flex-col items-center justify-center space-y-0.5 transition-all border cursor-pointer ${
             isDrawing && drawType === 'polygon'
               ? 'bg-amber-500/20 border-amber-500/50 text-amber-300'
-              : 'bg-slate-950/40 border-slate-800/80 hover:bg-slate-800/40 text-slate-300'
+              : 'bg-slate-900 hover:bg-slate-800 border-slate-850 hover:border-slate-700 text-slate-300'
           }`}
           title={isDrawing && drawType === 'polygon' ? 'Hủy chế độ vẽ' : 'Vẽ đa giác tự do'}
         >
@@ -216,10 +226,10 @@ export default function AOIManagerPanel() {
         <button
           type="button"
           onClick={isDrawing && drawType === 'rectangle' ? cancelDrawing : startDrawRectangle}
-          className={`h-10 px-1 rounded-xl text-[10px] font-bold flex flex-col items-center justify-center space-y-0.5 transition-all border cursor-pointer ${
+          className={`h-9 px-1 rounded-lg text-[10px] font-bold flex flex-col items-center justify-center space-y-0.5 transition-all border cursor-pointer ${
             isDrawing && drawType === 'rectangle'
               ? 'bg-amber-500/20 border-amber-500/50 text-amber-300'
-              : 'bg-slate-950/40 border-slate-800/80 hover:bg-slate-800/40 text-slate-300'
+              : 'bg-slate-900 hover:bg-slate-800 border-slate-850 hover:border-slate-700 text-slate-300'
           }`}
           title={isDrawing && drawType === 'rectangle' ? 'Hủy chế độ vẽ' : 'Vẽ hình chữ nhật'}
         >
@@ -230,30 +240,39 @@ export default function AOIManagerPanel() {
         <button
           type="button"
           onClick={isDrawing && drawType === 'circle' ? cancelDrawing : startDrawCircle}
-          className={`h-10 px-1 rounded-xl text-[10px] font-bold flex flex-col items-center justify-center space-y-0.5 transition-all border cursor-pointer ${
+          className={`h-9 px-1 rounded-lg text-[10px] font-bold flex flex-col items-center justify-center space-y-0.5 transition-all border cursor-pointer ${
             isDrawing && drawType === 'circle'
               ? 'bg-amber-500/20 border-amber-500/50 text-amber-300'
-              : 'bg-slate-950/40 border-slate-800/80 hover:bg-slate-800/40 text-slate-300'
+              : 'bg-slate-900 hover:bg-slate-800 border-slate-850 hover:border-slate-700 text-slate-300'
           }`}
           title={isDrawing && drawType === 'circle' ? 'Hủy chế độ vẽ' : 'Vẽ hình tròn bằng cách chọn tâm và kéo bán kính'}
         >
           <Circle className="w-3.5 h-3.5 text-sky-400" />
           <span>{isDrawing && drawType === 'circle' ? 'Hủy Vẽ' : 'Hình tròn'}</span>
         </button>
+        </div>
       </div>
 
-      <button
-        onClick={triggerImport}
-        disabled={isLoading}
-        className="w-full h-10 bg-slate-900 hover:bg-slate-800 border border-slate-800/80 rounded-xl text-xs font-bold text-slate-300 hover:text-white flex items-center justify-center space-x-1.5 transition-all cursor-pointer"
-      >
-        {isLoading ? (
-          <Loader2 className="w-4 h-4 animate-spin text-sky-400" />
-        ) : (
-          <Upload className="w-4 h-4 text-sky-400" />
-        )}
-        <span>Nhập vùng GeoJSON (.geojson)</span>
-      </button>
+      <div className="space-y-2">
+        <div className="flex items-center justify-center space-x-2">
+          <div className="flex-1 h-[1px] bg-slate-800/40" />
+          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Hoặc</span>
+          <div className="flex-1 h-[1px] bg-slate-800/40" />
+        </div>
+
+        <button
+          onClick={triggerImport}
+          disabled={isLoading}
+          className="w-full h-9 bg-slate-900 hover:bg-slate-800 border border-slate-800/80 rounded-lg text-xs font-bold text-slate-300 hover:text-white flex items-center justify-center space-x-1.5 transition-all cursor-pointer"
+        >
+          {isLoading ? (
+            <Loader2 className="w-4 h-4 animate-spin text-sky-400" />
+          ) : (
+            <Upload className="w-4 h-4 text-sky-400" />
+          )}
+          <span>Nhập vùng GeoJSON (.geojson)</span>
+        </button>
+      </div>
 
       {/* Hidden File Input */}
       <input
@@ -358,7 +377,7 @@ export default function AOIManagerPanel() {
             {isLoading ? 'Đang tải danh sách AOI...' : 'Chưa có vùng AOI nào được tạo. Hãy bắt đầu vẽ hoặc tải tệp lên.'}
           </div>
         ) : (
-          <div className="space-y-2 max-h-[420px] overflow-y-auto pr-1">
+          <div className="space-y-1.5 max-h-[220px] overflow-y-auto pr-1">
             {aois.map((aoi) => {
               const isSelected = selectedAOIIds.includes(aoi.id);
               const isEditingText = inlineEditingId === aoi.id;
@@ -367,7 +386,7 @@ export default function AOIManagerPanel() {
                 <div
                   key={aoi.id}
                   onClick={() => !isEditingText && selectAOI(aoi.id)}
-                  className={`w-full p-3 rounded-xl border transition-all duration-200 flex flex-col space-y-2.5 cursor-pointer ${
+                  className={`w-full px-2.5 py-2 rounded-lg border transition-all duration-200 flex flex-col space-y-1.5 cursor-pointer ${
                     isSelected
                       ? 'bg-sky-500/10 border-sky-500/50 text-white shadow-lg'
                       : 'bg-slate-950/20 border-slate-850 hover:bg-slate-800/10 hover:border-slate-800 text-slate-300'
@@ -404,39 +423,40 @@ export default function AOIManagerPanel() {
                         </div>
                       </div>
                     ) : (
-                      <div className="min-w-0 pr-2">
-                        <div className="text-xs font-bold truncate text-slate-200">
+                      <div className="min-w-0 pr-2 flex-1">
+                        <div className="text-xs font-bold truncate text-slate-200 leading-tight">
                           {aoi.name}
                         </div>
                         {aoi.description && (
-                          <div className="text-[10px] text-slate-400 line-clamp-2 mt-0.5">
+                          <div className="text-[10px] text-slate-400 line-clamp-1 mt-0.5 leading-normal">
                             {aoi.description}
                           </div>
                         )}
                       </div>
                     )}
 
-                    {/* Fast Action Icons (Only visible when primary selected) */}
-                    {selectedAOIId === aoi.id && !isEditingText && (
+                    {/* Fast Action Icons (Visible when selected) */}
+                    {isSelected && !isEditingText && (
                       <div className="flex items-center space-x-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
                         {editingAOIId === aoi.id ? (
                           <>
                             <button
-                              onClick={() => toggleEditGeometry(aoi)}
+                              onClick={() => saveEditGeometry(aoi)}
                               title="Lưu hình học"
-                              className="p-1.5 bg-amber-500/20 border border-amber-500/50 text-amber-300 animate-pulse rounded-lg cursor-pointer transition-all"
+                              className={`p-1 rounded border cursor-pointer transition-all ${
+                                isEditingAOI
+                                  ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-300 animate-pulse hover:bg-emerald-500/35'
+                                  : 'bg-amber-500/20 border-amber-500/50 text-amber-300 hover:bg-amber-500/35'
+                              }`}
                             >
-                              <Save className="w-3.5 h-3.5 text-amber-400" />
+                              <Save className="w-3 h-3" />
                             </button>
                             <button
-                              onClick={() => {
-                                setEditingAOI(null);
-                                setTempGeometry(null);
-                              }}
+                              onClick={cancelEditGeometry}
                               title="Hủy chỉnh sửa"
-                              className="p-1.5 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 hover:border-red-500/40 rounded-lg text-red-400 hover:text-red-300 cursor-pointer transition-all"
+                              className="p-1 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 rounded text-red-400 hover:text-red-300 cursor-pointer transition-all"
                             >
-                              <X className="w-3.5 h-3.5" />
+                              <X className="w-3 h-3" />
                             </button>
                           </>
                         ) : (
@@ -444,23 +464,23 @@ export default function AOIManagerPanel() {
                             <button
                               onClick={() => startInlineEdit(aoi)}
                               title="Sửa tên / mô tả"
-                              className="p-1.5 bg-slate-900/60 hover:bg-slate-800 border border-slate-800/80 rounded-lg text-slate-400 hover:text-white cursor-pointer transition-all"
+                              className="p-1 bg-slate-900/60 hover:bg-slate-800 border border-slate-800/85 rounded text-slate-400 hover:text-white cursor-pointer transition-all"
                             >
-                              <Edit2 className="w-3.5 h-3.5" />
+                              <Edit2 className="w-3 h-3" />
                             </button>
                             <button
-                              onClick={() => toggleEditGeometry(aoi)}
+                              onClick={() => startEditGeometry(aoi)}
                               title="Sửa hình học trên bản đồ"
-                              className="p-1.5 bg-slate-900/60 hover:bg-slate-800 border border-slate-800/80 rounded-lg text-slate-400 hover:text-white cursor-pointer transition-all"
+                              className="p-1 bg-slate-900/60 hover:bg-slate-800 border border-slate-800/85 rounded text-slate-400 hover:text-white cursor-pointer transition-all"
                             >
-                              <Maximize2 className="w-3.5 h-3.5" />
+                              <Maximize2 className="w-3 h-3" />
                             </button>
                             <button
                               onClick={() => handleExport(aoi)}
                               title="Xuất file GeoJSON"
-                              className="p-1.5 bg-slate-900/60 hover:bg-slate-800 border border-slate-800/80 rounded-lg text-slate-400 hover:text-white cursor-pointer transition-all"
+                              className="p-1 bg-slate-900/60 hover:bg-slate-800 border border-slate-800/85 rounded text-slate-400 hover:text-white cursor-pointer transition-all"
                             >
-                              <Download className="w-3.5 h-3.5" />
+                              <Download className="w-3 h-3" />
                             </button>
                             <button
                               onClick={async () => {
@@ -469,9 +489,9 @@ export default function AOIManagerPanel() {
                                 }
                               }}
                               title="Xóa vùng"
-                              className="p-1.5 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 hover:border-red-500/40 rounded-lg text-red-400 hover:text-red-300 cursor-pointer transition-all"
+                              className="p-1 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 rounded text-red-400 hover:text-red-300 cursor-pointer transition-all"
                             >
-                              <Trash2 className="w-3.5 h-3.5" />
+                              <Trash2 className="w-3 h-3" />
                             </button>
                           </>
                         )}
@@ -480,14 +500,14 @@ export default function AOIManagerPanel() {
                   </div>
 
                   {/* Area and Perimeter badges */}
-                  <div className="flex items-center space-x-4 text-[10px] text-slate-400 font-semibold border-t border-slate-800/60 pt-2">
+                  <div className="flex items-center space-x-3 text-[10px] text-slate-400 font-medium border-t border-slate-900/30 pt-1.5">
                     <span className="flex items-center">
-                      <span className="w-1.5 h-1.5 bg-sky-400 rounded-full mr-1.5" />
-                      Diện tích: <strong className="text-slate-300 ml-1">{formatArea(aoi.area)}</strong>
+                      <span className="w-1 h-1 bg-sky-400 rounded-full mr-1.5 flex-shrink-0" />
+                      Diện tích: <strong className="text-slate-200 ml-0.5">{formatArea(aoi.area)}</strong>
                     </span>
                     <span className="flex items-center">
-                      <span className="w-1.5 h-1.5 bg-sky-400 rounded-full mr-1.5" />
-                      Chu vi: <strong className="text-slate-300 ml-1">{formatPerimeter(aoi.perimeter)}</strong>
+                      <span className="w-1 h-1 bg-sky-400 rounded-full mr-1.5 flex-shrink-0" />
+                      Chu vi: <strong className="text-slate-200 ml-0.5">{formatPerimeter(aoi.perimeter)}</strong>
                     </span>
                   </div>
 
