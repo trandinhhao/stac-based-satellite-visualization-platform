@@ -95,11 +95,11 @@ export default function MeasurementPanel() {
           }}
           className={`h-12 rounded-xl text-xs font-bold flex flex-col items-center justify-center space-y-1 transition-all border cursor-pointer ${
             isMeasuring && measureType === 'distance'
-              ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-300 shadow-md'
+              ? 'bg-sky-500/20 border-sky-500/50 text-sky-300 shadow-md'
               : 'bg-slate-950/40 border-slate-800/80 hover:bg-slate-800/40 text-slate-300'
           }`}
         >
-          <Ruler className="w-4 h-4 text-emerald-400" />
+          <Ruler className="w-4 h-4 text-sky-400" />
           <span>{isMeasuring && measureType === 'distance' ? 'Hủy đo' : 'Đo Khoảng cách'}</span>
         </button>
 
@@ -113,27 +113,27 @@ export default function MeasurementPanel() {
           }}
           className={`h-12 rounded-xl text-xs font-bold flex flex-col items-center justify-center space-y-1 transition-all border cursor-pointer ${
             isMeasuring && measureType === 'area'
-              ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-300 shadow-md'
+              ? 'bg-sky-500/20 border-sky-500/50 text-sky-300 shadow-md'
               : 'bg-slate-950/40 border-slate-800/80 hover:bg-slate-800/40 text-slate-300'
           }`}
         >
-          <Hexagon className="w-4 h-4 text-emerald-400" />
+          <Hexagon className="w-4 h-4 text-sky-400" />
           <span>{isMeasuring && measureType === 'area' ? 'Hủy đo' : 'Đo Diện tích'}</span>
         </button>
       </div>
 
       {currentMeasurement && (
         <div
-          className="p-3.5 bg-emerald-500/10 border border-emerald-500/30 rounded-xl space-y-3.5 shadow-xl animate-in slide-in-from-top duration-200"
+          className="p-3.5 bg-sky-500/10 border border-sky-500/30 rounded-xl space-y-3.5 shadow-xl animate-in slide-in-from-top duration-200"
         >
-          <div className="flex items-center justify-between pb-1 border-b border-emerald-500/20">
+          <div className="flex items-center justify-between pb-1 border-b border-sky-500/20">
             <div className="flex items-center space-x-2">
               {currentMeasurement.type === 'distance' ? (
-                <Ruler className="w-4 h-4 text-emerald-400 animate-pulse" />
+                <Ruler className="w-4 h-4 text-sky-400 animate-pulse" />
               ) : (
-                <Hexagon className="w-4 h-4 text-emerald-400 animate-pulse" />
+                <Hexagon className="w-4 h-4 text-sky-400 animate-pulse" />
               )}
-              <h4 className="text-xs font-bold text-emerald-300">
+              <h4 className="text-xs font-bold text-sky-300">
                 {currentMeasurement.type === 'distance' ? 'Đang đo khoảng cách...' : 'Đang đo diện tích...'}
               </h4>
             </div>
@@ -151,7 +151,7 @@ export default function MeasurementPanel() {
               <div className="space-y-2">
                 <div className="flex items-center justify-between font-bold text-white border-b border-slate-800/40 pb-1.5 mb-1.5">
                   <span className="text-slate-400">Tổng khoảng cách:</span>
-                  <span className="text-sm text-emerald-400">
+                  <span className="text-sm text-sky-400">
                     {formatDistance(currentMeasurement.value)}
                   </span>
                 </div>
@@ -170,7 +170,7 @@ export default function MeasurementPanel() {
                 <div className="flex items-center justify-between">
                   <span className="text-slate-400">Diện tích:</span>
                   <div className="flex items-center space-x-1.5 font-bold text-white">
-                    <span className="text-sm text-emerald-400">
+                    <span className="text-sm text-sky-400">
                       {formatArea(currentMeasurement.value, areaUnit)}
                     </span>
                     <select
@@ -222,9 +222,9 @@ export default function MeasurementPanel() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-1.5 flex-1 min-w-0 mr-2">
                     {m.type === 'distance' ? (
-                      <Ruler className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                      <Ruler className="w-3.5 h-3.5 text-sky-400 shrink-0" />
                     ) : (
-                      <Hexagon className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                      <Hexagon className="w-3.5 h-3.5 text-sky-400 shrink-0" />
                     )}
                     {editingId === m.id ? (
                       <input
@@ -237,13 +237,13 @@ export default function MeasurementPanel() {
                           if (e.key === 'Escape') handleCancelEdit();
                         }}
                         autoFocus
-                        className="bg-slate-900 text-white text-[11px] font-bold px-1.5 py-0.5 rounded border border-emerald-500 focus:outline-none w-full"
+                        className="bg-slate-900 text-white text-[11px] font-bold px-1.5 py-0.5 rounded border border-sky-500 focus:outline-none w-full"
                         onClick={(e) => e.stopPropagation()}
                       />
                     ) : (
                       <div className="flex items-center space-x-1.5 min-w-0 group/name">
                         <span 
-                          className="text-[11px] font-bold text-slate-300 truncate cursor-pointer hover:text-emerald-400 transition-colors" 
+                          className="text-[11px] font-bold text-slate-300 truncate cursor-pointer hover:text-sky-400 transition-colors" 
                           title="Nhấp để đổi tên phép đo"
                           onClick={(e) => {
                             e.stopPropagation();
@@ -257,7 +257,7 @@ export default function MeasurementPanel() {
                             e.stopPropagation();
                             handleStartEdit(m.id, m.name);
                           }}
-                          className="text-slate-400 hover:text-emerald-400 p-0.5 transition-colors cursor-pointer shrink-0"
+                          className="text-slate-400 hover:text-sky-400 p-0.5 transition-colors cursor-pointer shrink-0"
                           title="Đổi tên phép đo"
                         >
                           <Edit2 className="w-3 h-3" />
@@ -281,7 +281,7 @@ export default function MeasurementPanel() {
 
                 <div className="flex items-baseline justify-between text-xs font-semibold text-white">
                   <span className="text-slate-400 text-[10px]">Tổng cộng:</span>
-                  <span className="text-emerald-400 font-bold text-sm">
+                  <span className="text-sky-400 font-bold text-sm">
                     {m.type === 'distance' ? formatDistance(m.value) : formatArea(m.value, areaUnit)}
                   </span>
                 </div>

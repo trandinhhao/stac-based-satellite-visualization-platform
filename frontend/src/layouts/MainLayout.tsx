@@ -1,30 +1,27 @@
 import { useEffect, useRef, lazy, Suspense, useState } from 'react';
-import { Compass, Layers, Search, Hexagon, Ruler, Columns, Clock, Cpu, Loader2, ChevronLeft, Globe, Info, MapPin, X } from 'lucide-react';
+import { Compass, Layers, Search, Hexagon, Ruler, Cpu, Loader2, ChevronLeft, Globe, Info, MapPin, X } from 'lucide-react';
 import MapViewer from '../components/MapViewer';
 import SearchLocation from '../components/SearchLocation';
-import CompareViewer from '../features/comparison/components/CompareViewer';
 import { useMapStore } from '../store/useMapStore';
 import { useAOIStore } from '../store/useAOIStore';
-import { useCompareStore } from '../features/comparison/store/useCompareStore';
 import { useWebSocketStore } from '../store/useWebSocketStore';
 import { NotificationToast } from '../components/NotificationToast';
 import MapLayersSwitcher from '../components/MapLayersSwitcher';
 import { useSTACStore } from '../store/useSTACStore';
 
+import FloatingJobsWidget from '../components/FloatingJobsWidget';
+
 // Lazy-loaded components for panel tabs to reduce initial bundle size (Sprint 9 Code Splitting)
 const STACSearchPanel = lazy(() => import('../components/STACSearchPanel'));
 const AOIManagerPanel = lazy(() => import('../components/AOIManagerPanel'));
 const MeasurementPanel = lazy(() => import('../components/MeasurementPanel'));
-const ComparePanel = lazy(() => import('../features/comparison/components/ComparePanel'));
-const JobDashboard = lazy(() => import('../features/jobs/components/JobDashboard'));
 const DetectionPanel = lazy(() => import('../components/DetectionPanel'));
 
 
 
 export default function MainLayout() {
   const { center, zoom } = useMapStore();
-  const { activeTab, setActiveTab, isDrawerOpen, setIsDrawerOpen, aois, selectedAOIIds } = useAOIStore();
-  const compareMode = useCompareStore((state) => state.compareMode);
+  const { activeTab, setActiveTab, isDrawerOpen, setIsDrawerOpen, aois, selectedAOIIds, fetchAOIs, selectAOI } = useAOIStore();
   const selectedAOINames = aois
     .filter((a) => selectedAOIIds.includes(a.id))
     .map((a) => a.name)
@@ -71,6 +68,7 @@ export default function MainLayout() {
       prevTabRef.current = activeTab;
       setShowHelpPanel(false);
       setHelpType(null);
+      selectAOI(null); // Automatically clear selected AOIs when switching tabs
     }
   }, [activeTab]);
 
@@ -78,6 +76,7 @@ export default function MainLayout() {
     if (!isDrawerOpen) {
       setShowHelpPanel(false);
       setHelpType(null);
+      selectAOI(null); // Automatically clear selected AOIs when closing the drawer
     }
   }, [isDrawerOpen]);
 
@@ -96,7 +95,7 @@ export default function MainLayout() {
     };
   }, [showHelpPanel]);
 
-  const handleTabClick = (tab: 'location' | 'search' | 'aoi' | 'measure' | 'comparison' | 'jobs' | 'ai') => {
+  const handleTabClick = (tab: 'location' | 'search' | 'aoi' | 'measure' | 'ai') => {
     if (activeTab === tab) {
       setIsDrawerOpen(!isDrawerOpen);
     } else {
@@ -111,17 +110,19 @@ export default function MainLayout() {
   useEffect(() => {
     // Automatically establish WebSocket connection on layout mount
     connect();
+    // Fetch initial AOIs
+    fetchAOIs();
     return () => {
       // Disconnect socket connection on unmount
       disconnect();
     };
-  }, [connect, disconnect]);
+  }, [connect, disconnect, fetchAOIs]);
 
   return (
     <div className="relative w-screen h-screen overflow-hidden bg-slate-950 text-slate-100 font-sans select-none">
       {/* 1. Fullscreen Map Component */}
       <div className="absolute inset-0 z-0">
-        {compareMode !== 'none' ? <CompareViewer /> : <MapViewer />}
+        <MapViewer />
       </div>
       {/* 3. Floating GIS-Style Sidebar Menu & Collapsible Drawer */}
       <div className="absolute top-4 left-4 z-10 hidden md:flex items-start h-[calc(100vh-10rem)] max-h-[75vh] pointer-events-none">
@@ -149,18 +150,18 @@ export default function MainLayout() {
                 <span className="text-[9px] font-bold mt-1">Tìm kiếm</span>
               </button>
 
-              {/* STAC Search */}
+              {/* Measurement */}
               <button
-                onClick={() => handleTabClick('search')}
-                title="Tìm kiếm STAC"
+                onClick={() => handleTabClick('measure')}
+                title="Đo đạc"
                 className={`w-full py-2.5 rounded-xl transition-all cursor-pointer flex flex-col items-center justify-center relative group ${
-                  activeTab === 'search' && isDrawerOpen
+                  activeTab === 'measure' && isDrawerOpen
                     ? 'bg-sky-500/10 text-sky-400 font-bold border border-transparent'
                     : 'text-slate-400 hover:text-slate-200 border border-transparent hover:bg-slate-800/40'
                 }`}
               >
-                <Globe className="w-5 h-5" />
-                <span className="text-[9px] font-bold mt-1">STAC</span>
+                <Ruler className="w-5 h-5" />
+                <span className="text-[9px] font-bold mt-1">Đo đạc</span>
               </button>
 
               {/* AOI Manager */}
@@ -177,46 +178,18 @@ export default function MainLayout() {
                 <span className="text-[9px] font-bold mt-1">AOI</span>
               </button>
 
-              {/* Measurement */}
+              {/* STAC Search */}
               <button
-                onClick={() => handleTabClick('measure')}
-                title="Đo đạc"
+                onClick={() => handleTabClick('search')}
+                title="Tìm kiếm STAC"
                 className={`w-full py-2.5 rounded-xl transition-all cursor-pointer flex flex-col items-center justify-center relative group ${
-                  activeTab === 'measure' && isDrawerOpen
-                    ? 'bg-emerald-500/10 text-emerald-400 font-bold border border-transparent'
-                    : 'text-slate-400 hover:text-slate-200 border border-transparent hover:bg-slate-800/40'
-                }`}
-              >
-                <Ruler className="w-5 h-5" />
-                <span className="text-[9px] font-bold mt-1">Đo đạc</span>
-              </button>
-
-              {/* Comparison */}
-              <button
-                onClick={() => handleTabClick('comparison')}
-                title="So sánh"
-                className={`w-full py-2.5 rounded-xl transition-all cursor-pointer flex flex-col items-center justify-center relative group ${
-                  activeTab === 'comparison' && isDrawerOpen
-                    ? 'bg-emerald-500/10 text-emerald-400 font-bold border border-transparent'
-                    : 'text-slate-400 hover:text-slate-200 border border-transparent hover:bg-slate-800/40'
-                }`}
-              >
-                <Columns className="w-5 h-5" />
-                <span className="text-[9px] font-bold mt-1">So sánh</span>
-              </button>
-
-              {/* Job Dashboard */}
-              <button
-                onClick={() => handleTabClick('jobs')}
-                title="Tác vụ"
-                className={`w-full py-2.5 rounded-xl transition-all cursor-pointer flex flex-col items-center justify-center relative group ${
-                  activeTab === 'jobs' && isDrawerOpen
+                  activeTab === 'search' && isDrawerOpen
                     ? 'bg-sky-500/10 text-sky-400 font-bold border border-transparent'
                     : 'text-slate-400 hover:text-slate-200 border border-transparent hover:bg-slate-800/40'
                 }`}
               >
-                <Clock className="w-5 h-5" />
-                <span className="text-[9px] font-bold mt-1">Tác vụ</span>
+                <Globe className="w-5 h-5" />
+                <span className="text-[9px] font-bold mt-1">STAC</span>
               </button>
 
               {/* AI Detection */}
@@ -250,17 +223,13 @@ export default function MainLayout() {
                 {activeTab === 'location' && <Search className="w-4 h-4 text-sky-400" />}
                 {activeTab === 'search' && <Globe className="w-4 h-4 text-sky-400" />}
                 {activeTab === 'aoi' && <Hexagon className="w-4 h-4 text-sky-400" />}
-                {activeTab === 'measure' && <Ruler className="w-4 h-4 text-emerald-400" />}
-                {activeTab === 'comparison' && <Columns className="w-4 h-4 text-emerald-400" />}
-                {activeTab === 'jobs' && <Clock className="w-4 h-4 text-sky-400" />}
+                {activeTab === 'measure' && <Ruler className="w-4 h-4 text-sky-400" />}
                 {activeTab === 'ai' && <Cpu className="w-4 h-4 text-sky-400" />}
                 <h2 className="text-sm font-semibold text-slate-200">
                   {activeTab === 'location' && 'Tìm kiếm địa điểm & tọa độ'}
                   {activeTab === 'search' && 'Tìm kiếm vệ tinh (STAC)'}
                   {activeTab === 'aoi' && 'Quản lý vùng quan tâm (AOI)'}
                   {activeTab === 'measure' && 'Công cụ đo đạc địa lý'}
-                  {activeTab === 'comparison' && 'Đối chiếu ảnh vệ tinh'}
-                  {activeTab === 'jobs' && 'Tiến trình tác vụ nền'}
                   {activeTab === 'ai' && 'Nhận diện đối tượng AI'}
                 </h2>
                 
@@ -322,13 +291,9 @@ export default function MainLayout() {
                   <MeasurementPanel />
                 )}
 
-                {activeTab === 'comparison' && (
-                  <ComparePanel />
-                )}
 
-                {activeTab === 'jobs' && (
-                  <JobDashboard />
-                )}
+
+
 
                 {activeTab === 'ai' && (
                   <DetectionPanel />
@@ -360,7 +325,7 @@ export default function MainLayout() {
         </footer>
 
         {/* Selected AOI Indicator */}
-        {selectedAOIIds.length > 0 && (
+        {activeTab === 'aoi' && selectedAOIIds.length > 0 && (
           <div 
             className="flex items-center space-x-1.5 bg-slate-900/90 backdrop-blur-md border border-sky-500/30 hover:border-sky-500/50 px-3 py-1.5 rounded-lg shadow-xl text-[10px] text-sky-400 animate-in slide-in-from-top-2 duration-200 font-mono max-w-[400px]"
             title={selectedAOINames}
@@ -431,6 +396,11 @@ export default function MainLayout() {
       {/* Floating Layers Switcher (Bottom-Left) */}
       <div className="absolute bottom-4 left-4 z-10">
         <MapLayersSwitcher />
+      </div>
+
+      {/* Floating Jobs Manager Widget (Bottom-Right, left of map controls) */}
+      <div className="absolute bottom-4 right-16 z-10">
+        <FloatingJobsWidget />
       </div>
 
       {/* Help Modal Overlay (Sprint 10 Centered Modal) */}
@@ -566,8 +536,8 @@ export default function MainLayout() {
               {helpType === 'measure' && (
                 <div className="space-y-4 text-[11px] leading-relaxed">
                   <div className="p-3.5 bg-slate-950/50 border border-slate-850 rounded-xl space-y-2">
-                    <h4 className="font-bold text-emerald-400 flex items-center space-x-1.5">
-                      <Ruler className="w-4 h-4 text-emerald-400" />
+                    <h4 className="font-bold text-sky-400 flex items-center space-x-1.5">
+                      <Ruler className="w-4 h-4 text-sky-400" />
                       <span>Đo đạc khoảng cách và diện tích</span>
                     </h4>
                     <p className="text-slate-300">

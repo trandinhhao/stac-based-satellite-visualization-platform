@@ -884,9 +884,7 @@ export default function MapViewer() {
              f.properties?.user_isCompleted !== 'true' && 
              !historyIds.includes(String(f.id))
     );
-    console.log('[DEBUG] deleteActiveDrawingFeature found:', activeFeature, 'historyIds:', historyIds);
     if (activeFeature && activeFeature.id !== undefined) {
-      console.log('[DEBUG] deleteActiveDrawingFeature actually deleting ID:', activeFeature.id);
       drawRef.current.delete(activeFeature.id as any);
     }
   };
@@ -1217,7 +1215,6 @@ export default function MapViewer() {
   // Helper to dynamically update the completed measurements layer
   const updateCompletedMeasurementsLayer = (mapInstance: maplibregl.Map, forceRecreate = false) => {
     if (!mapInstance.getStyle()) {
-      console.log('[DEBUG] completed layer: style not initialized yet');
       return;
     }
 
@@ -1227,7 +1224,6 @@ export default function MapViewer() {
       const lineLayerId = 'completed-measurements-line';
 
       if (forceRecreate) {
-        console.log('[DEBUG] completed layer: forcing recreate of source and layers');
         if (mapInstance.getLayer(fillLayerId)) mapInstance.removeLayer(fillLayerId);
         if (mapInstance.getLayer(lineLayerId)) mapInstance.removeLayer(lineLayerId);
         if (mapInstance.getSource(sourceId)) mapInstance.removeSource(sourceId);
@@ -1247,10 +1243,7 @@ export default function MapViewer() {
           }))
         : [];
 
-      console.log('[DEBUG] completed layer: updating. activeTab =', activeTab, 'history length =', history.length, 'features count =', features.length);
-      if (features.length > 0) {
-        console.log('[DEBUG] completed layer first feature geometry:', JSON.stringify(features[0].geometry));
-      }
+      // Update data source
 
       const geojson: any = {
         type: 'FeatureCollection',
@@ -1259,7 +1252,6 @@ export default function MapViewer() {
 
       const source = mapInstance.getSource(sourceId) as maplibregl.GeoJSONSource;
       if (!source) {
-        console.log('[DEBUG] completed layer: creating source and layers');
         mapInstance.addSource(sourceId, {
           type: 'geojson',
           data: geojson,
@@ -1302,7 +1294,6 @@ export default function MapViewer() {
           },
         });
       } else {
-        console.log('[DEBUG] completed layer: calling source.setData');
         source.setData(geojson);
         
         // Dynamically update paint properties to reflect hover highlight state
@@ -1324,8 +1315,6 @@ export default function MapViewer() {
           ]);
         }
       }
-      const currentLayers = mapInstance.getStyle().layers || [];
-      console.log('[DEBUG] completed layer: all style layers on map:', currentLayers.map(l => l.id));
       arrangeLayers(mapInstance);
     } catch (err) {
       console.error('[MapViewer] Error updating completed measurements layer:', err);
@@ -1645,6 +1634,17 @@ export default function MapViewer() {
         minZoom: 3,
         maxZoom: 18,
         attributionControl: false,
+      });
+
+      // Suppress missing sprite image warnings by providing a dummy 1x1 transparent pixel
+      map.current.on('styleimagemissing', (e) => {
+        const id = e.id;
+        const width = 1;
+        const height = 1;
+        const data = new Uint8Array(width * height * 4);
+        if (map.current && !map.current.hasImage(id)) {
+          map.current.addImage(id, { width, height, data });
+        }
       });
 
       // Add navigation controls (Zoom + Compass)
@@ -1994,25 +1994,20 @@ export default function MapViewer() {
       const handleDrawCreate = async (e: any) => {
         if (e.features && e.features.length > 0) {
           const feature = e.features[0];
-          console.log('[DEBUG] handleDrawCreate triggered with feature:', feature);
           const isMeasuring = useMeasurementStore.getState().isMeasuring;
 
           if (isMeasuring) {
             // Set the feature property
             if (drawRef.current) {
-              console.log('[DEBUG] handleDrawCreate setting isMeasurement=true on ID:', feature.id);
               drawRef.current.setFeatureProperty(feature.id as any, 'isMeasurement', 'true');
             }
 
             try {
-              console.log('[DEBUG] handleDrawCreate calling api.post("/measure")');
               const response = await api.post('/measure', { geometry: feature.geometry });
               const data = response.data;
-              console.log('[DEBUG] handleDrawCreate API response:', data);
 
               // Mark as completed in Mapbox Draw immediately
               if (drawRef.current) {
-                console.log('[DEBUG] handleDrawCreate setting isCompleted=true on ID:', feature.id);
                 drawRef.current.setFeatureProperty(feature.id as any, 'isCompleted', 'true');
               }
 
@@ -2033,7 +2028,6 @@ export default function MapViewer() {
 
               // Delete the temporary active drawing from Mapbox Draw since it is now saved in history and rendered by Maplibre GL
               if (drawRef.current) {
-                console.log('[DEBUG] handleDrawCreate deleting active drawing feature from Draw:', feature.id);
                 drawRef.current.delete(feature.id as any);
               }
               

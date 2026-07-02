@@ -18,7 +18,6 @@ export const useWebSocketStore = create<WebSocketState>((set) => {
     stopHeartbeat();
     heartbeatIntervalId = setInterval(() => {
       if (ws.readyState === WebSocket.OPEN) {
-        console.log('Sending WebSocket heartbeat ping...');
         ws.send('ping');
       }
     }, 30000); // 30s
@@ -41,12 +40,10 @@ export const useWebSocketStore = create<WebSocketState>((set) => {
     const host = window.location.host;
     const socketUrl = `${protocol}//${host}/ws/jobs`;
 
-    console.log(`Connecting to WebSocket: ${socketUrl}`);
     const ws = new WebSocket(socketUrl);
     socketInstance = ws;
 
     ws.onopen = () => {
-      console.log('WebSocket connection established successfully.');
       set({ connected: true, socket: ws });
       if (reconnectTimeoutId) {
         clearTimeout(reconnectTimeoutId);
@@ -57,12 +54,10 @@ export const useWebSocketStore = create<WebSocketState>((set) => {
 
     ws.onmessage = (event) => {
       if (event.data === 'pong') {
-        console.log('WebSocket heartbeat pong received.');
         return;
       }
       try {
         const data = JSON.parse(event.data);
-        console.log('WebSocket event received:', data);
 
         // Update Job list in useJobStore
         useJobStore.getState().updateJobFromEvent(data);
@@ -85,8 +80,7 @@ export const useWebSocketStore = create<WebSocketState>((set) => {
       }
     };
 
-    ws.onclose = (event) => {
-      console.log(`WebSocket connection closed (code: ${event.code}). Attempting to reconnect in 3s...`);
+    ws.onclose = () => {
       set({ connected: false, socket: null });
       socketInstance = null;
       stopHeartbeat();

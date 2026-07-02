@@ -45,7 +45,7 @@ export default function ComparePanel() {
         imageA: imageA.id,
         imageB: imageB.id
       });
-      useAOIStore.getState().setActiveTab('jobs');
+      useAOIStore.getState().setActiveTab('search');
     } catch (err: any) {
       alert('Không thể tạo Job so sánh: ' + (err.response?.data?.detail || err.message));
     } finally {

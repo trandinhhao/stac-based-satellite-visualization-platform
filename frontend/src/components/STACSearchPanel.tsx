@@ -16,7 +16,8 @@ import {
   Save,
   Calendar,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  X
 } from 'lucide-react';
 import { useSTACStore } from '../store/useSTACStore';
 import type { STACCollection, STACItem } from '../store/useSTACStore';
@@ -66,19 +67,17 @@ export default function STACSearchPanel() {
 
   const selectedAOIIds = useAOIStore((state) => state.selectedAOIIds);
   const aois = useAOIStore((state) => state.aois);
-  const selectedAOIs = aois.filter((aoi) => selectedAOIIds.includes(aoi.id));
+  const selectAOI = useAOIStore((state) => state.selectAOI);
+  const fetchAOIs = useAOIStore((state) => state.fetchAOIs);
   const isDrawerOpen = useAOIStore((state) => state.isDrawerOpen);
 
+  useEffect(() => {
+    fetchAOIs();
+  }, [fetchAOIs]);
+
   const [spatialScope, setSpatialScope] = useState<'draw' | 'aoi'>('draw');
-  const [searchAOIIds, setSearchAOIIds] = useState<string[]>([]);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-
-  // Sync searchAOIIds to ensure only valid globally selected AOI IDs are kept.
-  // New selections start as unchecked by default.
-  useEffect(() => {
-    setSearchAOIIds((prev) => prev.filter(id => selectedAOIIds.includes(id)));
-  }, [selectedAOIIds]);
 
   useEffect(() => {
     const handleOutsideClick = (event: MouseEvent) => {
@@ -90,7 +89,7 @@ export default function STACSearchPanel() {
     return () => document.removeEventListener('mousedown', handleOutsideClick);
   }, []);
 
-  const activeSearchAOIs = selectedAOIs.filter(aoi => searchAOIIds.includes(aoi.id));
+  const activeSearchAOIs = aois.filter(aoi => selectedAOIIds.includes(aoi.id));
 
   // Programmatic calendar toggle states & refs to fix reopen on click issue
   const [isStartOpen, setIsStartOpen] = useState(false);
@@ -122,10 +121,8 @@ export default function STACSearchPanel() {
 
   // Sync spatial scope selection when selected AOI updates
   useEffect(() => {
-    if (selectedAOIs.length > 0) {
+    if (selectedAOIIds.length > 0) {
       setSpatialScope('aoi');
-    } else if (spatialScope === 'aoi') {
-      setSpatialScope('draw');
     }
   }, [selectedAOIIds]);
 
@@ -246,17 +243,10 @@ export default function STACSearchPanel() {
       payload.intersects = stacTempGeometry;
     } else if (spatialScope === 'aoi') {
       if (activeSearchAOIs.length === 0) {
-        alert('Vui lòng tích chọn ít nhất một vùng AOI ở dưới để tìm kiếm!');
+        alert('Vui lòng chọn một vùng AOI để tìm kiếm!');
         return;
       }
-      if (activeSearchAOIs.length === 1) {
-        payload.intersects = activeSearchAOIs[0].geometry;
-      } else {
-        payload.intersects = {
-          type: 'MultiPolygon',
-          coordinates: activeSearchAOIs.map(aoi => aoi.geometry.coordinates)
-        };
-      }
+      payload.intersects = activeSearchAOIs[0].geometry;
     }
 
     searchMutation.mutate(payload);
@@ -396,94 +386,150 @@ export default function STACSearchPanel() {
             </button>
             <button
               type="button"
-              disabled={selectedAOIs.length === 0}
+              disabled={aois.length === 0}
               onClick={() => setSpatialScope('aoi')}
               className={`h-8 px-2 rounded-lg text-[10px] font-bold transition-all border cursor-pointer flex items-center justify-center space-x-1 ${
                 spatialScope === 'aoi'
                   ? 'bg-sky-500/20 border-sky-500/50 text-sky-400'
-                  : selectedAOIs.length === 0
+                  : aois.length === 0
                   ? 'bg-slate-950/20 border-slate-900/20 text-slate-600 cursor-not-allowed opacity-40'
                   : 'bg-slate-950/40 border-slate-800/80 hover:bg-slate-800/40 text-slate-400'
               }`}
               title={
-                selectedAOIs.length === 0 
-                  ? "Chọn một AOI trong Quản lý AOI để kích hoạt" 
-                  : `Đã chọn ${selectedAOIs.length} vùng AOI để cấu hình`
+                aois.length === 0 
+                  ? "Vui lòng tạo ít nhất một vùng AOI để kích hoạt" 
+                  : selectedAOIIds.length > 0
+                  ? `Đã chọn vùng AOI: ${activeSearchAOIs[0]?.name || ''}`
+                  : "Chọn vùng AOI để cấu hình"
               }
             >
               <span>Vùng AOI</span>
-              {selectedAOIs.length > 0 && <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />}
+              {selectedAOIIds.length > 0 && <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />}
             </button>
           </div>
-          {spatialScope === 'aoi' && selectedAOIs.length > 0 && (
+          {spatialScope === 'aoi' && aois.length > 0 && (
             <div className="relative mt-2" ref={dropdownRef}>
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5 mb-1.5">
                 Vùng AOI áp dụng tìm kiếm
               </span>
               
-              {/* Trigger Button */}
-              <button
-                type="button"
-                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                className="w-full h-9 px-3 bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700/80 rounded-lg text-xs text-slate-200 font-medium flex items-center justify-between cursor-pointer transition-all"
-              >
-                <span>
-                  {activeSearchAOIs.length > 0 
-                    ? `Đã chọn ${activeSearchAOIs.length}/${selectedAOIs.length} vùng` 
-                    : `Chưa chọn vùng nào (0/${selectedAOIs.length})`}
-                </span>
-                {isDropdownOpen ? (
-                  <ChevronUp className="w-4 h-4 text-slate-400" />
-                ) : (
-                  <ChevronDown className="w-4 h-4 text-slate-400" />
-                )}
-              </button>
+              <div className="relative">
+                {/* Trigger Button */}
+                <button
+                  type="button"
+                  onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                  className={`w-full h-9 pl-3 pr-16 bg-slate-950 hover:bg-slate-900 border rounded-lg text-xs text-slate-200 font-medium flex items-center justify-between cursor-pointer transition-all ${
+                    isDropdownOpen
+                      ? 'border-sky-500/60 ring-1 ring-sky-500/10 shadow-[0_0_10px_rgba(56,189,248,0.12)]'
+                      : 'border-slate-800 hover:border-slate-700/80'
+                  }`}
+                >
+                  <span className="truncate max-w-[180px]">
+                    {activeSearchAOIs.length === 0
+                      ? 'Chọn vùng quan tâm...'
+                      : activeSearchAOIs[0].name}
+                  </span>
+                </button>
+                
+                {/* Actions (X and Chevron) inside the field */}
+                <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center space-x-1 z-10">
+                  {activeSearchAOIs.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        selectAOI(null);
+                        setIsDropdownOpen(false);
+                      }}
+                      className="p-1 text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded-md transition-colors cursor-pointer flex items-center justify-center"
+                      title="Bỏ chọn vùng"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsDropdownOpen(!isDropdownOpen);
+                    }}
+                    className="p-1 text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded-md transition-colors cursor-pointer flex items-center justify-center"
+                  >
+                    {isDropdownOpen ? (
+                      <ChevronUp className="w-3.5 h-3.5" />
+                    ) : (
+                      <ChevronDown className="w-3.5 h-3.5" />
+                    )}
+                  </button>
+                </div>
+              </div>
 
               {/* Dropdown Menu */}
               {isDropdownOpen && (
-                <div className="absolute left-0 right-0 mt-1.5 z-30 p-1.5 bg-slate-950/95 backdrop-blur-md border border-slate-800/90 rounded-lg shadow-2xl space-y-1 animate-in fade-in slide-in-from-top-1 duration-150">
-                  <div className="space-y-0.5 max-h-36 overflow-y-auto pr-1">
-                    {selectedAOIs.map((aoi) => {
-                      const isChecked = searchAOIIds.includes(aoi.id);
+                <div className="absolute left-0 right-0 mt-1.5 z-30 p-1.5 bg-slate-950/95 backdrop-blur-md border border-slate-800/90 rounded-lg shadow-2xl space-y-1.5 animate-in fade-in slide-in-from-top-1 duration-150">
+                  <div className="space-y-0.5 max-h-[118px] overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-slate-800">
+                    {aois.map((aoi) => {
+                      const isChecked = selectedAOIIds.includes(aoi.id);
                       return (
-                        <label 
-                          key={aoi.id} 
-                          className="flex items-center space-x-2 p-1.5 hover:bg-slate-900/60 rounded-md transition-all cursor-pointer select-none"
+                        <div 
+                          key={aoi.id}
+                          onClick={() => {
+                            if (isChecked) {
+                              selectAOI(null);
+                            } else {
+                              useAOIStore.setState({
+                                selectedAOIIds: [aoi.id],
+                                selectedAOIId: aoi.id,
+                                isDrawing: false,
+                                drawType: null,
+                                tempGeometry: null,
+                                editingAOIId: null
+                              });
+                            }
+                            setIsDropdownOpen(false);
+                          }}
+                          className={`flex items-center px-2.5 py-1.5 rounded transition-all cursor-pointer select-none group ${
+                            isChecked
+                              ? 'bg-sky-500/10 text-sky-400 font-semibold'
+                              : 'hover:bg-slate-900/60 text-slate-350 hover:text-white'
+                          }`}
                         >
-                          <input
-                            type="checkbox"
-                            checked={isChecked}
-                            onChange={() => {
-                              if (isChecked) {
-                                setSearchAOIIds(searchAOIIds.filter(id => id !== aoi.id));
-                              } else {
-                                setSearchAOIIds([...searchAOIIds, aoi.id]);
-                              }
-                            }}
-                            className="w-3.5 h-3.5 rounded bg-slate-950 border-slate-850 text-sky-500 focus:ring-sky-500/20 cursor-pointer"
-                          />
-                          <span className="text-[11px] font-medium text-slate-350 truncate">
-                            {aoi.name}
-                          </span>
-                        </label>
+                          {/* Name & Area Metadata */}
+                          <div className="flex-1 min-w-0 flex items-baseline justify-between">
+                            <span className="text-[11px] font-medium truncate leading-tight transition-colors">
+                              {aoi.name}
+                            </span>
+                            {aoi.area && (
+                              <span className={`text-[10px] font-mono font-bold ml-2 flex-shrink-0 transition-colors ${
+                                isChecked 
+                                  ? 'text-sky-300' 
+                                  : 'text-emerald-400 group-hover:text-emerald-350'
+                              }`}>
+                                {aoi.area >= 1000000 
+                                  ? `${(aoi.area / 1000000).toFixed(2)} km²` 
+                                  : aoi.area >= 10000 
+                                  ? `${(aoi.area / 10000).toFixed(1)} ha` 
+                                  : `${aoi.area.toFixed(0)} m²`}
+                              </span>
+                            )}
+                          </div>
+                        </div>
                       );
                     })}
                   </div>
-                  {selectedAOIs.length > 1 && (
-                    <div className="flex items-center justify-between pt-1.5 border-t border-slate-900 px-1 text-[9px] font-bold text-slate-500">
+
+                  {/* Actions Bar */}
+                  {selectedAOIIds.length > 0 && (
+                    <div className="flex items-center justify-end pt-1.5 border-t border-slate-900 px-1 text-[9px] font-bold text-slate-500 bg-slate-950/20">
                       <button
                         type="button"
-                        onClick={() => setSearchAOIIds(selectedAOIs.map(a => a.id))}
-                        className="hover:text-sky-400 transition-colors"
+                        onClick={() => {
+                          selectAOI(null);
+                          setIsDropdownOpen(false);
+                        }}
+                        className="hover:text-rose-450 transition-colors py-1 px-1.5 hover:bg-slate-900 rounded cursor-pointer"
                       >
-                        Chọn tất cả
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setSearchAOIIds([])}
-                        className="hover:text-rose-400 transition-colors"
-                      >
-                        Bỏ chọn tất cả
+                        Bỏ chọn vùng
                       </button>
                     </div>
                   )}

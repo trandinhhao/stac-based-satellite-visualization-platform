@@ -28,7 +28,7 @@ interface AOIState {
   isEditingAOI: boolean;
   isLoading: boolean;
   error: string | null;
-  activeTab: 'location' | 'search' | 'aoi' | 'measure' | 'comparison' | 'jobs' | 'ai';
+  activeTab: 'location' | 'search' | 'aoi' | 'measure' | 'ai';
   isDrawerOpen: boolean;
   showAllAOIs: boolean;
   
@@ -44,7 +44,7 @@ interface AOIState {
   setTempGeometry: (geometry: AOIGeometry | null) => void;
   setEditingAOI: (id: string | null) => void;
   setIsEditingAOI: (isEditing: boolean) => void;
-  setActiveTab: (tab: 'location' | 'search' | 'aoi' | 'measure' | 'comparison' | 'jobs' | 'ai') => void;
+  setActiveTab: (tab: 'location' | 'search' | 'aoi' | 'measure' | 'ai') => void;
   clearError: () => void;
   setShowAllAOIs: (showAll: boolean) => void;
 }

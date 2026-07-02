@@ -22,7 +22,4 @@ export const stacApi = axios.create({
 export const geocodingApi = axios.create({
   baseURL: 'https://nominatim.openstreetmap.org',
   timeout: 10000,
-  headers: {
-    'User-Agent': 'stac-satellite-platform/1.0',
-  },
 });

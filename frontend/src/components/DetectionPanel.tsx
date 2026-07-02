@@ -14,7 +14,7 @@ import { useDetectionStore, type DetectedObject } from '../store/useDetectionSto
 import { useMapStore } from '../store/useMapStore';
 
 export default function DetectionPanel() {
-  const { aois, selectedAOIId, selectAOI } = useAOIStore();
+  const { aois, selectedAOIId, selectAOI, fetchAOIs } = useAOIStore();
   const { jobs } = useJobStore();
   const { 
     detections, 
@@ -31,6 +31,11 @@ export default function DetectionPanel() {
 
   const [selectedModel, setSelectedModel] = useState('yolov8');
   const [triggerAoiId, setTriggerAoiId] = useState(selectedAOIId || '');
+
+  // Load AOIs on mount
+  useEffect(() => {
+    fetchAOIs();
+  }, [fetchAOIs]);
 
   // Synchronize internal selection with global AOI selection
   useEffect(() => {
@@ -54,8 +59,7 @@ export default function DetectionPanel() {
     try {
       selectAOI(triggerAoiId);
       // Run detection job
-      const jobId = await runDetection(triggerAoiId, selectedModel);
-      console.log('Detection job dispatched:', jobId);
+      await runDetection(triggerAoiId, selectedModel);
     } catch (err) {
       console.error('Failed to trigger AI detection:', err);
     }
