@@ -133,37 +133,42 @@ export default function SearchLocation() {
 
   return (
     <div className="space-y-4">
-      {/* Search Method Selector */}
-      <div className="flex bg-slate-950/60 p-1 border border-slate-800/80 rounded-xl">
-        <button
-          onClick={() => setSearchMethod('name')}
-          className={`flex-1 py-1.5 text-[11px] font-bold rounded-lg transition-all cursor-pointer flex items-center justify-center space-x-1.5 ${
-            searchMethod === 'name'
-              ? 'bg-sky-500/10 text-sky-400 font-bold border border-sky-500/20 shadow-sm'
-              : 'text-slate-400 hover:text-slate-200 border border-transparent'
-          }`}
-        >
-          <MapPin className="w-3.5 h-3.5" />
-          <span>Địa điểm</span>
-        </button>
-        <button
-          onClick={() => setSearchMethod('coords')}
-          className={`flex-1 py-1.5 text-[11px] font-bold rounded-lg transition-all cursor-pointer flex items-center justify-center space-x-1.5 ${
-            searchMethod === 'coords'
-              ? 'bg-sky-500/10 text-sky-400 font-bold border border-sky-500/20 shadow-sm'
-              : 'text-slate-400 hover:text-slate-200 border border-transparent'
-          }`}
-        >
-          <Compass className="w-3.5 h-3.5" />
-          <span>Tọa độ</span>
-        </button>
+      <div className="space-y-2">
+        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
+          TÌM KIẾM
+        </div>
+        {/* Search Method Selector */}
+        <div className="flex bg-slate-950/60 p-1 border border-slate-800/80 rounded-xl">
+          <button
+            onClick={() => setSearchMethod('name')}
+            className={`flex-1 py-1.5 text-[11px] font-bold rounded-lg transition-all cursor-pointer flex items-center justify-center space-x-1.5 ${
+              searchMethod === 'name'
+                ? 'bg-sky-500/10 text-sky-400 font-bold border border-sky-500/20 shadow-sm'
+                : 'text-slate-400 hover:text-slate-200 border border-transparent'
+            }`}
+          >
+            <MapPin className="w-3.5 h-3.5" />
+            <span>Địa điểm</span>
+          </button>
+          <button
+            onClick={() => setSearchMethod('coords')}
+            className={`flex-1 py-1.5 text-[11px] font-bold rounded-lg transition-all cursor-pointer flex items-center justify-center space-x-1.5 ${
+              searchMethod === 'coords'
+                ? 'bg-sky-500/10 text-sky-400 font-bold border border-sky-500/20 shadow-sm'
+                : 'text-slate-400 hover:text-slate-200 border border-transparent'
+            }`}
+          >
+            <Compass className="w-3.5 h-3.5" />
+            <span>Tọa độ</span>
+          </button>
+        </div>
       </div>
 
       {searchMethod === 'name' ? (
         /* SECTION 1: Tìm kiếm theo địa danh */
         <div className="space-y-2">
           <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
-            TÌM KIẾM THEO ĐỊA ĐIỂM
+            THEO ĐỊA ĐIỂM
           </label>
           <div ref={containerRef} className="relative w-full">
             <div className="relative flex items-center">
@@ -240,7 +245,7 @@ export default function SearchLocation() {
         /* SECTION 2: Tìm kiếm theo tọa độ */
         <div className="space-y-2.5">
           <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
-            TÌM KIẾM THEO TỌA ĐỘ
+            THEO TỌA ĐỘ
           </label>
           <div className="grid grid-cols-2 gap-2.5">
             <div className="space-y-1">

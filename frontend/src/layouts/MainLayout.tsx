@@ -1,5 +1,7 @@
-import { useEffect, useRef, lazy, Suspense, useState } from 'react';
-import { Compass, Layers, Search, Hexagon, Ruler, Cpu, Loader2, ChevronLeft, Globe, Info, MapPin, X } from 'lucide-react';
+import { useEffect, useRef, lazy, Suspense } from 'react';
+import { Compass, Layers, Search, Hexagon, Ruler, Cpu, Loader2, ChevronLeft, Globe, X } from 'lucide-react';
+import * as turf from '@turf/turf';
+import { useMeasurementStore } from '../store/useMeasurementStore';
 import MapViewer from '../components/MapViewer';
 import SearchLocation from '../components/SearchLocation';
 import { useMapStore } from '../store/useMapStore';
@@ -32,6 +34,73 @@ export default function MainLayout() {
   const selectedItem = useSTACStore((state) => state.selectedItem);
   const setSelectedItem = useSTACStore((state) => state.setSelectedItem);
 
+  const currentMeasurement = useMeasurementStore((state) => state.currentMeasurement);
+  const stopMeasuring = useMeasurementStore((state) => state.stopMeasuring);
+
+  // Formatters & helpers for measurement
+  const formatDistance = (meters: any) => {
+    const val = parseFloat(meters);
+    if (isNaN(val)) return '0.0 m';
+    if (val >= 1000) {
+      return `${(val / 1000).toFixed(3)} km`;
+    }
+    return `${val.toFixed(1)} m`;
+  };
+
+  const formatArea = (sqMeters: any) => {
+    const val = parseFloat(sqMeters);
+    if (isNaN(val)) return '0.0 m²';
+    if (val >= 1000000) {
+      return `${(val / 1000000).toFixed(4)} km²`;
+    }
+    return `${val.toFixed(1)} m²`;
+  };
+
+  const getSegments = (coordinates: any, type: 'distance' | 'area', isDrawing?: boolean) => {
+    const segments: { label: string; length: number }[] = [];
+    
+    if (type === 'area') {
+      const coords = coordinates[0];
+      if (!coords || coords.length < 4) return segments;
+      
+      const limit = coords.length - 1;
+      for (let i = 0; i < limit; i++) {
+        const pt1 = coords[i];
+        const pt2 = coords[i + 1];
+        if (!pt1 || !pt2) continue;
+        const distInKm = turf.distance(pt1, pt2, { units: 'kilometers' });
+        
+        let label = '';
+        if (i === limit - 1) {
+          label = `Đoạn ${i + 1} - 1`;
+        } else {
+          label = `Đoạn ${i + 1} - ${i + 2}`;
+        }
+        
+        segments.push({
+          label,
+          length: distInKm * 1000,
+        });
+      }
+    } else {
+      const coords = coordinates;
+      if (!coords || coords.length < 2) return segments;
+      
+      const limit = isDrawing ? coords.length - 2 : coords.length - 1;
+      for (let i = 0; i < limit; i++) {
+        const pt1 = coords[i];
+        const pt2 = coords[i + 1];
+        if (!pt1 || !pt2) continue;
+        const distInKm = turf.distance(pt1, pt2, { units: 'kilometers' });
+        segments.push({
+          label: `Đoạn ${i + 1} - ${i + 2}`,
+          length: distInKm * 1000,
+        });
+      }
+    }
+    return segments;
+  };
+
   const formatSTACDate = (dateStr: string) => {
     try {
       const d = new Date(dateStr);
@@ -47,17 +116,7 @@ export default function MainLayout() {
     }
   };
   
-  const [showHelpPanel, setShowHelpPanel] = useState(false);
-  const [helpType, setHelpType] = useState<'location' | 'stac' | 'aoi' | 'measure' | null>(null);
 
-  const toggleHelp = (type: 'location' | 'stac' | 'aoi' | 'measure') => {
-    if (helpType === type) {
-      setShowHelpPanel(!showHelpPanel);
-    } else {
-      setHelpType(type);
-      setShowHelpPanel(true);
-    }
-  };
 
   const prevTabRef = useRef(activeTab);
 
@@ -66,34 +125,15 @@ export default function MainLayout() {
     if (activeTab !== prevTabRef.current) {
       setIsDrawerOpen(true);
       prevTabRef.current = activeTab;
-      setShowHelpPanel(false);
-      setHelpType(null);
       selectAOI(null); // Automatically clear selected AOIs when switching tabs
     }
   }, [activeTab]);
 
   useEffect(() => {
     if (!isDrawerOpen) {
-      setShowHelpPanel(false);
-      setHelpType(null);
       selectAOI(null); // Automatically clear selected AOIs when closing the drawer
     }
   }, [isDrawerOpen]);
-
-  // Support closing help modal via Escape key
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        setShowHelpPanel(false);
-      }
-    };
-    if (showHelpPanel) {
-      window.addEventListener('keydown', handleKeyDown);
-    }
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [showHelpPanel]);
 
   const handleTabClick = (tab: 'location' | 'search' | 'aoi' | 'measure' | 'ai') => {
     if (activeTab === tab) {
@@ -125,7 +165,7 @@ export default function MainLayout() {
         <MapViewer />
       </div>
       {/* 3. Floating GIS-Style Sidebar Menu & Collapsible Drawer */}
-      <div className="absolute top-4 left-4 z-10 hidden md:flex items-start h-[calc(100vh-10rem)] max-h-[75vh] pointer-events-none">
+      <div className="absolute top-4 left-4 z-10 hidden md:flex items-start h-[calc(100vh-6.5rem)] max-h-[82vh] pointer-events-none">
         {/* Navigation Rail */}
         <div className="flex flex-col items-center justify-between py-4 w-16 bg-slate-900/90 backdrop-blur-md border border-slate-800/85 rounded-2xl shadow-2xl pointer-events-auto h-fit space-y-4 flex-shrink-0">
           <div className="flex flex-col items-center space-y-4 w-full">
@@ -229,34 +269,11 @@ export default function MainLayout() {
                   {activeTab === 'location' && 'Tìm kiếm địa điểm & tọa độ'}
                   {activeTab === 'search' && 'Tìm kiếm vệ tinh (STAC)'}
                   {activeTab === 'aoi' && 'Quản lý vùng quan tâm (AOI)'}
-                  {activeTab === 'measure' && 'Công cụ đo đạc địa lý'}
+                  {activeTab === 'measure' && 'Đo khoảng cách & diện tích'}
                   {activeTab === 'ai' && 'Nhận diện đối tượng AI'}
                 </h2>
                 
-                {['location', 'search', 'aoi', 'measure'].includes(activeTab) && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (activeTab === 'location') toggleHelp('location');
-                      else if (activeTab === 'search') toggleHelp('stac');
-                      else if (activeTab === 'aoi') toggleHelp('aoi');
-                      else if (activeTab === 'measure') toggleHelp('measure');
-                    }}
-                    className={`p-1 rounded-lg hover:bg-slate-800/60 transition-all cursor-pointer flex items-center justify-center ${
-                      showHelpPanel && (
-                        (activeTab === 'location' && helpType === 'location') || 
-                        (activeTab === 'search' && helpType === 'stac') ||
-                        (activeTab === 'aoi' && helpType === 'aoi') ||
-                        (activeTab === 'measure' && helpType === 'measure')
-                      )
-                        ? 'text-sky-400 font-bold'
-                        : 'text-slate-400 hover:text-slate-200'
-                    }`}
-                    title="Xem hướng dẫn nhanh"
-                  >
-                    <Info className="w-3.5 h-3.5" />
-                  </button>
-                )}
+
               </div>
               <button
                 onClick={() => setIsDrawerOpen(false)}
@@ -388,6 +405,79 @@ export default function MainLayout() {
             </div>
           );
         })}
+
+        {/* Current Measurement Card */}
+        {currentMeasurement && (
+          <div className="w-80 bg-slate-900/90 backdrop-blur-md border border-slate-800/85 rounded-2xl shadow-2xl p-4 text-xs text-slate-200 space-y-3 animate-in slide-in-from-top-2 duration-200 pointer-events-auto">
+            <div className="flex items-center justify-between pb-1 border-b border-slate-800/60">
+              <div className="flex items-center space-x-2">
+                {currentMeasurement.type === 'distance' ? (
+                  <Ruler className="w-4 h-4 text-sky-400 animate-pulse" />
+                ) : (
+                  <Hexagon className="w-4 h-4 text-sky-400 animate-pulse" />
+                )}
+                <h4 className="text-xs font-bold text-sky-300">
+                  {currentMeasurement.type === 'distance' ? 'Đang đo khoảng cách...' : 'Đang đo diện tích...'}
+                </h4>
+              </div>
+              <button
+                type="button"
+                onClick={() => stopMeasuring()}
+                className="text-slate-450 hover:text-white cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="bg-slate-950/60 border border-slate-800/60 rounded-xl p-3 space-y-2 text-[11px]">
+              {currentMeasurement.type === 'distance' ? (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between font-bold text-white border-b border-slate-800/40 pb-1.5 mb-1.5">
+                    <span className="text-slate-400">Tổng khoảng cách:</span>
+                    <span className="text-xs text-sky-400 font-extrabold">
+                      {formatDistance(currentMeasurement.value)}
+                    </span>
+                  </div>
+                  {/* List of individual segments */}
+                  <div className="space-y-1 max-h-[120px] overflow-y-auto pr-1 select-none custom-scrollbar">
+                    {getSegments(currentMeasurement.geometry?.coordinates || [], currentMeasurement.type, currentMeasurement.isDrawing).map((seg, idx) => (
+                      <div key={idx} className="flex items-center justify-between text-[10px] py-0.5 border-b border-slate-900/50 last:border-0">
+                        <span className="text-slate-500 font-medium">{seg.label}:</span>
+                        <span className="text-slate-300 font-semibold">{formatDistance(seg.length)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between font-bold text-white border-b border-slate-800/40 pb-1.5 mb-1.5">
+                    <span className="text-slate-400">Diện tích:</span>
+                    <span className="text-xs text-sky-400 font-extrabold">
+                      {formatArea(currentMeasurement.value)}
+                    </span>
+                  </div>
+                  {/* List of individual segments */}
+                  <div className="space-y-1 max-h-[120px] overflow-y-auto pr-1 select-none custom-scrollbar">
+                    {getSegments(currentMeasurement.geometry?.coordinates || [], currentMeasurement.type, currentMeasurement.isDrawing).map((seg, idx) => (
+                      <div key={idx} className="flex items-center justify-between text-[10px] py-0.5 border-b border-slate-900/50 last:border-0">
+                        <span className="text-slate-500 font-medium">{seg.label}:</span>
+                        <span className="text-slate-300 font-semibold">{formatDistance(seg.length)}</span>
+                      </div>
+                    ))}
+                  </div>
+                  {currentMeasurement.perimeter !== undefined && (
+                    <div className="flex items-center justify-between border-t border-slate-800/40 pt-1.5">
+                      <span className="text-slate-400">Chu vi:</span>
+                      <span className="text-xs font-bold text-slate-350">
+                        {formatDistance(currentMeasurement.perimeter)}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* 5. Global Real-time Neon/Glassmorphic Notifications */}
@@ -403,170 +493,7 @@ export default function MainLayout() {
         <FloatingJobsWidget />
       </div>
 
-      {/* Help Modal Overlay (Sprint 10 Centered Modal) */}
-      {showHelpPanel && (
-        <div 
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-sm px-4 pointer-events-auto"
-          onClick={() => setShowHelpPanel(false)}
-        >
-          <div 
-            className="w-full max-w-md bg-slate-900 border border-slate-700/60 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[80vh] animate-in fade-in zoom-in-95 duration-200 pointer-events-auto"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Header */}
-            <div className="p-4 border-b border-slate-700/60 flex items-center justify-between flex-shrink-0">
-              <div className="flex items-center space-x-2">
-                <Info className="w-4 h-4 text-sky-400" />
-                <h2 className="text-sm font-semibold text-slate-200">
-                  {helpType === 'location' && 'Hướng dẫn Tìm kiếm Vị trí'}
-                  {helpType === 'stac' && 'Hướng dẫn Tìm kiếm STAC'}
-                  {helpType === 'aoi' && 'Hướng dẫn Quản lý AOI'}
-                  {helpType === 'measure' && 'Hướng dẫn Đo đạc địa lý'}
-                </h2>
-              </div>
-              <button
-                onClick={() => setShowHelpPanel(false)}
-                className="p-1.5 hover:bg-slate-800/60 rounded-lg text-slate-400 hover:text-slate-200 transition-colors cursor-pointer"
-                title="Đóng hướng dẫn"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
 
-            {/* Content */}
-            <div className="flex-1 p-4 space-y-4 overflow-y-auto min-h-0">
-              {helpType === 'location' && (
-                <div className="space-y-4 text-[11px] leading-relaxed">
-                  <div className="p-3.5 bg-slate-950/50 border border-slate-850 rounded-xl space-y-2">
-                    <h4 className="font-bold text-sky-400 flex items-center space-x-1.5">
-                      <MapPin className="w-4 h-4 text-sky-400" />
-                      <span>Tìm kiếm theo Địa điểm</span>
-                    </h4>
-                    <p className="text-slate-300">
-                      Định vị nhanh bản đồ dựa trên tên địa danh (địa chỉ, thành phố, danh lam thắng cảnh).
-                    </p>
-                    <ul className="list-disc pl-4 space-y-1 text-[10px] text-slate-400">
-                      <li>Nhập từ khóa tìm kiếm (tối thiểu 2 ký tự).</li>
-                      <li>Hệ thống hiển thị danh sách kết quả gợi ý.</li>
-                      <li>Click vào kết quả gợi ý để bản đồ tự động di chuyển đến vị trí và cắm ghim.</li>
-                    </ul>
-                  </div>
-
-                  <div className="p-3.5 bg-slate-950/50 border border-slate-850 rounded-xl space-y-2">
-                    <h4 className="font-bold text-sky-400 flex items-center space-x-1.5">
-                      <Compass className="w-4 h-4 text-sky-400" />
-                      <span>Tìm kiếm theo Tọa độ</span>
-                    </h4>
-                    <p className="text-slate-300">
-                      Định vị chính xác điểm trên bản đồ bằng vĩ độ và kinh độ (WGS84).
-                    </p>
-                    <ul className="list-disc pl-4 space-y-1 text-[10px] text-slate-400">
-                      <li><strong>Vĩ độ (Lat):</strong> Từ -90 đến 90.</li>
-                      <li><strong>Kinh độ (Lng):</strong> Từ -180 đến 180.</li>
-                      <li>Ví dụ: Hà Nội có Vĩ độ <code>21.028</code>, Kinh độ <code>105.834</code>.</li>
-                      <li>Nhập tọa độ rồi bấm <strong>Chuyển đến</strong> để định vị bản đồ.</li>
-                    </ul>
-                  </div>
-                </div>
-              )}
-
-              {helpType === 'stac' && (
-                <div className="space-y-4 text-[11px] leading-relaxed">
-                  <div className="p-3.5 bg-slate-950/50 border border-slate-850 rounded-xl space-y-2">
-                    <h4 className="font-bold text-sky-400 flex items-center space-x-1.5">
-                      <Globe className="w-4 h-4 text-sky-400" />
-                      <span>Tìm kiếm ảnh vệ tinh (STAC)</span>
-                    </h4>
-                    <p className="text-slate-300">
-                      Tìm kiếm và tải dữ liệu ảnh từ các kho lưu trữ chuẩn STAC (SpatioTemporal Asset Catalog).
-                    </p>
-                  </div>
-
-                  <div className="p-3.5 bg-slate-950/50 border border-slate-850 rounded-xl space-y-2">
-                    <h5 className="font-bold text-slate-200">1. Chọn bộ sưu tập & Thời gian</h5>
-                    <p className="text-slate-400">
-                      Chọn Collection vệ tinh phù hợp (Sentinel-2, Planet...) và khoảng thời gian chụp ảnh cần lọc.
-                    </p>
-                  </div>
-
-                  <div className="p-3.5 bg-slate-950/50 border border-slate-850 rounded-xl space-y-2">
-                    <h5 className="font-bold text-slate-200">2. Xác định vùng quét (Spatial Scope)</h5>
-                    <p className="text-slate-450">
-                      <strong>Tạo mới vùng:</strong> Chọn vẽ Đa giác, Hình chữ nhật, hoặc Hình tròn.
-                    </p>
-                    <ul className="list-disc pl-4 mt-1 space-y-1 text-[10px] text-slate-400">
-                      <li><strong>Click chuột phải</strong> vào bản đồ để hủy vẽ/sửa nhanh.</li>
-                      <li><strong>Kéo tâm đỏ</strong> để di chuyển hình tròn; <strong>kéo đường viền</strong> để thay đổi bán kính.</li>
-                    </ul>
-                    <p className="text-slate-400 mt-2">
-                      <strong>Vùng AOI:</strong> Chọn sử dụng một hoặc nhiều ranh giới vùng quan tâm đã được lưu trong tài khoản.
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {helpType === 'aoi' && (
-                <div className="space-y-4 text-[11px] leading-relaxed">
-                  <div className="p-3.5 bg-slate-950/50 border border-slate-850 rounded-xl space-y-2">
-                    <h4 className="font-bold text-sky-400 flex items-center space-x-1.5">
-                      <Hexagon className="w-4 h-4 text-sky-400" />
-                      <span>Quản lý Vùng quan tâm (AOI)</span>
-                    </h4>
-                    <p className="text-slate-300">
-                      Tạo và quản lý các Vùng quan tâm (Area of Interest - AOI) để tìm kiếm ảnh vệ tinh hoặc phân tích AI.
-                    </p>
-                  </div>
-
-                  <div className="p-3.5 bg-slate-950/50 border border-slate-850 rounded-xl space-y-2">
-                    <h5 className="font-bold text-slate-200">1. Tạo mới vùng AOI</h5>
-                    <p className="text-slate-400">
-                      Vẽ Đa giác, Hình chữ nhật, hoặc Hình tròn trực tiếp trên bản đồ. Hoặc sử dụng chức năng nhập tệp để tải lên file GeoJSON (`.geojson`) ranh giới của bạn.
-                    </p>
-                  </div>
-
-                  <div className="p-3.5 bg-slate-950/50 border border-slate-850 rounded-xl space-y-2">
-                    <h5 className="font-bold text-slate-200">2. Quản lý danh sách</h5>
-                    <p className="text-slate-400">
-                      Các vùng đã tạo sẽ được hiển thị dạng danh sách gọn gàng. Click hộp chọn để hiển thị ranh giới trên bản đồ. Double click hoặc nhấn nút tìm kiếm tương ứng để truy vấn dữ liệu ảnh STAC.
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {helpType === 'measure' && (
-                <div className="space-y-4 text-[11px] leading-relaxed">
-                  <div className="p-3.5 bg-slate-950/50 border border-slate-850 rounded-xl space-y-2">
-                    <h4 className="font-bold text-sky-400 flex items-center space-x-1.5">
-                      <Ruler className="w-4 h-4 text-sky-400" />
-                      <span>Đo đạc khoảng cách và diện tích</span>
-                    </h4>
-                    <p className="text-slate-300">
-                      Tính toán khoảng cách đường đi hoặc diện tích vùng đa giác trực tiếp trên bản đồ nền.
-                    </p>
-                  </div>
-
-                  <div className="p-3.5 bg-slate-950/50 border border-slate-850 rounded-xl space-y-2">
-                    <h5 className="font-bold text-slate-200">1. Chọn chế độ đo</h5>
-                    <p className="text-slate-400">
-                      Chọn <strong>Đo khoảng cách</strong> hoặc <strong>Đo diện tích</strong> ở panel bên trái để bắt đầu vẽ.
-                    </p>
-                  </div>
-
-                  <div className="p-3.5 bg-slate-950/50 border border-slate-850 rounded-xl space-y-2">
-                    <h5 className="font-bold text-slate-200">2. Thao tác vẽ và đo đạc</h5>
-                    <ul className="list-disc pl-4 space-y-1 text-[10px] text-slate-400">
-                      <li>Nhấp chuột trái trên bản đồ để thêm các điểm mốc đo.</li>
-                      <li>Double-click (hoặc nhấp lại điểm đầu tiên) để kết thúc và lưu phép đo.</li>
-                      <li>Click chuột phải để hủy điểm đo hiện tại.</li>
-                      <li>Kết quả đo sẽ hiển thị nhãn số liệu trực tiếp trên bản đồ và lưu lại trong danh sách lịch sử.</li>
-                    </ul>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

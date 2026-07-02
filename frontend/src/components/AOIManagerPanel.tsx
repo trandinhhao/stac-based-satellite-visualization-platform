@@ -304,7 +304,7 @@ export default function AOIManagerPanel() {
         >
           <div className="flex items-center space-x-2 pb-1 border-b border-amber-500/20">
             <Hexagon className="w-4 h-4 text-amber-400" />
-            <h4 className="text-xs font-bold text-amber-300">Vùng đa giác mới được vẽ</h4>
+            <h4 className="text-xs font-bold text-amber-300">Thông tin vùng mới</h4>
           </div>
 
           <div className="space-y-3">
@@ -377,7 +377,7 @@ export default function AOIManagerPanel() {
             {isLoading ? 'Đang tải danh sách AOI...' : 'Chưa có vùng AOI nào được tạo. Hãy bắt đầu vẽ hoặc tải tệp lên.'}
           </div>
         ) : (
-          <div className="space-y-1.5 max-h-[220px] overflow-y-auto pr-1">
+          <div className="space-y-1.5 max-h-[260px] overflow-y-auto pr-1">
             {aois.map((aoi) => {
               const isSelected = selectedAOIIds.includes(aoi.id);
               const isEditingText = inlineEditingId === aoi.id;

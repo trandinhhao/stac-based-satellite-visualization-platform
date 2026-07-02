@@ -1023,30 +1023,33 @@ export default function MapViewer() {
           });
         }
       } else if (activeFeature.geometry.type === 'Polygon') {
-        let coords = [...activeFeature.geometry.coordinates[0]];
-        if (cursorLngLat && coords.length >= 2) {
-          coords[coords.length - 1] = cursorLngLat;
-          coords.push(coords[0]);
+        const rawCoords = activeFeature.geometry.coordinates[0];
+        if (!rawCoords || rawCoords.length < 4) {
+          useMeasurementStore.getState().setCurrentMeasurement(null);
+          return;
         }
 
-        if (coords.length >= 4) {
-          const poly = turf.polygon([coords]);
-          const area = turf.area(poly);
-          const perimeter = turf.length(turf.lineString(coords), { units: 'meters' });
-          useMeasurementStore.getState().setCurrentMeasurement({
-            id: String(activeFeature.id),
-            name: 'Đo diện tích hiện tại',
-            type: 'area',
-            value: area,
-            perimeter: perimeter,
-            geometry: {
-              type: 'Polygon',
-              coordinates: [coords]
-            },
-            isDrawing: true,
-            created_at: new Date().toISOString()
-          });
+        let coords = [...rawCoords];
+        if (cursorLngLat && coords.length >= 3) {
+          coords[coords.length - 2] = cursorLngLat;
         }
+
+        const poly = turf.polygon([coords]);
+        const area = turf.area(poly);
+        const perimeter = turf.length(turf.lineString(coords), { units: 'meters' });
+        useMeasurementStore.getState().setCurrentMeasurement({
+          id: String(activeFeature.id),
+          name: 'Đo diện tích hiện tại',
+          type: 'area',
+          value: area,
+          perimeter: perimeter,
+          geometry: {
+            type: 'Polygon',
+            coordinates: [coords]
+          },
+          isDrawing: true,
+          created_at: new Date().toISOString()
+        });
       }
     } else {
       // Not drawing, clear currentMeasurement
@@ -2003,8 +2006,7 @@ export default function MapViewer() {
             }
 
             try {
-              const response = await api.post('/measure', { geometry: feature.geometry });
-              const data = response.data;
+              await api.post('/measure', { geometry: feature.geometry });
 
               // Mark as completed in Mapbox Draw immediately
               if (drawRef.current) {
@@ -2012,14 +2014,22 @@ export default function MapViewer() {
               }
 
               // Save to completed measurements list (history) in store
+              const isDistance = feature.geometry.type === 'LineString';
+              const turfValue = isDistance
+                ? turf.length(turf.lineString(feature.geometry.coordinates), { units: 'meters' })
+                : turf.area(turf.polygon(feature.geometry.coordinates));
+              const turfPerimeter = isDistance
+                ? undefined
+                : turf.length(turf.lineString(feature.geometry.coordinates[0]), { units: 'meters' });
+
               const completedMeasurement = {
                 id: feature.id ? String(feature.id) : Math.random().toString(36).substring(7),
-                name: data.type === 'distance'
+                name: isDistance
                   ? `Đo khoảng cách #${useMeasurementStore.getState().history.filter((m: any) => m.type === 'distance').length + 1}`
                   : `Đo diện tích #${useMeasurementStore.getState().history.filter((m: any) => m.type === 'area').length + 1}`,
-                type: data.type === 'distance' ? ('distance' as const) : ('area' as const),
-                value: data.type === 'distance' ? data.distance : data.area,
-                perimeter: data.type === 'area' ? data.perimeter : undefined,
+                type: isDistance ? ('distance' as const) : ('area' as const),
+                value: turfValue,
+                perimeter: turfPerimeter,
                 geometry: feature.geometry,
                 isDrawing: false,
                 created_at: new Date().toISOString()
@@ -2031,9 +2041,16 @@ export default function MapViewer() {
                 drawRef.current.delete(feature.id as any);
               }
               
-              // Stop measuring and deactivate button on sidebar tab upon completion
+              // Reset current measurement in store but keep active mode and restart drawing
+              useMeasurementStore.getState().setCurrentMeasurement(null);
               setTimeout(() => {
-                useMeasurementStore.getState().stopMeasuring();
+                if (drawRef.current) {
+                  if (completedMeasurement.type === 'distance') {
+                    drawRef.current.changeMode('draw_line_string');
+                  } else if (completedMeasurement.type === 'area') {
+                    drawRef.current.changeMode('draw_polygon');
+                  }
+                }
               }, 50);
             } catch (err) {
               console.error('Error fetching backend measurement:', err);
@@ -2264,8 +2281,23 @@ export default function MapViewer() {
 
         const isMeasuring = useMeasurementStore.getState().isMeasuring;
         if (isMeasuring) {
-          useMeasurementStore.getState().stopMeasuring();
-          console.log('[Draw] Measurement cancelled and stopped via Canvas Right Click');
+          deleteActiveDrawingFeature();
+          clearMeasurementMarkers();
+          useMeasurementStore.getState().setCurrentMeasurement(null);
+          
+          const measureType = useMeasurementStore.getState().measureType;
+          if (drawRef.current) {
+            setTimeout(() => {
+              if (drawRef.current) {
+                if (measureType === 'distance') {
+                  drawRef.current.changeMode('draw_line_string');
+                } else if (measureType === 'area') {
+                  drawRef.current.changeMode('draw_polygon');
+                }
+              }
+            }, 50);
+          }
+          console.log('[Draw] Active measurement reset (kept active mode) via Canvas Right Click');
           return;
         }
 
