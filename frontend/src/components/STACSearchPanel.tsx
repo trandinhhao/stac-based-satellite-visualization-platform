@@ -517,22 +517,6 @@ export default function STACSearchPanel() {
                       );
                     })}
                   </div>
-
-                  {/* Actions Bar */}
-                  {selectedAOIIds.length > 0 && (
-                    <div className="flex items-center justify-end pt-1.5 border-t border-slate-900 px-1 text-[9px] font-bold text-slate-500 bg-slate-950/20">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          selectAOI(null);
-                          setIsDropdownOpen(false);
-                        }}
-                        className="hover:text-rose-450 transition-colors py-1 px-1.5 hover:bg-slate-900 rounded cursor-pointer"
-                      >
-                        Bỏ chọn vùng
-                      </button>
-                    </div>
-                  )}
                 </div>
               )}
             </div>

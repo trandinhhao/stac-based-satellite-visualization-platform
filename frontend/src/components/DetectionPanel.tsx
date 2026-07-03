@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { 
   Cpu, 
   Play, 
@@ -6,7 +6,10 @@ import {
   Info, 
   Loader2, 
   Trash2,
-  ChevronRight
+  ChevronRight,
+  X,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import { useAOIStore } from '../store/useAOIStore';
 import { useJobStore } from '../store/useJobStore';
@@ -31,6 +34,20 @@ export default function DetectionPanel() {
 
   const [selectedModel, setSelectedModel] = useState('yolov8');
   const [triggerAoiId, setTriggerAoiId] = useState(selectedAOIId || '');
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleOutsideClick = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, []);
+
+  const activeAoi = aois.find(aoi => aoi.id === triggerAoiId);
 
   // Load AOIs on mount
   useEffect(() => {
@@ -39,9 +56,7 @@ export default function DetectionPanel() {
 
   // Synchronize internal selection with global AOI selection
   useEffect(() => {
-    if (selectedAOIId) {
-      setTriggerAoiId(selectedAOIId);
-    }
+    setTriggerAoiId(selectedAOIId || '');
   }, [selectedAOIId]);
 
   // Find the active job in the job store to track real-time progress
@@ -158,25 +173,118 @@ export default function DetectionPanel() {
           </div>
 
           <div className="space-y-3">
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold text-slate-400 uppercase block">
+            <div className="space-y-1.5 relative" ref={dropdownRef}>
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
                 Chọn Vùng AOI Mục Tiêu
               </label>
-              <select
-                value={triggerAoiId}
-                onChange={(e) => {
-                  setTriggerAoiId(e.target.value);
-                  selectAOI(e.target.value || null);
-                }}
-                className="w-full h-9 px-3 bg-slate-950 border border-slate-800 rounded-lg text-xs text-slate-200 outline-none cursor-pointer"
-              >
-                <option value="">-- Chọn vùng AOI --</option>
-                {aois.map((aoi) => (
-                  <option key={aoi.id} value={aoi.id}>
-                    {aoi.name} ({aoi.area ? `${(aoi.area / 10000).toFixed(1)} ha` : 'N/A'})
-                  </option>
-                ))}
-              </select>
+              
+              <div className="relative">
+                {/* Trigger Button */}
+                <button
+                  type="button"
+                  onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                  className={`w-full h-9 pl-3 pr-16 bg-slate-950 hover:bg-slate-900 border rounded-lg text-xs text-slate-200 font-medium flex items-center justify-between cursor-pointer transition-all ${
+                    isDropdownOpen
+                      ? 'border-sky-500/60 ring-1 ring-sky-500/10 shadow-[0_0_10px_rgba(56,189,248,0.12)]'
+                      : 'border-slate-800 hover:border-slate-700/80'
+                  }`}
+                >
+                  <span className="truncate max-w-[180px]">
+                    {!activeAoi
+                      ? 'Chọn vùng quan tâm...'
+                      : activeAoi.name}
+                  </span>
+                </button>
+                
+                {/* Actions (X and Chevron) inside the field */}
+                <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center space-x-1 z-10">
+                  {activeAoi && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setTriggerAoiId('');
+                        selectAOI(null);
+                        setIsDropdownOpen(false);
+                      }}
+                      className="p-1 text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded-md transition-colors cursor-pointer flex items-center justify-center"
+                      title="Bỏ chọn vùng"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsDropdownOpen(!isDropdownOpen);
+                    }}
+                    className="p-1 text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded-md transition-colors cursor-pointer flex items-center justify-center"
+                  >
+                    {isDropdownOpen ? (
+                      <ChevronUp className="w-3.5 h-3.5" />
+                    ) : (
+                      <ChevronDown className="w-3.5 h-3.5" />
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* Dropdown Menu */}
+              {isDropdownOpen && (
+                <div className="absolute left-0 right-0 mt-1.5 z-30 p-1.5 bg-slate-950/95 backdrop-blur-md border border-slate-800/90 rounded-lg shadow-2xl space-y-1.5 animate-in fade-in slide-in-from-top-1 duration-150">
+                  <div className="space-y-0.5 max-h-[118px] overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-slate-800">
+                    {aois.map((aoi) => {
+                      const isChecked = triggerAoiId === aoi.id;
+                      return (
+                        <div 
+                          key={aoi.id}
+                          onClick={() => {
+                            if (isChecked) {
+                              setTriggerAoiId('');
+                              selectAOI(null);
+                            } else {
+                              setTriggerAoiId(aoi.id);
+                              useAOIStore.setState({
+                                selectedAOIIds: [aoi.id],
+                                selectedAOIId: aoi.id,
+                                isDrawing: false,
+                                drawType: null,
+                                tempGeometry: null,
+                                editingAOIId: null
+                              });
+                            }
+                            setIsDropdownOpen(false);
+                          }}
+                          className={`flex items-center px-2.5 py-1.5 rounded transition-all cursor-pointer select-none group ${
+                            isChecked
+                              ? 'bg-sky-500/10 text-sky-400 font-semibold'
+                              : 'hover:bg-slate-900/60 text-slate-350 hover:text-white'
+                          }`}
+                        >
+                          {/* Name & Area Metadata */}
+                          <div className="flex-1 min-w-0 flex items-baseline justify-between">
+                            <span className="text-[11px] font-medium truncate leading-tight transition-colors">
+                              {aoi.name}
+                            </span>
+                            {aoi.area && (
+                              <span className={`text-[10px] font-mono font-bold ml-2 flex-shrink-0 transition-colors ${
+                                isChecked 
+                                  ? 'text-sky-300' 
+                                  : 'text-emerald-400 group-hover:text-emerald-350'
+                              }`}>
+                                {aoi.area >= 1000000 
+                                  ? `${(aoi.area / 1000000).toFixed(2)} km²` 
+                                  : `${(aoi.area / 10000).toFixed(1)} ha`}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="space-y-1">
