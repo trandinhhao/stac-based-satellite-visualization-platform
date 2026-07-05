@@ -1,4 +1,10 @@
 import os
+import sys
+
+# Ensure /app is in Python path so worker can import services, models, etc.
+if '/app' not in sys.path:
+    sys.path.insert(0, '/app')
+
 from celery import Celery
 
 RABBITMQ_URL = os.getenv("RABBITMQ_URL", "amqp://guest:guest@rabbitmq:5672//")

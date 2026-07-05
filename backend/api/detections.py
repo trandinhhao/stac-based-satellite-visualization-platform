@@ -1,4 +1,5 @@
 import os
+import json
 import uuid
 from datetime import datetime
 from typing import Optional, Dict, Any, List
@@ -14,7 +15,7 @@ router = APIRouter(prefix="/detections", tags=["AI Object Detection"])
 # Request validation schemas
 class DetectionRequest(BaseModel):
     aoi_id: str = Field(..., description="AOI ID to run object detection on")
-    model: Optional[str] = Field("yolov8", description="YOLO model version to use")
+    model: Optional[str] = Field("yolo26", description="YOLO model version to use")
     collection: Optional[str] = Field("sentinel-2", description="STAC collection name")
 
 class DetectionObjectResponse(BaseModel):
@@ -70,7 +71,6 @@ def start_detection(data: DetectionRequest, db: Session = Depends(get_db)):
             task_id=job_id_str
         )
     except Exception as e:
-        # Update database status to failed
         db.execute(
             text("UPDATE jobs SET status = 'failed', error_message = :err, completed_at = :now WHERE id = :id"),
             {"id": job_id, "err": f"Queue error: {str(e)}", "now": datetime.utcnow()}
@@ -85,7 +85,7 @@ def start_detection(data: DetectionRequest, db: Session = Depends(get_db)):
 
 @router.get("/{job_id}", response_model=DetectionResultResponse)
 def get_detection_results(job_id: str, db: Session = Depends(get_db)):
-    """Retrieve AI object detection bounding boxes from database."""
+    """Retrieve AI object detection bounding boxes from database or JSON result file."""
     try:
         job_uuid = uuid.UUID(job_id)
     except ValueError:
@@ -105,14 +105,34 @@ def get_detection_results(job_id: str, db: Session = Depends(get_db)):
     )
     rows = db.execute(stmt, {"job_id": job_uuid}).fetchall()
 
-    objects = [
-        {
-            "object_class": r.object_class,
-            "confidence": r.confidence,
-            "bbox": r.bbox
-        }
-        for r in rows
-    ]
+    objects = []
+    if rows:
+        objects = [
+            {
+                "object_class": r.object_class,
+                "confidence": r.confidence,
+                "bbox": r.bbox
+            }
+            for r in rows
+        ]
+    else:
+        # Fallback to JSON results file if DB rows empty
+        results_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "results")
+        json_path = os.path.join(results_dir, f"{job_id}.json")
+        if os.path.exists(json_path):
+            try:
+                with open(json_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    raw_dets = data.get("detections", [])
+                    for d in raw_dets:
+                        cls_name = d.get("object_class") or d.get("class") or "unknown"
+                        objects.append({
+                            "object_class": cls_name,
+                            "confidence": d.get("confidence", 0.0),
+                            "bbox": d.get("bbox", [])
+                        })
+            except Exception as err:
+                print(f"[Warning] Failed to read JSON fallback for job {job_id}: {err}")
 
     return {
         "job_id": job_id,

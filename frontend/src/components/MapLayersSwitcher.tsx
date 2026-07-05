@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useMapStore } from '../store/useMapStore';
+import { useAOIStore } from '../store/useAOIStore';
 
 // Custom high-quality vector SVGs for each map thumbnail
 const MapThumbnail = ({ type }: { type: string }) => {
@@ -106,6 +107,9 @@ const LAYER_CATEGORIES = [
 export default function MapLayersSwitcher() {
   const [isOpen, setIsOpen] = useState(false);
   const { selectedLayer, setSelectedLayer } = useMapStore();
+  const activeTab = useAOIStore(state => state.activeTab);
+  const isDrawerOpen = useAOIStore(state => state.isDrawerOpen);
+  const isAIDetectionActive = activeTab === 'ai' && isDrawerOpen;
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Close the expanded panel when clicking outside the component
@@ -119,7 +123,15 @@ export default function MapLayersSwitcher() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Auto-close open layers list if user switches to AI tab
+  useEffect(() => {
+    if (isAIDetectionActive) {
+      setIsOpen(false);
+    }
+  }, [isAIDetectionActive]);
+
   const handleToggle = () => {
+    if (isAIDetectionActive) return;
     setIsOpen(!isOpen);
   };
 
@@ -132,11 +144,14 @@ export default function MapLayersSwitcher() {
       {/* 1. Collapsed Trigger Button (Styled like Google Maps Layers button) */}
       <button
         onClick={handleToggle}
-        title={`Lớp bản đồ: ${activeLayerInfo.name}`}
-        className={`relative w-[76px] h-[76px] rounded-2xl overflow-hidden shadow-2xl cursor-pointer transition-all duration-200 hover:scale-105 active:scale-95 flex-shrink-0 group ${
-          isOpen 
-            ? 'border-2 border-sky-500 scale-105 shadow-sky-500/20' 
-            : 'border-2 border-black hover:border-slate-800'
+        disabled={isAIDetectionActive}
+        title={isAIDetectionActive ? "Lớp bản đồ cố định Google Satellite khi phân tích AI" : `Lớp bản đồ: ${activeLayerInfo.name}`}
+        className={`relative w-[76px] h-[76px] rounded-2xl overflow-hidden shadow-2xl transition-all duration-200 flex-shrink-0 group ${
+          isAIDetectionActive
+            ? 'opacity-40 cursor-not-allowed border-2 border-slate-800'
+            : isOpen
+              ? 'border-2 border-sky-500 scale-105 shadow-sky-500/20 cursor-pointer hover:scale-105 active:scale-95'
+              : 'border-2 border-black hover:border-slate-800 cursor-pointer hover:scale-105 active:scale-95'
         }`}
       >
         <MapThumbnail type={selectedLayer} />

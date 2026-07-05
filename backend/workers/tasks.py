@@ -1,10 +1,16 @@
 import os
+import sys
 import json
 import uuid
 import time
 import datetime
 import redis
 from celery.utils.log import get_task_logger
+
+# Ensure /app is in Python path for all forked Celery worker subprocesses
+if '/app' not in sys.path:
+    sys.path.insert(0, '/app')
+
 from workers.celery_app import celery_app
 from db.database import SessionLocal
 from models.job import Job
@@ -191,44 +197,43 @@ def process_detection_task(self, job_id: str, aoi_id: str, collection: str):
         finally:
             db.close()
 
-        update_job_status(job_id, "running", 30)
-        time.sleep(1.0)  # Simulate downloading tiles
+        def on_detection_progress(pct: int, msg: str = ""):
+            update_job_status(job_id, "running", pct)
+
+        update_job_status(job_id, "running", 15)
         
-        update_job_status(job_id, "running", 60)
-        time.sleep(1.5)  # Simulate running model inference
-        
-        # 2. Run detector pipeline (real or mock)
-        from services.ai.detector import generate_mock_detections
+        # 2. Run detector pipeline (real YOLO26 on Google Satellite)
+        from services.ai.detector import run_real_detection
         if geojson_geom:
-            simulated_detections = generate_mock_detections(geojson_geom)
+            detections = run_real_detection(geojson_geom, progress_callback=on_detection_progress)
         else:
             # Hanoi fallback if geometry can't be fetched
-            simulated_detections = [
-                {"class": "aircraft", "confidence": 0.94, "bbox": [105.8015, 21.0251, 105.8032, 21.0272]},
-                {"class": "vehicle", "confidence": 0.89, "bbox": [105.8041, 21.0222, 105.8052, 21.0234]},
-                {"class": "ship", "confidence": 0.84, "bbox": [105.8021, 21.0263, 105.8045, 21.0284]}
+            detections = [
+                {"object_class": "aircraft", "confidence": 0.94, "bbox": [105.8015, 21.0251, 105.8032, 21.0272]},
+                {"object_class": "vehicle",  "confidence": 0.89, "bbox": [105.8041, 21.0222, 105.8052, 21.0234]},
+                {"object_class": "ship",     "confidence": 0.84, "bbox": [105.8021, 21.0263, 105.8045, 21.0284]}
             ]
             
-        update_job_status(job_id, "running", 80)
+        update_job_status(job_id, "running", 95)
         
         # Save results JSON file
-        result_url = save_job_result(job_id, {"detections": simulated_detections})
+        result_url = save_job_result(job_id, {"detections": detections})
         
         # Persist bounding box detections in database
         db = SessionLocal()
         try:
             from models.detection import Detection
-            for det in simulated_detections:
+            for det in detections:
                 db_det = Detection(
                     id=uuid.uuid4(),
                     job_id=uuid.UUID(job_id),
-                    object_class=det["class"],
+                    object_class=det.get("object_class", det.get("class", "unknown")),
                     confidence=det["confidence"],
                     bbox=det["bbox"]
                 )
                 db.add(db_det)
             db.commit()
-            logger.info(f"Successfully saved {len(simulated_detections)} AI detections to PostgreSQL.")
+            logger.info(f"Successfully saved {len(detections)} AI detections to PostgreSQL.")
         except Exception as e:
             logger.error(f"Error persisting detections to PostgreSQL: {e}")
             db.rollback()

@@ -85,3 +85,14 @@ logs/
 *.geojson
 *.zip
 *.tar.gz
+
+# AI Models & Weights
+*.pt
+*.pth
+*.onnx
+*.weights
+runs/
+
+# Backend Temp/Results
+/backend/results/
+/backend/temp/

@@ -1,3 +1,4 @@
+--extra-index-url https://download.pytorch.org/whl/cpu
 aio-pika==9.6.2
 aiormq==6.9.4
 alembic==1.18.4
@@ -44,3 +45,7 @@ wcwidth==0.8.0
 yarl==1.24.2
 python-multipart
 websockets
+requests
+pillow
+opencv-python-headless
+ultralytics

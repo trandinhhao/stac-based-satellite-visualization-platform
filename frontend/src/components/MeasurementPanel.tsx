@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import * as turf from '@turf/turf';
 import { useMeasurementStore } from '../store/useMeasurementStore';
+import { useAOIStore } from '../store/useAOIStore';
 
 export default function MeasurementPanel() {
   const {
@@ -20,13 +21,21 @@ export default function MeasurementPanel() {
     setHoveredMeasurementId,
   } = useMeasurementStore();
 
+  const isDrawerOpen = useAOIStore(state => state.isDrawerOpen);
+
+  // Auto-activate distance mode on mount or when the drawer is re-opened
   useEffect(() => {
-    // Default to distance measurement on mount
-    startMeasuring('distance');
+    if (isDrawerOpen && !isMeasuring) {
+      startMeasuring('distance');
+    }
+  }, [isDrawerOpen, isMeasuring, startMeasuring]);
+
+  // Clean up measurements on unmount
+  useEffect(() => {
     return () => {
       stopMeasuring();
     };
-  }, [startMeasuring, stopMeasuring]);
+  }, [stopMeasuring]);
 
 
 
@@ -124,11 +133,7 @@ export default function MeasurementPanel() {
         <div className="flex bg-slate-950/60 p-1 border border-slate-800/80 rounded-xl">
           <button
             onClick={() => {
-              if (isMeasuring && measureType === 'distance') {
-                stopMeasuring();
-              } else {
-                startMeasuring('distance');
-              }
+              startMeasuring('distance');
             }}
             className={`flex-1 py-1.5 text-[11px] font-bold rounded-lg transition-all cursor-pointer flex items-center justify-center space-x-1.5 ${
               isMeasuring && measureType === 'distance'
@@ -142,11 +147,7 @@ export default function MeasurementPanel() {
 
           <button
             onClick={() => {
-              if (isMeasuring && measureType === 'area') {
-                stopMeasuring();
-              } else {
-                startMeasuring('area');
-              }
+              startMeasuring('area');
             }}
             className={`flex-1 py-1.5 text-[11px] font-bold rounded-lg transition-all cursor-pointer flex items-center justify-center space-x-1.5 ${
               isMeasuring && measureType === 'area'

@@ -2,9 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { 
   Loader2, 
   AlertCircle, 
-  CheckCircle2, 
   X, 
-  Layers, 
   Eye,
   ClipboardList,
   RefreshCw,
@@ -13,19 +11,19 @@ import {
 import { useJobStore, type Job } from '../store/useJobStore';
 import { useSTACStore } from '../store/useSTACStore';
 import { useAOIStore } from '../store/useAOIStore';
+import { useDetectionStore } from '../store/useDetectionStore';
+import { useMapStore } from '../store/useMapStore';
 import { api } from '../services/api';
 
 export default function FloatingJobsWidget() {
-  const { jobs, isLoading, error, fetchJobs, cancelJob, startPollingJobs, stopPollingJobs } = useJobStore();
+  const { jobs, isLoading, error, fetchJobs, cancelJob, startPollingJobs, stopPollingJobs, liveStageNoti, setLiveStageNoti } = useJobStore();
   const { setSearchResults } = useSTACStore();
-  const { setActiveTab } = useAOIStore();
 
   const [isOpen, setIsOpen] = useState(false);
-  const [selectedJobResult, setSelectedJobResult] = useState<any | null>(null);
-  const [activeResultJob, setActiveResultJob] = useState<Job | null>(null);
   const [loadingResultId, setLoadingResultId] = useState<string | null>(null);
 
   const widgetRef = useRef<HTMLDivElement>(null);
+  const prevJobIdsRef = useRef<Set<string> | null>(null);
 
   // Poll jobs on mount
   useEffect(() => {
@@ -37,52 +35,70 @@ export default function FloatingJobsWidget() {
     };
   }, []);
 
-  // Click outside to close behavior
+  // Auto-open popover when a new active job (queued/running/pending) is created
   useEffect(() => {
-    const handleOutsideClick = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      // Do not close popover if clicking inside the results modal backdrop
-      if (target.closest('.fixed.inset-0.z-50')) {
-        return;
-      }
-      if (widgetRef.current && !widgetRef.current.contains(e.target as Node)) {
-        setIsOpen(false);
-      }
-    };
-
-    if (isOpen) {
-      document.addEventListener('mousedown', handleOutsideClick);
+    if (!prevJobIdsRef.current) {
+      prevJobIdsRef.current = new Set(jobs.map((j) => j.id));
+      return;
     }
-    return () => {
-      document.removeEventListener('mousedown', handleOutsideClick);
-    };
-  }, [isOpen]);
 
-  // View job result handler
-  const handleViewResult = async (job: Job) => {
+    const hasNewActiveJob = jobs.some(
+      (j) => !prevJobIdsRef.current!.has(j.id) && ['queued', 'running', 'pending'].includes(j.status)
+    );
+
+    if (hasNewActiveJob) {
+      setIsOpen(true);
+    }
+
+    prevJobIdsRef.current = new Set(jobs.map((j) => j.id));
+  }, [jobs]);
+
+  // Directly apply result from job list card (without opening modal)
+  const handleApplyResultDirectly = async (job: Job) => {
+    if (job.status !== 'completed') return;
     setLoadingResultId(job.id);
     try {
-      const response = await api.get(`/v1/jobs/${job.id}/result`);
-      setSelectedJobResult(response.data);
-      setActiveResultJob(job);
+      if (job.job_type === 'aoi_extraction') {
+        const response = await api.get(`/v1/jobs/${job.id}/result`);
+        const items = response.data.features || response.data.items || response.data || [];
+        setSearchResults(items);
+        useAOIStore.setState({ activeTab: 'search', isDrawerOpen: true });
+      } else if (job.job_type === 'object_detection') {
+        // 1. Fetch detection details into store
+        await useDetectionStore.getState().fetchDetections(job.id);
+        
+        // 2. Select only this specific AOI and activate the AI tab
+        useAOIStore.setState({ 
+          selectedAOIIds: job.aoi_id ? [job.aoi_id] : [],
+          selectedAOIId: job.aoi_id,
+          activeTab: 'ai', 
+          isDrawerOpen: true 
+        });
+
+        // 3. Move the map view to the center of the selected AOI
+        const aoi = useAOIStore.getState().aois.find(a => a.id === job.aoi_id);
+        if (aoi && aoi.geometry && aoi.geometry.coordinates[0]) {
+          const coords = aoi.geometry.coordinates[0];
+          let sumLng = 0;
+          let sumLat = 0;
+          const count = coords.length;
+          if (count > 0) {
+            coords.forEach(pt => {
+              sumLng += pt[0];
+              sumLat += pt[1];
+            });
+            const avgLng = sumLng / count;
+            const avgLat = sumLat / count;
+            
+            useMapStore.getState().setCenter([avgLng, avgLat]);
+            useMapStore.getState().setZoom(16.5);
+          }
+        }
+      }
     } catch (err: any) {
-      alert(err.response?.data?.detail || 'Không thể tải kết quả của tác vụ.');
+      alert(err.response?.data?.detail || 'Không thể hiển thị kết quả lên bản đồ.');
     } finally {
       setLoadingResultId(null);
-    }
-  };
-
-  // Apply STAC search result to map
-  const handleApplyResultToMap = () => {
-    if (!activeResultJob || !selectedJobResult) return;
-
-    if (activeResultJob.job_type === 'aoi_extraction') {
-      const features = selectedJobResult.features || [];
-      setSearchResults(features);
-      setActiveTab('search');
-      setSelectedJobResult(null);
-      setActiveResultJob(null);
-      setIsOpen(false); // Close popover when applying
     }
   };
 
@@ -138,7 +154,9 @@ export default function FloatingJobsWidget() {
   const formatDate = (dateStr: string | null) => {
     if (!dateStr) return 'N/A';
     try {
-      return new Date(dateStr).toLocaleString('vi-VN', {
+      // If server date string does not have 'Z' or offset, append 'Z' so JS parses as UTC
+      const isoStr = (dateStr.endsWith('Z') || dateStr.includes('+')) ? dateStr : dateStr + 'Z';
+      return new Date(isoStr).toLocaleString('vi-VN', {
         month: '2-digit',
         day: '2-digit',
         hour: '2-digit',
@@ -155,279 +173,202 @@ export default function FloatingJobsWidget() {
   const activeCount = activeJobs.length;
 
   return (
-    <div ref={widgetRef} className="relative select-none pointer-events-auto">
-      {/* Toggle Button */}
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        title="Danh sách tác vụ nền"
-        className={`w-10 h-10 rounded-full flex items-center justify-center bg-slate-900/90 backdrop-blur-md border transition-all cursor-pointer shadow-2xl relative group ${
-          isOpen
-            ? 'border-sky-500 text-sky-400 bg-slate-800'
-            : 'border-slate-800/80 text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
-        }`}
-      >
-        {activeCount > 0 ? (
-          <>
-            {/* Pulsing indicator ring */}
-            <span className="absolute inset-0 rounded-full border border-sky-500 animate-ping opacity-60 pointer-events-none" />
-            <Clock className="w-5 h-5 text-sky-400 animate-pulse" />
-            {/* Active jobs badge */}
-            <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 bg-sky-500 text-slate-950 font-black text-[9px] rounded-full flex items-center justify-center shadow-md animate-in zoom-in-50 duration-200">
-              {activeCount}
-            </span>
-          </>
-        ) : (
-          <Clock className="w-5 h-5" />
-        )}
-      </button>
-
-      {/* Popover Jobs Dashboard Dropdown */}
-      {isOpen && (
-        <div className="absolute bottom-12 right-0 mb-2 w-80 bg-slate-900/95 backdrop-blur-md border border-slate-800/90 rounded-2xl shadow-2xl p-4 z-20 flex flex-col max-h-[460px] animate-in slide-in-from-bottom-2 duration-200 origin-bottom-right">
-          {/* Header */}
-          <div className="flex items-center justify-between pb-2 border-b border-slate-800/80 mb-3 flex-shrink-0">
-            <div className="flex items-center space-x-1.5">
-              <ClipboardList className="w-4 h-4 text-sky-400" />
-              <h4 className="text-xs font-bold text-slate-200 uppercase tracking-wider">
-                Tác vụ xử lý nền
-              </h4>
-            </div>
-            <div className="flex items-center space-x-1">
-              <button
-                type="button"
-                onClick={() => fetchJobs()}
-                disabled={isLoading}
-                className="p-1 text-slate-400 hover:text-white hover:bg-slate-800/50 rounded-lg transition-all disabled:opacity-50 cursor-pointer"
-                title="Làm mới"
-              >
-                <RefreshCw className={`w-3.5 h-3.5 text-sky-400 ${isLoading ? 'animate-spin' : ''}`} />
-              </button>
-              <button
-                type="button"
-                onClick={() => setIsOpen(false)}
-                className="p-1 text-slate-400 hover:text-white hover:bg-slate-800/50 rounded-lg transition-all cursor-pointer"
-                title="Đóng"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          </div>
-
-          {/* Error Message */}
-          {error && (
-            <div className="p-2.5 bg-red-500/10 border border-red-500/20 rounded-xl text-[10px] text-red-400 flex items-start space-x-1.5 mb-2.5 flex-shrink-0 animate-in fade-in duration-200">
-              <AlertCircle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
-              <span>{error}</span>
-            </div>
-          )}
-
-          {/* Job List Container */}
-          <div className="flex-1 overflow-y-auto pr-1 space-y-2.5 max-h-[340px]">
-            {jobs.length === 0 ? (
-              <div className="py-8 text-center text-xs text-slate-500 italic bg-slate-950/20 border border-slate-850 rounded-xl">
-                Chưa có tác vụ nền nào.
-              </div>
-            ) : (
-              jobs.map((job) => {
-                const isProcessing = ['running', 'queued', 'pending'].includes(job.status);
-                const isCompleted = job.status === 'completed';
-                const isFailed = job.status === 'failed' || job.status === 'cancelled';
-
-                return (
-                  <div
-                    key={job.id}
-                    className={`p-3 bg-slate-950/40 border border-slate-800/80 hover:border-slate-700/80 rounded-xl space-y-2.5 transition-all ${
-                      job.status === 'running' ? 'shadow-md shadow-sky-500/5' : ''
-                    }`}
-                  >
-                    {/* Row 1: Job Type & Status Badge */}
-                    <div className="flex items-start justify-between space-x-2">
-                      <div className="flex flex-col min-w-0">
-                        <span className="text-xs font-black text-slate-200 truncate">
-                          {getJobTypeLabel(job.job_type)}
-                        </span>
-                        <span className="text-[9px] text-slate-500 font-mono mt-0.5" title={job.id}>
-                          ID: {job.id.slice(0, 8)}...
-                        </span>
-                      </div>
-                      <span className={`text-[9px] font-bold px-2 py-0.5 rounded border flex-shrink-0 ${getStatusBadgeClass(job.status)}`}>
-                        {getStatusText(job.status).toUpperCase()}
-                      </span>
-                    </div>
-
-                    {/* Row 2: Progress Bar */}
-                    <div className="space-y-1.5">
-                      <div className="flex justify-between text-[9px] text-slate-400 font-semibold px-0.5">
-                        <span>Tiến độ thực hiện</span>
-                        <span className="font-mono">{job.progress}%</span>
-                      </div>
-                      <div className="w-full h-1 bg-slate-900 rounded-full overflow-hidden">
-                        <div
-                          className={`h-full transition-all duration-300 rounded-full ${
-                            isCompleted
-                              ? 'bg-emerald-500'
-                              : isFailed
-                              ? 'bg-red-500'
-                              : 'bg-sky-500 shadow-[0_0_6px_#0ea5e9]'
-                          }`}
-                          style={{ width: `${job.progress}%` }}
-                        />
-                      </div>
-                    </div>
-
-                    {/* Error display inside card */}
-                    {job.error_message && (
-                      <div className="p-2 bg-red-950/20 border border-red-900/30 rounded-lg text-[9px] text-red-400 font-medium leading-normal">
-                        <strong>Lỗi:</strong> {job.error_message}
-                      </div>
-                    )}
-
-                    {/* Row 3: Timestamps & Actions */}
-                    <div className="flex items-center justify-between text-[9px] text-slate-500 font-medium pt-1.5 border-t border-slate-900">
-                      <div className="flex flex-col space-y-0.5">
-                        <span>Tạo lúc: {formatDate(job.created_at)}</span>
-                        {job.started_at && <span>Bắt đầu: {formatDate(job.started_at)}</span>}
-                      </div>
-
-                      <div className="flex items-center space-x-1.5 flex-shrink-0">
-                        {/* Cancel button */}
-                        {isProcessing && (
-                          <button
-                            onClick={() => cancelJob(job.id)}
-                            className="px-2 h-5.5 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 rounded-md text-[9px] font-bold text-red-400 cursor-pointer transition-all"
-                          >
-                            Hủy tác vụ
-                          </button>
-                        )}
-
-                        {/* View Result button */}
-                        {isCompleted && (
-                          <button
-                            onClick={() => handleViewResult(job)}
-                            disabled={loadingResultId === job.id}
-                            className="px-2 h-5.5 bg-sky-500 hover:bg-sky-400 disabled:opacity-50 text-slate-950 text-[9px] font-bold rounded-md flex items-center space-x-1 cursor-pointer transition-all"
-                          >
-                            {loadingResultId === job.id ? (
-                              <Loader2 className="w-3 h-3 animate-spin" />
-                            ) : (
-                              <Eye className="w-3 h-3" />
-                            )}
-                            <span>Kết quả</span>
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Results Detail Modal */}
-      {selectedJobResult && activeResultJob && (
-        <div 
-          className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 pointer-events-auto"
-          onClick={() => {
-            setSelectedJobResult(null);
-            setActiveResultJob(null);
-          }}
-        >
-          <div
-            className="bg-slate-900/95 border border-slate-800 rounded-2xl w-full max-w-md max-h-[85vh] flex flex-col overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200 pointer-events-auto"
-            onClick={(e) => e.stopPropagation()}
+    <div ref={widgetRef} className="relative select-none pointer-events-auto flex items-center justify-end space-x-3">
+      {/* On-screen Live Stage Notification Toast (Single line format: ID:id-job | message | time) */}
+      {liveStageNoti && (
+        <div className="flex items-center space-x-2 px-3 py-2 bg-slate-950/95 backdrop-blur-md border border-sky-500/40 shadow-2xl rounded-xl text-xs text-slate-200 animate-in fade-in slide-in-from-right-4 duration-300 whitespace-nowrap cursor-default">
+          <span className="font-mono text-sky-400 font-bold text-[11px]">
+            ID:{liveStageNoti.jobId.slice(0, 8)}
+          </span>
+          <span className="text-slate-600 font-normal">|</span>
+          <span className="text-[11px] text-slate-200 font-medium">
+            {liveStageNoti.message}
+          </span>
+          <span className="text-slate-600 font-normal">|</span>
+          <span className="font-mono text-slate-400 text-[10px]">
+            {liveStageNoti.timestamp}
+          </span>
+          <button
+            onClick={() => setLiveStageNoti(null)}
+            className="p-1 hover:bg-slate-800 rounded text-slate-400 hover:text-white cursor-pointer transition-colors ml-1.5 flex-shrink-0"
+            title="Đóng thông báo"
           >
-            {/* Modal Header */}
-            <div className="p-4 border-b border-slate-800 flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <CheckCircle2 className="w-5 h-5 text-emerald-400" />
-                <h3 className="text-sm font-bold text-white">
-                  Kết quả tác vụ: {getJobTypeLabel(activeResultJob.job_type)}
-                </h3>
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
+
+      {/* Button & Dropdown Container */}
+      <div className="relative">
+        {/* Toggle Button */}
+        <button
+          onClick={() => setIsOpen(!isOpen)}
+          title="Danh sách tác vụ nền"
+          className={`w-10 h-10 rounded-full flex items-center justify-center bg-slate-900/90 backdrop-blur-md border transition-all cursor-pointer shadow-2xl relative group ${
+            isOpen
+              ? 'border-sky-500 text-sky-400 bg-slate-800'
+              : 'border-slate-800/80 text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+          }`}
+        >
+          {activeCount > 0 ? (
+            <>
+              {/* Pulsing indicator ring */}
+              <span className="absolute inset-0 rounded-full border border-sky-500 animate-ping opacity-60 pointer-events-none" />
+              <Clock className="w-5 h-5 text-sky-400 animate-pulse" />
+              {/* Active jobs badge */}
+              <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 bg-sky-500 text-slate-950 font-black text-[9px] rounded-full flex items-center justify-center shadow-md animate-in zoom-in-50 duration-200">
+                {activeCount}
+              </span>
+            </>
+          ) : (
+            <Clock className="w-5 h-5" />
+          )}
+        </button>
+
+        {/* Popover Jobs Dashboard Dropdown */}
+        {isOpen && (
+          <div className="absolute bottom-12 right-0 mb-2 w-80 bg-slate-900/95 backdrop-blur-md border border-slate-800/90 rounded-2xl shadow-2xl p-4 z-20 flex flex-col max-h-[460px] animate-in slide-in-from-bottom-2 duration-200 origin-bottom-right">
+            {/* Header */}
+            <div className="flex items-center justify-between pb-2 border-b border-slate-800/80 mb-3 flex-shrink-0">
+              <div className="flex items-center space-x-1.5">
+                <ClipboardList className="w-4 h-4 text-sky-400" />
+                <h4 className="text-xs font-bold text-slate-200 uppercase tracking-wider">
+                  Tác vụ xử lý nền
+                </h4>
               </div>
-              <button 
-                onClick={() => {
-                  setSelectedJobResult(null);
-                  setActiveResultJob(null);
-                }}
-                className="text-slate-400 hover:text-white transition-all cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
+              <div className="flex items-center space-x-1">
+                <button
+                  type="button"
+                  onClick={() => fetchJobs()}
+                  disabled={isLoading}
+                  className="p-1 text-slate-400 hover:text-white hover:bg-slate-800/50 rounded-lg transition-all disabled:opacity-50 cursor-pointer"
+                  title="Làm mới"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 text-sky-400 ${isLoading ? 'animate-spin' : ''}`} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsOpen(false)}
+                  className="p-1 text-slate-400 hover:text-white hover:bg-slate-800/50 rounded-lg transition-all cursor-pointer"
+                  title="Đóng"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
             </div>
 
-            {/* Modal Body */}
-            <div className="p-4 overflow-y-auto space-y-4 flex-1 text-xs text-slate-350">
-              {activeResultJob.job_type === 'aoi_extraction' && (
-                <div className="space-y-3">
-                  <div className="text-slate-400 font-semibold">
-                    Đã tìm thấy <span className="text-white font-black">{(selectedJobResult.features || []).length}</span> ảnh vệ tinh thỏa mãn điều kiện:
-                  </div>
-                  <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-                    {(selectedJobResult.features || []).map((feature: any) => (
-                      <div key={feature.id} className="p-2.5 bg-slate-950/50 border border-slate-800/80 rounded-lg space-y-1">
-                        <div className="font-mono text-[10px] font-bold text-sky-400 truncate">{feature.id}</div>
-                        <div className="flex justify-between text-[9px] text-slate-500 font-semibold">
-                          <span>{new Date(feature.properties.datetime).toLocaleDateString('vi-VN')}</span>
-                          <span>{feature.properties['eo:cloud_cover'] ?? 0}% mây</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+            {/* Error Message */}
+            {error && (
+              <div className="p-2.5 bg-red-500/10 border border-red-500/20 rounded-xl text-[10px] text-red-400 flex items-start space-x-1.5 mb-2.5 flex-shrink-0 animate-in fade-in duration-200">
+                <AlertCircle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+                <span>{error}</span>
+              </div>
+            )}
 
-              {activeResultJob.job_type === 'object_detection' && (
-                <div className="space-y-3">
-                  <div className="text-slate-400 font-semibold">
-                    Đã nhận diện thành công <span className="text-white font-black">{(selectedJobResult.detections || []).length}</span> đối tượng:
-                  </div>
-                  <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-                    {(selectedJobResult.detections || []).map((det: any, idx: number) => (
-                      <div key={idx} className="p-2 bg-slate-950/50 border border-slate-850 rounded-lg flex items-center justify-between">
-                        <div className="flex flex-col">
-                          <span className="font-bold text-slate-200 uppercase tracking-wide">
-                            {det.class === 'aircraft' ? 'Máy bay (Aircraft)' : det.class === 'ship' ? 'Tàu thủy (Ship)' : det.class === 'vehicle' ? 'Xe cộ (Vehicle)' : det.class}
+            {/* Job List Container */}
+            <div className="flex-1 overflow-y-auto pr-1 space-y-2.5 max-h-[340px]">
+              {jobs.length === 0 ? (
+                <div className="py-8 text-center text-xs text-slate-500 italic bg-slate-950/20 border border-slate-850 rounded-xl">
+                  Chưa có tác vụ nền nào.
+                </div>
+              ) : (
+                jobs.map((job) => {
+                  const isProcessing = ['running', 'queued', 'pending'].includes(job.status);
+                  const isCompleted = job.status === 'completed';
+                  const isFailed = job.status === 'failed' || job.status === 'cancelled';
+
+                  return (
+                    <div
+                      key={job.id}
+                      className={`p-3 bg-slate-950/40 border border-slate-800/80 hover:border-slate-700/80 rounded-xl space-y-2.5 transition-all ${
+                        job.status === 'running' ? 'shadow-md shadow-sky-500/5' : ''
+                      }`}
+                    >
+                      {/* Row 1: Job Type & Status Badge */}
+                      <div className="flex items-start justify-between space-x-2">
+                        <div className="flex flex-col min-w-0">
+                          <span className="text-xs font-black text-slate-200 truncate">
+                            {getJobTypeLabel(job.job_type)}
                           </span>
-                          <span className="text-[9px] text-slate-500 font-mono">BBox: [{det.bbox.map((n: number) => n.toFixed(3)).join(', ')}]</span>
+                          <span className="text-[9px] text-slate-500 font-mono mt-0.5" title={job.id}>
+                            ID: {job.id.slice(0, 8)}...
+                          </span>
                         </div>
-                        <span className="text-[10px] font-black text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-md">
-                          {Math.round(det.confidence * 100)}%
+                        <span className={`text-[9px] font-bold px-2 py-0.5 rounded border flex-shrink-0 ${getStatusBadgeClass(job.status)}`}>
+                          {getStatusText(job.status).toUpperCase()}
                         </span>
                       </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
 
-            {/* Modal Footer */}
-            <div className="p-4 border-t border-slate-800 flex justify-end space-x-2">
-              <button
-                onClick={() => {
-                  setSelectedJobResult(null);
-                  setActiveResultJob(null);
-                }}
-                className="px-4 h-8 bg-slate-800 hover:bg-slate-700 text-slate-350 text-xs font-bold rounded-xl transition-all cursor-pointer"
-              >
-                Đóng
-              </button>
+                      {/* Row 2: Progress Bar */}
+                      <div className="space-y-1.5">
+                        <div className="flex justify-between text-[9px] text-slate-400 font-semibold px-0.5">
+                          <span>Tiến độ thực hiện</span>
+                          <span className="font-mono">{job.progress}%</span>
+                        </div>
+                        <div className="w-full h-1 bg-slate-900 rounded-full overflow-hidden">
+                          <div
+                            className={`h-full transition-all duration-300 rounded-full ${
+                              isCompleted
+                                ? 'bg-emerald-500'
+                                : isFailed
+                                ? 'bg-red-500'
+                                : 'bg-sky-500 shadow-[0_0_6px_#0ea5e9]'
+                            }`}
+                            style={{ width: `${job.progress}%` }}
+                          />
+                        </div>
+                      </div>
 
-              {/* Map action button */}
-              {activeResultJob.job_type === 'aoi_extraction' && (
-                <button
-                  onClick={handleApplyResultToMap}
-                  className="px-4.5 h-8 bg-sky-500 hover:bg-sky-400 text-slate-950 text-xs font-black rounded-xl flex items-center space-x-1.5 transition-all cursor-pointer shadow-md"
-                >
-                  <Layers className="w-3.5 h-3.5" />
-                  <span>Hiển thị trên bản đồ</span>
-                </button>
+                      {/* Error display inside card */}
+                      {job.error_message && (
+                        <div className="p-2 bg-red-950/20 border border-red-900/30 rounded-lg text-[9px] text-red-400 font-medium leading-normal">
+                          <strong>Lỗi:</strong> {job.error_message}
+                        </div>
+                      )}
+
+                      {/* Row 3: Timestamps & Actions */}
+                      <div className="flex items-center justify-between text-[9px] text-slate-500 font-medium pt-1.5 border-t border-slate-900">
+                        <div className="flex flex-col space-y-0.5">
+                          <span>Tạo lúc: {formatDate(job.created_at)}</span>
+                          {job.started_at && <span>Bắt đầu: {formatDate(job.started_at)}</span>}
+                        </div>
+
+                        <div className="flex items-center space-x-1.5 flex-shrink-0">
+                          {/* Cancel button */}
+                          {isProcessing && (
+                            <button
+                              onClick={() => cancelJob(job.id)}
+                              className="px-2 h-5.5 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 rounded-md text-[9px] font-bold text-red-400 cursor-pointer transition-all"
+                            >
+                              Hủy tác vụ
+                            </button>
+                          )}
+
+                          {/* Hiển thị button to load onto map */}
+                          {isCompleted && (
+                            <button
+                              onClick={() => handleApplyResultDirectly(job)}
+                              disabled={loadingResultId === job.id}
+                              className="px-2 h-6 bg-sky-500 hover:bg-sky-400 disabled:opacity-50 text-slate-950 text-[9px] font-black rounded-md flex items-center space-x-1 cursor-pointer transition-all shadow-md"
+                            >
+                              {loadingResultId === job.id ? (
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                              ) : (
+                                <Eye className="w-3 h-3" />
+                              )}
+                              <span>Hiển thị</span>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
               )}
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

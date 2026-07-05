@@ -22,23 +22,37 @@ async def redis_pubsub_listener():
     """Background task subscribing to Redis Pub/Sub and broadcasting updates to WebSocket connections."""
     while True:
         try:
-            client = aioredis.from_url(REDIS_URL, decode_responses=True)
+            client = aioredis.from_url(
+                REDIS_URL, 
+                decode_responses=True,
+                socket_timeout=None,
+                health_check_interval=30
+            )
             pubsub = client.pubsub()
             await pubsub.subscribe("job_updates")
             print("[WebSocket Listener] Subscribed to Redis channel 'job_updates'")
-            async for message in pubsub.listen():
-                if message and message["type"] == "message":
-                    try:
-                        data = json.loads(message["data"])
-                        await ws_manager.broadcast(data)
-                    except Exception as e:
-                        print(f"[WebSocket Listener] Error broadcasting data: {e}")
+            
+            while True:
+                try:
+                    message = await pubsub.get_message(ignore_subscribe_messages=True, timeout=1.0)
+                    if message and message.get("type") == "message":
+                        try:
+                            data = json.loads(message["data"])
+                            await ws_manager.broadcast(data)
+                        except Exception as e:
+                            print(f"[WebSocket Listener] Error broadcasting data: {e}")
+                    await asyncio.sleep(0.01)
+                except asyncio.CancelledError:
+                    raise
+                except Exception as e:
+                    # Timeout or temporary read glitch - loop gracefully without unsubscribing
+                    await asyncio.sleep(0.1)
         except asyncio.CancelledError:
             print("[WebSocket Listener] Task cancelled, exiting...")
             break
         except Exception as e:
-            print(f"[WebSocket Listener] Redis listener connection lost: {e}. Retrying in 5s...")
-            await asyncio.sleep(5)
+            print(f"[WebSocket Listener] Redis listener connection lost: {e}. Retrying in 2s...")
+            await asyncio.sleep(2)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

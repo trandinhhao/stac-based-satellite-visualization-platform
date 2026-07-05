@@ -13,11 +13,13 @@ interface DetectionState {
   error: string | null;
   activeJobId: string | null;
   selectedObject: DetectedObject | null;
+  showLabels: boolean;
 
   fetchDetections: (jobId: string) => Promise<void>;
   runDetection: (aoiId: string, model?: string) => Promise<string>;
   clearDetections: () => void;
   selectObject: (obj: DetectedObject | null) => void;
+  setShowLabels: (show: boolean) => void;
 }
 
 export const useDetectionStore = create<DetectionState>((set) => ({
@@ -26,6 +28,7 @@ export const useDetectionStore = create<DetectionState>((set) => ({
   error: null,
   activeJobId: null,
   selectedObject: null,
+  showLabels: true,
 
   fetchDetections: async (jobId) => {
     set({ isLoading: true, error: null });
@@ -44,19 +47,29 @@ export const useDetectionStore = create<DetectionState>((set) => ({
     }
   },
 
-  runDetection: async (aoiId, model = 'yolov8') => {
-    set({ isLoading: true, error: null, detections: [], selectedObject: null });
+  runDetection: async (aoiId, model = 'yolo26') => {
+    set({ error: null });
     try {
       const response = await api.post<{ job_id: string; status: string }>('/v1/detections', {
         aoi_id: aoiId,
         model,
         collection: 'sentinel-2',
       });
-      set({ activeJobId: response.data.job_id, isLoading: false });
+      
+      // Update jobs list in the background jobs widget immediately
+      const { useJobStore } = await import('./useJobStore');
+      await useJobStore.getState().fetchJobs();
+      
+      // Auto-trigger polling if websocket connection is down
+      const { useWebSocketStore } = await import('./useWebSocketStore');
+      if (!useWebSocketStore.getState().connected) {
+        useJobStore.getState().startPollingJobs();
+      }
+      
       return response.data.job_id;
     } catch (err: any) {
       const errMsg = err.response?.data?.detail || 'Không thể chạy tác vụ nhận dạng AI.';
-      set({ error: errMsg, isLoading: false });
+      set({ error: errMsg });
       throw err;
     }
   },
@@ -67,5 +80,9 @@ export const useDetectionStore = create<DetectionState>((set) => ({
 
   selectObject: (obj) => {
     set({ selectedObject: obj });
+  },
+
+  setShowLabels: (showLabels) => {
+    set({ showLabels });
   },
 }));

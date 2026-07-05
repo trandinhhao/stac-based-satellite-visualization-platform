@@ -113,6 +113,7 @@ services:
       - DATABASE_URL=${DATABASE_URL}
       - REDIS_URL=${REDIS_URL}
       - RABBITMQ_URL=${RABBITMQ_URL}
+      - PYTHONPATH=/app
     volumes:
       - ./backend:/app
       - ./datasets:/app/datasets
@@ -130,6 +131,8 @@ services:
   frontend:
     build: ./frontend
     container_name: frontend
+    environment:
+      - VITE_MAPBOX_ACCESS_TOKEN=${VITE_MAPBOX_ACCESS_TOKEN}
     ports:
       - "${FRONTEND_PORT}:${FRONTEND_PORT}"
     volumes:

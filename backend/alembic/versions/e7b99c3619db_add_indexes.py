@@ -23,7 +23,7 @@ def upgrade() -> None:
     op.create_index('idx_jobs_status', 'jobs', ['status'])
     
     # 2. Spatial Index on aois(geometry) using GIST to speed up bounding box checks and STAC intersections
-    op.execute("CREATE INDEX idx_aois_geometry ON aois USING GIST(geometry)")
+    op.execute("CREATE INDEX IF NOT EXISTS idx_aois_geometry ON aois USING GIST(geometry)")
 
 
 def downgrade() -> None:

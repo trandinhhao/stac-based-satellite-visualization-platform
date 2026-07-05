@@ -3,7 +3,6 @@ import {
   Cpu, 
   Play, 
   Download, 
-  Info, 
   Loader2, 
   Trash2,
   ChevronRight,
@@ -17,24 +16,26 @@ import { useDetectionStore, type DetectedObject } from '../store/useDetectionSto
 import { useMapStore } from '../store/useMapStore';
 
 export default function DetectionPanel() {
-  const { aois, selectedAOIId, selectAOI, fetchAOIs } = useAOIStore();
+  const { aois, selectedAOIId, selectAOI, fetchAOIs, activeTab, isDrawerOpen } = useAOIStore();
   const { jobs } = useJobStore();
   const { 
     detections, 
-    isLoading: isStoreLoading, 
     error, 
     activeJobId, 
     selectedObject, 
     runDetection, 
     fetchDetections, 
     clearDetections, 
-    selectObject 
+    selectObject,
+    showLabels,
+    setShowLabels
   } = useDetectionStore();
   const { setCenter, setZoom } = useMapStore();
 
-  const [selectedModel, setSelectedModel] = useState('yolov8');
+  const selectedModel = 'yolo26';
   const [triggerAoiId, setTriggerAoiId] = useState(selectedAOIId || '');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -54,8 +55,18 @@ export default function DetectionPanel() {
     fetchAOIs();
   }, [fetchAOIs]);
 
-  // Synchronize internal selection with global AOI selection
+  // Enforce Google Satellite map layer when the AI tab is open and active
   useEffect(() => {
+    if (activeTab === 'ai' && isDrawerOpen) {
+      useMapStore.getState().setSelectedLayer('google-satellite');
+    }
+  }, [activeTab, isDrawerOpen]);
+
+  // Synchronize internal selection with global AOI selection & clear detections if AOI selection changes
+  useEffect(() => {
+    if (triggerAoiId && selectedAOIId !== triggerAoiId) {
+      clearDetections();
+    }
     setTriggerAoiId(selectedAOIId || '');
   }, [selectedAOIId]);
 
@@ -71,12 +82,14 @@ export default function DetectionPanel() {
 
   const handleStartDetection = async () => {
     if (!triggerAoiId) return;
+    setIsSubmitting(true);
     try {
-      selectAOI(triggerAoiId);
       // Run detection job
       await runDetection(triggerAoiId, selectedModel);
     } catch (err) {
       console.error('Failed to trigger AI detection:', err);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -155,6 +168,7 @@ export default function DetectionPanel() {
     document.body.appendChild(downloadAnchor);
     downloadAnchor.click();
     downloadAnchor.removeChild(downloadAnchor);
+    URL.revokeObjectURL(url);
   };
 
   const jsonToString = (obj: any) => {
@@ -165,188 +179,153 @@ export default function DetectionPanel() {
   return (
     <div className="space-y-4 text-slate-200">
       {/* 1. Job Trigger Section */}
-      {(!activeJobId || (activeJob && ['completed', 'failed', 'cancelled'].includes(activeJob.status))) && (
-        <div className="space-y-3 p-3.5 bg-slate-950/40 border border-slate-800/60 rounded-xl">
-          <div className="flex items-center space-x-2 pb-1.5 border-b border-slate-800/60">
-            <Cpu className="w-4 h-4 text-sky-400" />
-            <h4 className="text-xs font-bold text-slate-300">Khởi chạy AI Detection</h4>
-          </div>
+      <div className="space-y-3 p-3.5 bg-slate-950/40 border border-slate-800/60 rounded-xl">
+        <div className="flex items-center space-x-2 pb-1.5 border-b border-slate-800/60">
+          <Cpu className="w-4 h-4 text-sky-400" />
+          <h4 className="text-xs font-bold text-slate-300">Khởi chạy AI Detection</h4>
+        </div>
 
-          <div className="space-y-3">
-            <div className="space-y-1.5 relative" ref={dropdownRef}>
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
-                Chọn Vùng AOI Mục Tiêu
-              </label>
+        <div className="space-y-3">
+          <div className="space-y-1.5 relative" ref={dropdownRef}>
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
+              Chọn Vùng AOI Mục Tiêu
+            </label>
+            
+            <div className="relative">
+              {/* Trigger Button */}
+              <button
+                type="button"
+                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                className={`w-full h-9 pl-3 pr-16 bg-slate-950 hover:bg-slate-900 border rounded-lg text-xs text-slate-200 font-medium flex items-center justify-between cursor-pointer transition-all ${
+                  isDropdownOpen
+                    ? 'border-sky-500/60 ring-1 ring-sky-500/10 shadow-[0_0_10px_rgba(56,189,248,0.12)]'
+                    : 'border-slate-800 hover:border-slate-700/80'
+                }`}
+              >
+                <span className="truncate max-w-[180px]">
+                  {!activeAoi
+                    ? 'Chọn vùng quan tâm...'
+                    : activeAoi.name}
+                </span>
+              </button>
               
-              <div className="relative">
-                {/* Trigger Button */}
-                <button
-                  type="button"
-                  onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                  className={`w-full h-9 pl-3 pr-16 bg-slate-950 hover:bg-slate-900 border rounded-lg text-xs text-slate-200 font-medium flex items-center justify-between cursor-pointer transition-all ${
-                    isDropdownOpen
-                      ? 'border-sky-500/60 ring-1 ring-sky-500/10 shadow-[0_0_10px_rgba(56,189,248,0.12)]'
-                      : 'border-slate-800 hover:border-slate-700/80'
-                  }`}
-                >
-                  <span className="truncate max-w-[180px]">
-                    {!activeAoi
-                      ? 'Chọn vùng quan tâm...'
-                      : activeAoi.name}
-                  </span>
-                </button>
-                
-                {/* Actions (X and Chevron) inside the field */}
-                <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center space-x-1 z-10">
-                  {activeAoi && (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setTriggerAoiId('');
-                        selectAOI(null);
-                        setIsDropdownOpen(false);
-                      }}
-                      className="p-1 text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded-md transition-colors cursor-pointer flex items-center justify-center"
-                      title="Bỏ chọn vùng"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  )}
+              {/* Actions (X and Chevron) inside the field */}
+              <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center space-x-1 z-10">
+                {activeAoi && (
                   <button
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
-                      setIsDropdownOpen(!isDropdownOpen);
+                      setTriggerAoiId('');
+                      selectAOI(null);
+                      clearDetections();
+                      setIsDropdownOpen(false);
                     }}
-                    className="p-1 text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded-md transition-colors cursor-pointer flex items-center justify-center"
+                    className="p-1 text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded-md transition-colors cursor-pointer flex items-center justify-center"
+                    title="Bỏ chọn vùng"
                   >
-                    {isDropdownOpen ? (
-                      <ChevronUp className="w-3.5 h-3.5" />
-                    ) : (
-                      <ChevronDown className="w-3.5 h-3.5" />
-                    )}
+                    <X className="w-3.5 h-3.5" />
                   </button>
+                )}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsDropdownOpen(!isDropdownOpen);
+                  }}
+                  className="p-1 text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded-md transition-colors cursor-pointer flex items-center justify-center"
+                >
+                  {isDropdownOpen ? (
+                    <ChevronUp className="w-3.5 h-3.5" />
+                  ) : (
+                    <ChevronDown className="w-3.5 h-3.5" />
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* Dropdown Menu */}
+            {isDropdownOpen && (
+              <div className="absolute left-0 right-0 mt-1.5 z-30 p-1.5 bg-slate-950/95 backdrop-blur-md border border-slate-800/90 rounded-lg shadow-2xl space-y-1.5 animate-in fade-in slide-in-from-top-1 duration-150">
+                <div className="space-y-0.5 max-h-[240px] overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-slate-800">
+                  {aois.map((aoi) => {
+                    const isChecked = triggerAoiId === aoi.id;
+                    return (
+                      <div 
+                        key={aoi.id}
+                        onClick={() => {
+                          if (isChecked) {
+                            setTriggerAoiId('');
+                            selectAOI(null);
+                            clearDetections();
+                          } else {
+                            setTriggerAoiId(aoi.id);
+                            useAOIStore.setState({
+                              selectedAOIIds: [aoi.id],
+                              selectedAOIId: aoi.id,
+                              isDrawing: false,
+                              drawType: null,
+                              tempGeometry: null,
+                              editingAOIId: null
+                            });
+                            clearDetections();
+                          }
+                          setIsDropdownOpen(false);
+                        }}
+                        className={`flex items-center px-2.5 py-1.5 rounded transition-all cursor-pointer select-none group ${
+                          isChecked
+                            ? 'bg-sky-500/10 text-sky-400 font-semibold'
+                            : 'hover:bg-slate-900/60 text-slate-350 hover:text-white'
+                        }`}
+                      >
+                        {/* Name & Area Metadata */}
+                        <div className="flex-1 min-w-0 flex items-baseline justify-between">
+                          <span className="text-[11px] font-medium truncate leading-tight transition-colors">
+                            {aoi.name}
+                          </span>
+                          {aoi.area && (
+                            <span className={`text-[10px] font-mono font-bold ml-2 flex-shrink-0 transition-colors ${
+                              isChecked 
+                                ? 'text-sky-300' 
+                                : 'text-emerald-400 group-hover:text-emerald-350'
+                            }`}>
+                              {aoi.area >= 1000000 
+                                ? `${(aoi.area / 1000000).toFixed(2)} km²` 
+                                : `${(aoi.area / 10000).toFixed(1)} ha`}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
-
-              {/* Dropdown Menu */}
-              {isDropdownOpen && (
-                <div className="absolute left-0 right-0 mt-1.5 z-30 p-1.5 bg-slate-950/95 backdrop-blur-md border border-slate-800/90 rounded-lg shadow-2xl space-y-1.5 animate-in fade-in slide-in-from-top-1 duration-150">
-                  <div className="space-y-0.5 max-h-[118px] overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-slate-800">
-                    {aois.map((aoi) => {
-                      const isChecked = triggerAoiId === aoi.id;
-                      return (
-                        <div 
-                          key={aoi.id}
-                          onClick={() => {
-                            if (isChecked) {
-                              setTriggerAoiId('');
-                              selectAOI(null);
-                            } else {
-                              setTriggerAoiId(aoi.id);
-                              useAOIStore.setState({
-                                selectedAOIIds: [aoi.id],
-                                selectedAOIId: aoi.id,
-                                isDrawing: false,
-                                drawType: null,
-                                tempGeometry: null,
-                                editingAOIId: null
-                              });
-                            }
-                            setIsDropdownOpen(false);
-                          }}
-                          className={`flex items-center px-2.5 py-1.5 rounded transition-all cursor-pointer select-none group ${
-                            isChecked
-                              ? 'bg-sky-500/10 text-sky-400 font-semibold'
-                              : 'hover:bg-slate-900/60 text-slate-350 hover:text-white'
-                          }`}
-                        >
-                          {/* Name & Area Metadata */}
-                          <div className="flex-1 min-w-0 flex items-baseline justify-between">
-                            <span className="text-[11px] font-medium truncate leading-tight transition-colors">
-                              {aoi.name}
-                            </span>
-                            {aoi.area && (
-                              <span className={`text-[10px] font-mono font-bold ml-2 flex-shrink-0 transition-colors ${
-                                isChecked 
-                                  ? 'text-sky-300' 
-                                  : 'text-emerald-400 group-hover:text-emerald-350'
-                              }`}>
-                                {aoi.area >= 1000000 
-                                  ? `${(aoi.area / 1000000).toFixed(2)} km²` 
-                                  : `${(aoi.area / 10000).toFixed(1)} ha`}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold text-slate-400 uppercase block">
-                Chọn Mô Hình AI
-              </label>
-              <select
-                value={selectedModel}
-                onChange={(e) => setSelectedModel(e.target.value)}
-                className="w-full h-9 px-3 bg-slate-950 border border-slate-800 rounded-lg text-xs text-slate-200 outline-none cursor-pointer"
-              >
-                <option value="yolov8">YOLOv8 Satellite (Nano - Siêu nhẹ)</option>
-                <option value="yolov11">YOLOv11 Remote Sensing (Mới nhất)</option>
-              </select>
-            </div>
-
-            <button
-              onClick={handleStartDetection}
-              disabled={!triggerAoiId || isStoreLoading}
-              className="w-full h-9 bg-sky-500 hover:bg-sky-400 disabled:opacity-55 text-slate-950 text-xs font-bold rounded-lg flex items-center justify-center space-x-1.5 cursor-pointer transition-all mt-2"
-            >
-              {isStoreLoading ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              ) : (
-                <Play className="w-3.5 h-3.5 fill-current" />
-              )}
-              <span>Bắt đầu Phân tích AI</span>
-            </button>
+            )}
           </div>
+
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-slate-400 uppercase block px-0.5">
+              Mô hình AI sử dụng
+            </label>
+            <div className="w-full h-9 px-3 bg-slate-950/40 border border-slate-900 rounded-lg text-xs text-sky-400 font-bold flex items-center justify-start">
+              <span>YOLOv8 Multi-Specialized</span>
+            </div>
+          </div>
+
+          <button
+            onClick={handleStartDetection}
+            disabled={!triggerAoiId || isSubmitting}
+            className="w-full h-9 bg-sky-500 hover:bg-sky-400 disabled:opacity-55 text-slate-950 text-xs font-bold rounded-lg flex items-center justify-center space-x-1.5 cursor-pointer transition-all mt-2"
+          >
+            {isSubmitting ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <Play className="w-3.5 h-3.5 fill-current" />
+            )}
+            <span>Bắt đầu Phân tích AI</span>
+          </button>
         </div>
-      )}
-
-      {/* 2. Async Progress UI */}
-      {activeJob && ['queued', 'running', 'pending'].includes(activeJob.status) && (
-        <div className="p-3.5 bg-slate-950/60 border border-slate-800/80 rounded-xl space-y-3 shadow-xl">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2 text-sky-400">
-              <Loader2 className="w-4 h-4 animate-spin" />
-              <span className="text-xs font-bold uppercase tracking-wider">Đang nhận diện...</span>
-            </div>
-            <span className="text-[10px] font-bold font-mono px-2 py-0.5 bg-sky-500/10 border border-sky-500/20 text-sky-400 rounded-full">
-              {activeJob.progress}%
-            </span>
-          </div>
-
-          <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
-            <div 
-              className="h-full bg-sky-500 transition-all duration-300 rounded-full"
-              style={{ width: `${activeJob.progress}%` }}
-            />
-          </div>
-
-          <div className="text-[11px] text-slate-400 leading-normal flex items-start space-x-2">
-            <Info className="w-3.5 h-3.5 text-sky-400 flex-shrink-0 mt-0.5" />
-            <span>
-              {activeJob.status === 'running' 
-                ? 'Đang nạp ảnh vệ tinh và chạy suy luận mạng nơ-ron YOLOv8...' 
-                : 'Đang xếp hàng gửi yêu cầu tới Celery Worker...'}
-            </span>
-          </div>
-        </div>
-      )}
+      </div>
 
       {/* 3. Results Panel */}
       {detections.length > 0 && (
@@ -370,10 +349,11 @@ export default function DetectionPanel() {
             <div className="grid grid-cols-3 gap-2">
               {['aircraft', 'vehicle', 'ship'].map((cls) => {
                 const count = groupedDetections[cls]?.length || 0;
+                const countColor = cls === 'aircraft' ? 'text-red-400' : cls === 'ship' ? 'text-blue-400' : 'text-amber-400';
                 return (
                   <div key={cls} className="bg-slate-950/60 border border-slate-800/40 p-2.5 rounded-lg text-center flex flex-col justify-center items-center">
                     <span className="text-[10px] uppercase font-bold text-slate-400">{cls === 'aircraft' ? 'Máy bay' : cls === 'ship' ? 'Tàu thủy' : 'Xe cộ'}</span>
-                    <strong className={`text-base font-bold mt-1 ${count > 0 ? 'text-sky-400' : 'text-slate-500'}`}>
+                    <strong className={`text-base font-bold mt-1 ${count > 0 ? countColor : 'text-slate-500'}`}>
                       {count}
                     </strong>
                   </div>
@@ -397,13 +377,33 @@ export default function DetectionPanel() {
                 <span>Xuất CSV</span>
               </button>
             </div>
+
+            {activeJobId && (
+              <div className="pt-2 border-t border-slate-800/40 flex items-center justify-between text-[10px] text-slate-400">
+                <span className="font-semibold">Mã tác vụ (ID):</span>
+                <span className="font-mono text-sky-400 font-bold bg-slate-950/80 px-2 py-0.5 rounded border border-slate-800 truncate max-w-[170px]" title={activeJobId}>
+                  {activeJobId}
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Detections Detail List */}
           <div className="space-y-2">
-            <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-1">
-              Chi tiết vật thể nhận diện ({detections.length})
-            </h4>
+            <div className="flex items-center justify-between w-full px-0.5 pb-2 border-b border-slate-800/40 gap-2">
+              <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider truncate" title={`Danh sách vật thể (${detections.length})`}>
+                Danh sách vật thể ({detections.length})
+              </h4>
+              <label className="flex items-center justify-end space-x-1.5 cursor-pointer select-none text-[10px] text-slate-450 font-bold hover:text-slate-200 transition-colors flex-shrink-0">
+                <input 
+                  type="checkbox"
+                  checked={showLabels}
+                  onChange={(e) => setShowLabels(e.target.checked)}
+                  className="w-3.5 h-3.5 rounded border-slate-800 bg-slate-950 text-sky-500 focus:ring-sky-500/20 cursor-pointer accent-sky-500 flex-shrink-0"
+                />
+                <span>Nhãn & Tin cậy</span>
+              </label>
+            </div>
             <div className="space-y-1.5 max-h-[300px] overflow-y-auto pr-1">
               {detections.map((det, idx) => {
                 const isSelected = selectedObject === det;
@@ -422,7 +422,7 @@ export default function DetectionPanel() {
                         det.object_class === 'aircraft' 
                           ? 'bg-red-400' 
                           : det.object_class === 'ship' 
-                          ? 'bg-emerald-400' 
+                          ? 'bg-blue-400' 
                           : 'bg-amber-400'
                       }`} />
                       <span className="text-xs font-bold text-slate-200 capitalize">

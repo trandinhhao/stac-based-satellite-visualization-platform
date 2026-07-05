@@ -15,12 +15,44 @@ export interface Job {
   created_at: string;
 }
 
+export interface LiveStageNotification {
+  jobId: string;
+  progress: number;
+  message: string;
+  timestamp: string;
+  status: string;
+}
+
+export const getStageMessage = (progress: number, jobType?: string): string => {
+  if (jobType === 'object_detection' || !jobType) {
+    if (progress <= 15) return 'Đã trích xuất tọa độ vùng AOI.';
+    if (progress <= 25) return 'Đã tải xong ảnh vệ tinh Google Satellite.';
+    if (progress <= 35) return 'Đã khởi động các mô hình AI.';
+    if (progress <= 50) return 'Đã xong nhận diện Máy bay.';
+    if (progress <= 68) return 'Đã xong nhận diện Tàu thủy.';
+    if (progress <= 80) return 'Đã xong nhận diện Xe cộ.';
+    if (progress <= 88) return 'Đã lọc trùng NMS & phân tích chéo.';
+    if (progress <= 95) return 'Đã lọc vật thể theo ranh giới AOI.';
+    return 'Phân tích AI hoàn thành!';
+  } else if (jobType === 'aoi_extraction') {
+    if (progress <= 20) return 'Khởi tạo tìm kiếm ảnh vệ tinh.';
+    if (progress <= 70) return 'Đang truy vấn dữ liệu vệ tinh.';
+    return 'Tìm kiếm ảnh vệ tinh hoàn thành!';
+  } else {
+    if (progress <= 30) return 'Đang tải dữ liệu đối chiếu.';
+    if (progress <= 80) return 'Đang tính toán chênh lệch.';
+    return 'Đối chiếu ảnh hoàn thành!';
+  }
+};
+
 interface JobState {
   jobs: Job[];
   isLoading: boolean;
   error: string | null;
   pollingIntervalId: number | null;
+  liveStageNoti: LiveStageNotification | null;
 
+  setLiveStageNoti: (noti: LiveStageNotification | null) => void;
   fetchJobs: () => Promise<void>;
   fetchJobDetails: (jobId: string) => Promise<Job>;
   createJob: (jobType: string, aoiId: string | null, payload: any) => Promise<string>;
@@ -43,6 +75,9 @@ export const useJobStore = create<JobState>((set, get) => ({
   isLoading: false,
   error: null,
   pollingIntervalId: null,
+  liveStageNoti: null,
+
+  setLiveStageNoti: (noti) => set({ liveStageNoti: noti }),
 
   fetchJobs: async () => {
     set({ isLoading: true, error: null });
@@ -137,12 +172,22 @@ export const useJobStore = create<JobState>((set, get) => ({
   },
 
   updateJobFromEvent: (eventData) => {
+    const nowStr = new Date().toLocaleTimeString('vi-VN', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    });
+
+    let msg = getStageMessage(eventData.progress, eventData.job_type);
+    if (eventData.status === 'failed') {
+      msg = `Thất bại: ${eventData.error || 'Lỗi xử lý tác vụ'}`;
+    }
+
     set((state) => {
       // If job is not in state yet, pull the list
       const jobExists = state.jobs.some((j) => j.id === eventData.job_id);
       if (!jobExists) {
         get().fetchJobs();
-        return {};
       }
 
       const updatedJobs = state.jobs.map((job) => {
@@ -158,7 +203,16 @@ export const useJobStore = create<JobState>((set, get) => ({
         return job;
       });
 
-      return { jobs: updatedJobs };
+      return {
+        jobs: updatedJobs,
+        liveStageNoti: {
+          jobId: eventData.job_id,
+          progress: eventData.progress,
+          message: msg,
+          timestamp: nowStr,
+          status: eventData.status,
+        },
+      };
     });
   },
 }));

@@ -27,16 +27,16 @@ class JobCreate(BaseModel):
 
 class JobResponse(BaseModel):
     id: str
-    user_id: Optional[str]
-    aoi_id: Optional[str]
+    user_id: Optional[str] = None
+    aoi_id: Optional[str] = None
     job_type: str
     status: str
     progress: int
-    result_url: Optional[str]
-    error_message: Optional[str]
-    started_at: Optional[datetime]
-    completed_at: Optional[datetime]
-    created_at: datetime
+    result_url: Optional[str] = None
+    error_message: Optional[str] = None
+    started_at: Optional[str] = None
+    completed_at: Optional[str] = None
+    created_at: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -118,6 +118,14 @@ def create_job(data: JobCreate, db: Session = Depends(get_db)):
         "status": "queued"
     }
 
+def format_utc(dt):
+    if dt is None:
+        return None
+    if isinstance(dt, str):
+        return dt if dt.endswith('Z') or '+' in dt else dt + 'Z'
+    s = dt.isoformat()
+    return s if s.endswith('Z') or '+' in s else s + 'Z'
+
 @router.get("", response_model=List[JobResponse])
 def list_jobs(
     status: Optional[str] = Query(None, description="Lọc theo trạng thái"),
@@ -153,9 +161,9 @@ def list_jobs(
                 "progress": r.progress,
                 "result_url": r.result_url,
                 "error_message": r.error_message,
-                "started_at": r.started_at,
-                "completed_at": r.completed_at,
-                "created_at": r.created_at
+                "started_at": format_utc(r.started_at),
+                "completed_at": format_utc(r.completed_at),
+                "created_at": format_utc(r.created_at)
             }
             for r in rows
         ]
@@ -187,9 +195,9 @@ def get_job(job_id: str, db: Session = Depends(get_db)):
         "progress": row.progress,
         "result_url": row.result_url,
         "error_message": row.error_message,
-        "started_at": row.started_at,
-        "completed_at": row.completed_at,
-        "created_at": row.created_at
+        "started_at": format_utc(row.started_at),
+        "completed_at": format_utc(row.completed_at),
+        "created_at": format_utc(row.created_at)
     }
 
 @router.get("/{job_id}/result")

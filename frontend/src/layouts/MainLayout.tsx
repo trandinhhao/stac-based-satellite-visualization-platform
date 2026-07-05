@@ -10,6 +10,7 @@ import { useWebSocketStore } from '../store/useWebSocketStore';
 import { NotificationToast } from '../components/NotificationToast';
 import MapLayersSwitcher from '../components/MapLayersSwitcher';
 import { useSTACStore } from '../store/useSTACStore';
+import { useDetectionStore } from '../store/useDetectionStore';
 
 import FloatingJobsWidget from '../components/FloatingJobsWidget';
 
@@ -134,6 +135,13 @@ export default function MainLayout() {
       selectAOI(null); // Automatically clear selected AOIs when closing the drawer
     }
   }, [isDrawerOpen]);
+
+  // Clean up AI detections when switching away from AI tab or closing the drawer
+  useEffect(() => {
+    if (activeTab !== 'ai' || !isDrawerOpen) {
+      useDetectionStore.getState().clearDetections();
+    }
+  }, [activeTab, isDrawerOpen]);
 
   const handleTabClick = (tab: 'location' | 'search' | 'aoi' | 'measure' | 'ai') => {
     if (activeTab === tab) {
@@ -488,8 +496,8 @@ export default function MainLayout() {
         <MapLayersSwitcher />
       </div>
 
-      {/* Floating Jobs Manager Widget (Bottom-Right, left of map controls) */}
-      <div className="absolute bottom-4 right-16 z-10">
+      {/* Floating Jobs Manager Widget (Positioned to the left of map navigation/rotate controls to avoid overlap) */}
+      <div className="absolute bottom-[50px] right-12 z-10">
         <FloatingJobsWidget />
       </div>
 

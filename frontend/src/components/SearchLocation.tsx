@@ -1,16 +1,17 @@
 import { useState, useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Search, X, Loader2, MapPin, Compass } from 'lucide-react';
+import axios from 'axios';
 import { useMapStore } from '../store/useMapStore';
 import { geocodingApi } from '../services/api';
 
 interface Suggestion {
-  place_id: number;
+  place_id: string | number;
   display_name: string;
   lat: string;
   lon: string;
-  type: string;
-  class: string;
+  type?: string;
+  class?: string;
 }
 
 export default function SearchLocation() {
@@ -57,6 +58,38 @@ export default function SearchLocation() {
       const trimmed = debouncedQuery.trim();
       if (trimmed.length < 2) return [];
 
+      const mapboxToken = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
+      const isMapboxConfigured = mapboxToken && mapboxToken.startsWith('pk.') && mapboxToken !== 'pk.your_mapbox_token_here';
+
+      console.log("[Geocoding Search] Token detected:", mapboxToken ? `${mapboxToken.substring(0, 10)}...` : "None");
+      console.log("[Geocoding Search] Mapbox configured?:", isMapboxConfigured);
+
+      if (isMapboxConfigured) {
+        try {
+          console.log(`[Geocoding Search] Sending Mapbox API query for "${trimmed}"...`);
+          const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(trimmed)}.json`;
+          const response = await axios.get(url, {
+            params: {
+              access_token: mapboxToken,
+              limit: 5,
+              language: 'vi,en',
+            },
+          });
+          
+          return (response.data.features || []).map((feat: any) => ({
+            place_id: feat.id,
+            display_name: feat.place_name,
+            lat: String(feat.center[1]),
+            lon: String(feat.center[0]),
+          }));
+        } catch (err) {
+          console.error("[Geocoding Search] Mapbox API failed, falling back to Nominatim:", err);
+          // Fall through to Nominatim if Mapbox fails (e.g., token revoked)
+        }
+      }
+
+      // Fallback: OpenStreetMap Nominatim
+      console.log(`[Geocoding Search] Falling back to Nominatim for "${trimmed}"...`);
       const response = await geocodingApi.get('/search', {
         params: {
           q: trimmed,

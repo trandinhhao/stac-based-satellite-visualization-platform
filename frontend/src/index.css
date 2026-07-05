@@ -85,6 +85,38 @@ body,
 .maplibregl-ctrl-bottom-right .maplibregl-ctrl-group {
   grid-column: 2 !important;
   grid-row: 1 !important;
+  
+  /* Match Home (Reset View) button theme */
+  background: rgba(15, 23, 42, 0.9) !important;
+  border: 1px solid rgba(30, 41, 59, 0.8) !important; /* border-slate-800/80 */
+  border-radius: 6px !important; /* rounded-md */
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3) !important;
+  overflow: hidden !important;
+}
+
+/* Individual navigation control buttons in dark mode - size matched to Home button (29px) */
+.maplibregl-ctrl-bottom-right .maplibregl-ctrl-group button {
+  background-color: transparent !important;
+  width: 29px !important;
+  height: 29px !important;
+  transition: background-color 0.15s ease !important;
+}
+
+.maplibregl-ctrl-bottom-right .maplibregl-ctrl-group button:hover {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+.maplibregl-ctrl-bottom-right .maplibregl-ctrl-group button:active {
+  background-color: rgba(255, 255, 255, 0.15) !important;
+}
+
+.maplibregl-ctrl-bottom-right .maplibregl-ctrl-group button + button {
+  border-top: 1px solid rgba(30, 41, 59, 0.8) !important;
+}
+
+/* Convert MapLibre black control icons (plus, minus, compass) to light theme */
+.maplibregl-ctrl-bottom-right .maplibregl-ctrl-group .maplibregl-ctrl-icon {
+  filter: invert(1) brightness(1.5) !important;
 }
 
 /* Position AttributionControl ("i" button): Row 2, Col 1 (bottom-left, same line as scale control) */

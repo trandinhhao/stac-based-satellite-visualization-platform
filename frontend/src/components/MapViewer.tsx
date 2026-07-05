@@ -815,6 +815,7 @@ export default function MapViewer() {
   const detections = useDetectionStore((state) => state.detections);
   const selectedObject = useDetectionStore((state) => state.selectedObject);
   const selectObject = useDetectionStore((state) => state.selectObject);
+  const showLabels = useDetectionStore((state) => state.showLabels);
 
   // Measurement State & Refs
   const { isMeasuring, measureType, history, hoveredMeasurementId } = useMeasurementStore();
@@ -1506,17 +1507,17 @@ export default function MapViewer() {
           paint: {
             'fill-color': [
               'match',
-              ['get', 'object_class'],
+              ['coalesce', ['get', 'object_class'], ['get', 'class'], ''],
               'aircraft', '#ef4444',
-              'ship', '#10b981',
-              'vehicle', '#f59e0b',
-              '#3b82f6'
+              'ship',     '#3b82f6',
+              'vehicle',  '#f59e0b',
+              '#10b981'
             ],
             'fill-opacity': [
               'case',
               ['==', ['get', 'isSelected'], true],
-              0.3,
-              0.1
+              0.35,
+              0.15
             ]
           }
         });
@@ -1529,22 +1530,22 @@ export default function MapViewer() {
           paint: {
             'line-color': [
               'match',
-              ['get', 'object_class'],
+              ['coalesce', ['get', 'object_class'], ['get', 'class'], ''],
               'aircraft', '#f87171',
-              'ship', '#34d399',
-              'vehicle', '#fbbf24',
-              '#60a5fa'
+              'ship',     '#60a5fa',
+              'vehicle',  '#fbbf24',
+              '#34d399'
             ],
             'line-width': [
               'case',
               ['==', ['get', 'isSelected'], true],
               4,
-              2
+              2.5
             ]
           }
         });
 
-        // 3. Label layer
+        // 3. Label layer (e.g. AIRCRAFT (92%))
         mapInstance.addLayer({
           id: labelLayerId,
           type: 'symbol',
@@ -1552,21 +1553,22 @@ export default function MapViewer() {
           layout: {
             'text-field': [
               'concat',
-              ['upcase', ['get', 'object_class']],
+              ['upcase', ['coalesce', ['get', 'object_class'], ['get', 'class'], 'TARGET']],
               ' (',
-              ['slice', ['number-format', ['*', ['get', 'confidence'], 100], { 'max-fraction-digits': 0 }], 0],
+              ['to-string', ['round', ['*', ['get', 'confidence'], 100]]],
               '%)'
             ],
-            'text-size': 10,
+            'text-size': 11,
             'text-anchor': 'bottom',
             'text-offset': [0, -0.6],
             'text-allow-overlap': true,
-            'text-ignore-placement': true
+            'text-ignore-placement': true,
+            'visibility': showLabels ? 'visible' : 'none'
           },
           paint: {
             'text-color': '#ffffff',
             'text-halo-color': '#0f172a',
-            'text-halo-width': 1.5
+            'text-halo-width': 2.0
           }
         });
 
@@ -1592,6 +1594,9 @@ export default function MapViewer() {
         });
       } else {
         source.setData(geojson);
+        if (mapInstance.getLayer(labelLayerId)) {
+          mapInstance.setLayoutProperty(labelLayerId, 'visibility', showLabels ? 'visible' : 'none');
+        }
       }
       arrangeLayers(mapInstance);
     } catch (err) {
@@ -2503,11 +2508,11 @@ export default function MapViewer() {
     arrangeLayersRef.current(map.current);
   }, [selectedLayer]);
 
-  // Listen to detections and selectedObject changes to update the map layers
+  // Listen to detections, selectedObject and showLabels changes to update the map layers
   useEffect(() => {
     if (!map.current) return;
     updateDetectionsLayer(map.current);
-  }, [detections, selectedObject]);
+  }, [detections, selectedObject, showLabels]);
 
   const tempGeometry = useAOIStore((state) => state.tempGeometry);
 
