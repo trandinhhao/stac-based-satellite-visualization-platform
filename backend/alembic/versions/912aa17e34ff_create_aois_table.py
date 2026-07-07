@@ -1,4 +1,4 @@
-"""create aois table
+"""Tạo bảng aois
 
 Revision ID: 912aa17e34ff
 Revises: 
@@ -11,7 +11,7 @@ from alembic import op
 import sqlalchemy as sa
 import models.aoi
 
-# revision identifiers, used by Alembic.
+# Các định danh phiên bản di trú, được sử dụng bởi Alembic.
 revision: str = '912aa17e34ff'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None

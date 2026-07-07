@@ -1,35 +1,28 @@
-Alembic migration directory for the backend database schema.
+Thư mục di trú cơ sở dữ liệu (migration) Alembic cho cơ sở dữ liệu backend.
 
-This folder contains migration scripts for the application-owned tables used by
-the FastAPI backend:
+Thư mục này chứa các kịch bản di trú cho các bảng do ứng dụng sở hữu, được sử dụng bởi backend FastAPI:
 
-- `aois`
-- `jobs`
-- `detections`
+- `aois` (Vùng quan tâm)
+- `jobs` (Tác vụ nền)
+- `detections` (Kết quả nhận diện AI)
 
-The PostgreSQL database is also used by PgSTAC, but PgSTAC manages its own
-schema. These migrations are only for the platform business tables in the
-application schema.
+Cơ sở dữ liệu PostgreSQL cũng được sử dụng bởi PgSTAC, nhưng PgSTAC tự quản lý lược đồ (schema) riêng của nó. Các file di trú này chỉ dành cho các bảng phục vụ logic nghiệp vụ của ứng dụng trong lược đồ ứng dụng.
 
-Typical command from the `backend/` directory:
+Lệnh chạy thông thường từ thư mục `backend/`:
 
 ```bash
 alembic upgrade head
 ```
 
-Typical command when running with Docker Compose from the repository root:
+Lệnh chạy thông thường khi chạy bằng Docker Compose từ thư mục gốc của kho lưu trữ:
 
 ```bash
 docker compose exec backend alembic upgrade head
 ```
 
-Migration notes:
+Ghi chú di trú:
 
-- The `aois` table stores PostGIS `GEOMETRY(POLYGON, 4326)` values and has a
-  GiST index for spatial lookup.
-- The `jobs` table tracks Celery background jobs and their progress.
-- The `detections` table stores AI object detection results as JSONB bounding
-  boxes linked to a job.
-- The backend SQLAlchemy engine sets `search_path=pgstac,public`, so be careful
-  when adding migrations that create or reference schema-qualified objects.
-
+- Bảng `aois` lưu trữ các giá trị PostGIS `GEOMETRY(POLYGON, 4326)` và có một chỉ mục GiST để tối ưu hóa truy vấn không gian.
+- Bảng `jobs` theo dõi các tác vụ chạy nền của Celery và tiến trình của chúng.
+- Bảng `detections` lưu trữ kết quả nhận diện đối tượng AI dưới dạng các hộp giới hạn (bounding boxes) trong trường JSONB, liên kết với một tác vụ cụ thể.
+- Cơ chế kết nối backend SQLAlchemy thiết lập `search_path=pgstac,public`, do đó hãy cẩn thận khi thêm các tệp di trú tạo hoặc tham chiếu đến các đối tượng đã được phân loại theo lược đồ.

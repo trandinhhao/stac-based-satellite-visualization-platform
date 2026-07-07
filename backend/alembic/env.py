@@ -7,59 +7,59 @@ from sqlalchemy import pool
 
 from alembic import context
 
-# Add current and backend directory to path
+# Thêm thư mục hiện tại và thư mục backend vào sys.path để import các module dễ dàng
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from db.database import Base
-from models.aoi import AOI  # Ensure models are imported for autogenerate
+from models.aoi import AOI  # Đảm bảo import các models phục vụ cho tính năng autogenerate của Alembic
 from models.job import Job
 from models.detection import Detection
 
-# this is the Alembic Config object, which provides
-# access to the values within the .ini file in use.
+# Đối tượng cấu hình Alembic, cung cấp quyền truy cập
+# vào các giá trị bên trong tệp .ini đang được sử dụng.
 config = context.config
 
-# Dynamically set database URL from environment variable
+# Thiết lập động URL kết nối cơ sở dữ liệu từ biến môi trường
 db_url = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@postgis:5432/postgis")
 config.set_main_option("sqlalchemy.url", db_url)
 
-# Interpret the config file for Python logging.
-# This line sets up loggers basically.
+# Giải thích tệp cấu hình cho trình ghi log Python.
+# Dòng này thiết lập các bộ cấu hình logger.
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# add your model's MetaData object here
-# for 'autogenerate' support
+# Thêm đối tượng MetaData của model của bạn vào đây
+# nhằm hỗ trợ tính năng tự động phát sinh mã di trú 'autogenerate'
 target_metadata = Base.metadata
 
 def include_object(object, name, type_, reflected, compare_to):
+    # Chỉ quản lý các bảng do ứng dụng tự phát triển, tránh can thiệp vào các bảng hệ thống hoặc pgSTAC
     if type_ == "table":
         return name in ["aois", "jobs", "detections"]
-    # Protect spatial indices or other pgstac objects
+    # Bảo vệ các chỉ mục không gian hoặc các đối tượng pgstac khác
     if type_ == "index" and name == "idx_aois_geometry":
         return True
     if type_ == "index":
-        # Do not manage other indexes reflected from other tables
+        # Không quản lý các chỉ mục tự động suy luận từ các bảng khác
         return False
     return True
 
-# other values from the config, defined by the needs of env.py,
-# can be acquired:
+# Các giá trị khác từ cấu hình, được xác định bởi nhu cầu của env.py,
+# có thể được truy xuất qua:
 # my_important_option = config.get_main_option("my_important_option")
-# ... etc.
+# ... v.v.
 
 
 def run_migrations_offline() -> None:
-    """Run migrations in 'offline' mode.
+    """Chạy di trú cơ sở dữ liệu ở chế độ 'ngoại tuyến' (offline).
 
-    This configures the context with just a URL
-    and not an Engine, though an Engine is acceptable
-    here as well.  By skipping the Engine creation
-    we don't even need a DBAPI to be available.
+    Cấu hình context chỉ với một URL kết nối
+    mà không cần Engine, mặc dù Engine vẫn được chấp nhận ở đây.
+    Bằng cách bỏ qua việc tạo Engine, chúng ta thậm chí không cần
+    có sẵn thư viện kết nối cơ sở dữ liệu (DBAPI).
 
-    Calls to context.execute() here emit the given string to the
-    script output.
-
+    Các cuộc gọi đến context.execute() ở đây sẽ in chuỗi truy vấn đã cho
+    ra đầu ra của kịch bản lệnh.
     """
     url = config.get_main_option("sqlalchemy.url")
     context.configure(
@@ -75,11 +75,10 @@ def run_migrations_offline() -> None:
 
 
 def run_migrations_online() -> None:
-    """Run migrations in 'online' mode.
+    """Chạy di trú cơ sở dữ liệu ở chế độ 'trực tuyến' (online).
 
-    In this scenario we need to create an Engine
-    and associate a connection with the context.
-
+    Trong kịch bản này, chúng ta cần tạo một Engine
+    và liên kết một kết nối trực tiếp với context.
     """
     connectable = engine_from_config(
         config.get_section(config.config_ini_section, {}),
