@@ -1,0 +1,249 @@
+@import "tailwindcss";
+
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+/* Custom grid layout for MapLibre controls in the bottom-right corner */
+.maplibregl-ctrl-bottom-right {
+  display: grid !important;
+  /* Fixed column widths to prevent attribution "i" jitter when scale size changes */
+  grid-template-columns: 29px 104px !important;
+  grid-template-rows: auto auto !important;
+  align-items: end !important;
+  justify-items: end !important;
+  gap: 8px !important;
+  padding: 10px !important;
+  bottom: 0 !important;
+  right: 0 !important;
+}
+
+.maplibregl-ctrl-bottom-right .maplibregl-ctrl {
+  margin: 0 !important;
+  float: none !important;
+  clear: none !important;
+}
+
+/* Position ScaleControl (ruler): Row 2, Col 2 (bottom-right) */
+.maplibregl-ctrl-bottom-right .maplibregl-ctrl-scale {
+  grid-column: 2 !important;
+  grid-row: 2 !important;
+  margin-right: 0px !important;
+  margin-bottom: 2px !important;
+  
+  /* Premium dark background for scale control on satellite view */
+  background: rgba(15, 23, 42, 0.55) !important;
+  backdrop-filter: blur(4px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  border-radius: 6px !important;
+  box-sizing: content-box !important; /* Force content-box to keep map scale accuracy */
+  padding: 4px 8px 6px 8px !important;
+  
+  /* Text styling: centered above the line */
+  color: #ffffff !important;
+  text-shadow: 
+    -1px -1px 0 #000000,
+     0px -1px 0 #000000,
+     1px -1px 0 #000000,
+    -1px  0px 0 #000000,
+     1px  0px 0 #000000,
+    -1px  1px 0 #000000,
+     0px  1px 0 #000000,
+     1px  1px 0 #000000 !important;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif !important;
+  font-size: 11px !important;
+  font-weight: 900 !important;
+  letter-spacing: 0.02em !important;
+  text-align: center !important;
+  position: relative !important;
+  display: block !important;
+  height: 20px !important; /* Content height */
+}
+
+/* Pseudo-element to draw the Google-style scale line: |______| */
+.maplibregl-ctrl-bottom-right .maplibregl-ctrl-scale::after {
+  content: "" !important;
+  position: absolute !important;
+  bottom: 6px !important; /* position right above the bottom padding */
+  left: 8px !important;  /* align with the left padding to keep scale exact width */
+  right: 8px !important; /* align with the right padding to keep scale exact width */
+  height: 5px !important; /* height of vertical ticks */
+  border: 1.5px solid #ffffff !important; /* white ruler line */
+  border-top: none !important; /* open at the top, forming ticks at left and right */
+  box-sizing: border-box !important;
+  filter: drop-shadow(0px 1px 1.5px rgba(0, 0, 0, 0.95)) !important; /* shadow for visibility on bright maps */
+}
+
+/* Position NavigationControl (buttons): Row 1, Col 2 */
+.maplibregl-ctrl-bottom-right .maplibregl-ctrl-group {
+  grid-column: 2 !important;
+  grid-row: 1 !important;
+  
+  /* Match Home (Reset View) button theme */
+  background: rgba(15, 23, 42, 0.9) !important;
+  border: 1px solid rgba(30, 41, 59, 0.8) !important; /* border-slate-800/80 */
+  border-radius: 6px !important; /* rounded-md */
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3) !important;
+  overflow: hidden !important;
+}
+
+/* Individual navigation control buttons in dark mode - size matched to Home button (29px) */
+.maplibregl-ctrl-bottom-right .maplibregl-ctrl-group button {
+  background-color: transparent !important;
+  width: 29px !important;
+  height: 29px !important;
+  transition: background-color 0.15s ease !important;
+}
+
+.maplibregl-ctrl-bottom-right .maplibregl-ctrl-group button:hover {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+.maplibregl-ctrl-bottom-right .maplibregl-ctrl-group button:active {
+  background-color: rgba(255, 255, 255, 0.15) !important;
+}
+
+.maplibregl-ctrl-bottom-right .maplibregl-ctrl-group button + button {
+  border-top: 1px solid rgba(30, 41, 59, 0.8) !important;
+}
+
+/* Convert MapLibre black control icons (plus, minus, compass) to light theme */
+.maplibregl-ctrl-bottom-right .maplibregl-ctrl-group .maplibregl-ctrl-icon {
+  filter: invert(1) brightness(1.5) !important;
+}
+
+/* Position AttributionControl ("i" button): Row 2, Col 1 (bottom-left, same line as scale control) */
+.maplibregl-ctrl-bottom-right .maplibregl-ctrl-attrib {
+  grid-column: 1 !important;
+  grid-row: 2 !important;
+  position: relative !important;
+  float: none !important;
+  margin-right: 4px !important;
+  
+  /* Prevent text wrapping and support leftward overflow */
+  white-space: nowrap !important;
+  overflow: visible !important;
+  height: 29px !important; /* Keep height fixed in both states */
+  
+  /* Solid black border and sizing */
+  border: 1px solid #000000 !important;
+  box-sizing: border-box !important;
+  background: #ffffff !important; /* Ensure solid white background */
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+/* Ensure compact container stays on one line and expands to full content width when active (triggered by click) */
+.maplibregl-ctrl-bottom-right .maplibregl-ctrl-attrib.maplibregl-compact-show {
+  width: max-content !important;
+  max-width: none !important;
+  padding: 0 32px 0 10px !important; /* Adjusted padding to accommodate 27px button */
+  line-height: 27px !important; /* Vertically centered text inside 27px inner height */
+  border-radius: 14.5px !important; /* Pill shape when open */
+}
+
+/* Force perfect circle when closed (unless show class is present) */
+.maplibregl-ctrl-bottom-right .maplibregl-ctrl-attrib:not(.maplibregl-compact-show) {
+  width: 29px !important;
+  border-radius: 50% !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+}
+
+/* Force button to sit perfectly inside the 1px black border of the 29px container and remain visible */
+.maplibregl-ctrl-bottom-right .maplibregl-ctrl-attrib .maplibregl-ctrl-attrib-button {
+  display: block !important;
+  width: 27px !important;
+  height: 27px !important;
+  right: 0 !important;
+  top: 0 !important;
+  border-radius: 50% !important;
+  background-position: center !important;
+  background-size: 14px 14px !important;
+  background-repeat: no-repeat !important; /* Prevent icon tiling/repeating at the edges */
+  position: absolute !important;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  background-color: transparent !important;
+}
+
+/* Only show and layout inner text inline when expanded (active show class ONLY) */
+.maplibregl-ctrl-bottom-right .maplibregl-ctrl-attrib.maplibregl-compact-show .maplibregl-attrib-inner {
+  white-space: nowrap !important;
+  display: inline-block !important;
+  vertical-align: middle !important;
+}
+
+/* Ensure inner text is completely hidden when closed to prevent overlapping */
+.maplibregl-ctrl-bottom-right .maplibregl-ctrl-attrib:not(.maplibregl-compact-show) .maplibregl-attrib-inner {
+  display: none !important;
+}
+
+/* Animations for MapLayersSwitcher */
+@keyframes slideInFromLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-12px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+.animate-layers-panel {
+  animation: slideInFromLeft 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  transform-origin: left bottom;
+}
+
+/* Override MapLibre GL default grab/grabbing cursor with normal pointer arrow */
+.maplibregl-canvas-container.maplibregl-interactive,
+.maplibregl-canvas-container.maplibregl-interactive:active {
+  cursor: default !important;
+}
+
+/* Enable native dark mode theme for date input calendar icon and dropdown popup */
+input[type="date"] {
+  color-scheme: dark;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator {
+  display: none !important;
+  -webkit-appearance: none;
+}
+
+/* Custom premium scrollbar for dark theme (Sprint 10 Scrollbar Customization) */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.4);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.25);
+  border-radius: 9999px;
+  transition: background 0.15s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.45);
+}
+
+/* Firefox standard scrollbar support */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.25) rgba(15, 23, 42, 0.4);
+}
+

@@ -1,0 +1,35 @@
+Alembic migration directory for the backend database schema.
+
+This folder contains migration scripts for the application-owned tables used by
+the FastAPI backend:
+
+- `aois`
+- `jobs`
+- `detections`
+
+The PostgreSQL database is also used by PgSTAC, but PgSTAC manages its own
+schema. These migrations are only for the platform business tables in the
+application schema.
+
+Typical command from the `backend/` directory:
+
+```bash
+alembic upgrade head
+```
+
+Typical command when running with Docker Compose from the repository root:
+
+```bash
+docker compose exec backend alembic upgrade head
+```
+
+Migration notes:
+
+- The `aois` table stores PostGIS `GEOMETRY(POLYGON, 4326)` values and has a
+  GiST index for spatial lookup.
+- The `jobs` table tracks Celery background jobs and their progress.
+- The `detections` table stores AI object detection results as JSONB bounding
+  boxes linked to a job.
+- The backend SQLAlchemy engine sets `search_path=pgstac,public`, so be careful
+  when adding migrations that create or reference schema-qualified objects.
+

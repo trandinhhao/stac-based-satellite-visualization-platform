@@ -1,0 +1,146 @@
+services:
+  # 1: PostgreSQL with PostGIS and pgSTAC configuration
+  postgis:
+    image: ghcr.io/stac-utils/pgstac:latest
+    container_name: postgis
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    ports:
+      - "${PGPORT}:${PGPORT}"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - satellite-network
+
+  # 2: stac-fastapi for backend
+  stac-fastapi:
+    image: ghcr.io/stac-utils/stac-fastapi-pgstac:latest
+    container_name: stac-fastapi
+    depends_on:
+      postgis:
+        condition: service_healthy
+    environment:
+      - PGHOST=${PGHOST}
+      - PGPORT=${PGPORT}
+      - PGUSER=${PGUSER}
+      - PGPASSWORD=${PGPASSWORD}
+      - PGDATABASE=${PGDATABASE}
+      - APP_HOST=${APP_HOST}
+      - APP_PORT=${APP_PORT}
+    ports:
+      - "${APP_PORT}:${APP_PORT}"
+    networks:
+      - satellite-network
+
+  # 3: titiler for rendering
+  titiler:
+    image: developmentseed/titiler:latest
+    container_name: titiler
+    environment:
+      - PORT=${TITILER_PORT}
+      - HOST=${TITILER_HOST}
+    ports:
+      - "${TITILER_PORT}:${TITILER_PORT}"
+    networks:
+      - satellite-network
+
+  # 4: redis for caching and websocket pub/sub scale
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    ports:
+      - "${REDIS_PORT}:${REDIS_PORT}"
+    volumes:
+      - redis-data:/data
+    restart: always
+    networks:
+      - satellite-network
+
+  # 5: rabbitmq msg broker for coordinating celery tasks
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: rabbitmq
+    environment:
+      - RABBITMQ_DEFAULT_USER=${RABBITMQ_DEFAULT_USER}
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_DEFAULT_PASS}
+    ports:
+      - "${RABBITMQ_PORT}:${RABBITMQ_PORT}"      # AMQP (Celery Client & Worker)
+      - "${RABBITMQ_MANAGEMENT_PORT}:${RABBITMQ_MANAGEMENT_PORT}"    # Management Web UI
+    restart: always
+    networks:
+      - satellite-network
+
+  # 6: Custom API Backend (FastAPI)
+  backend:
+    build: ./backend
+    container_name: backend
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - RABBITMQ_URL=${RABBITMQ_URL}
+      - PLANET_API_KEY=${PLANET_API_KEY}
+    ports:
+      - "${BACKEND_PORT}:${BACKEND_PORT}"
+    volumes:
+      - ./backend:/app
+    depends_on:
+      postgis:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      rabbitmq:
+        condition: service_started
+    networks:
+      - satellite-network
+
+  # 7: Background Worker (Celery)
+  worker:
+    build: ./backend
+    container_name: worker
+    command: celery -A workers.celery_app worker --loglevel=info
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - RABBITMQ_URL=${RABBITMQ_URL}
+      - PYTHONPATH=/app
+    volumes:
+      - ./backend:/app
+      - ./datasets:/app/datasets
+    depends_on:
+      postgis:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      rabbitmq:
+        condition: service_started
+    networks:
+      - satellite-network
+
+  # 8: React Frontend (Vite)
+  frontend:
+    build: ./frontend
+    container_name: frontend
+    environment:
+      - VITE_MAPBOX_ACCESS_TOKEN=${VITE_MAPBOX_ACCESS_TOKEN}
+    ports:
+      - "${FRONTEND_PORT}:${FRONTEND_PORT}"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    networks:
+      - satellite-network
+
+networks:
+  satellite-network:
+    driver: bridge
+
+volumes:
+  postgres-data:
+  redis-data:
